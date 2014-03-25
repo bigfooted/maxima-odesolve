@@ -27,11 +27,12 @@
   You should have received a copy of the GNU General Public License     
   along with this program; if not, write to the Free Software           
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-
-
 */
 
+/*****************************************************************************************************/
 put('kovacic,001,'version)$
+/*****************************************************************************************************/
+
 /* load absimp to get rid of abs(a) when a>0 */
 /*load(absimp)$*/
 
@@ -78,7 +79,8 @@ isSolution(_solution,_equation):=block([_eq,_subs1],
 
 
 /*****************************************************************************************************/
-/* ----- Check if expr is an equation (containing a "=" ) ----- */
+/* ----- Check if expr is an equation (containing a "=" )                                      ----- */
+/*****************************************************************************************************/
 isEquation(_expr) := block([],
   if freeof("=",_expr) then return(false) else return(true)
 )$
@@ -105,22 +107,21 @@ defmatch (linear, _c1*_x+_c2,_x)$
 kovacicODE(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_d,_s,_t,_r,_ord_inf,_l,_m,_n,_j],
 /*****************************************************************************************************/
 /*****************************************************************************************************/
-  /* substitute our own local _variables */
+  /* ----- substitute our own local _variables ----- */
   _expr:subst(_y,_y1,_expr),
   _expr:subst(_x,_x1,_expr),
 
   /* what do we know about _x */
-  print(facts(_x1)), 
+  /*print(facts(_x1)), */
 
   _var:_x,
 
   print("equation: ",_expr,", degree = ",derivdegree(_expr,_y,_x)),
-  /* first check if it is an equation or not (we only check for equal sign) */
+  /* ----- first check if it is an equation (we only check for equal sign) ----- */
   if isEquation(_expr)=false then (
     print(_expr, " is not an equation."),
     return(false)
   ),
-
 
   /* ----- find the order of the ODE ----- */
   _ode_order : derivdegree(_expr,_y,_x),
@@ -147,8 +148,7 @@ kovacicODE(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_
   ),
 
   
-  print("is ode2 linear: ",ode2_linear(_phi,_y,_x)),
-
+  /*print("is ode2 linear: ",ode2_linear(_phi,_y,_x)),*/
   /* ----- check if the equation is linear ----- */
   if (ode2_linear(_phi,_y,_x)=false) then (
     print("ODE is not linear!"),
@@ -161,22 +161,21 @@ kovacicODE(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_
     _d:-_d
   ),
 
-  print(ev(_phi,_y=0)),
+  /*print(ev(_phi,_y=0)),*/
 
-  /* check if equation is homogeneous */
+  /* ----- check if equation is homogeneous ----- */
   if (ev(_phi,_y = 0)=0) then (
     print("ODE is homogeneous:")
   )
   else (
-    print("equation is nonhomogeneous, trying homogeneous case")
+    print("equation is nonhomogeneous, first trying homogeneous case")
     /*_d : 0*/   
-    /* should be transformed to third order homogeneous ode l(y)=0 */
+    /* could be transformed to third order homogeneous ode l(y)=0 */
     /* L(y)=b  --->   l(y) = b*(L(y))' -b'*L(y) = 0  */
     /*return(false)*/
   ),
 
   /* ----- Transform to normal form y''= (s/t)*y, ----- */
-
   _s : 2*diff(_b,_x) + _b*_b - 4*_c,
   _t : 4,
   print("s = ",_s),
@@ -191,13 +190,12 @@ kovacicODE(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_
   print("s=",_s),
   print("t=",_t),
 
-  /* determine the quotient and remainder of _s/_t for the main _variable _x */
+  /* ----- determine the quotient and remainder of _s/_t for the main _variable _x ----- */
   /* catch this because divide is not exactly polynomial long division and the quotient is not uniquely determined */
   if freeof(_x,_s) and freeof(_x,_t) and (_t#0) then (
     [_squo,_srem] : [_s/_t,0]
   )
   else (
-
     [_squo,_srem] : divide(_s,_t,_x),
     _squo:ratexpand(_squo), /* we need to do a ratexpand because we want to get the coefficient correctly*/
     _srem:ratexpand(_srem) /* we need to do a ratexpand because we want to get the coefficient correctly*/
@@ -205,14 +203,12 @@ kovacicODE(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_
   print("quo = ",_squo),
   print("rem = ",_srem),
 
-  /* compute a square free factorization */
+  /* ----- compute a square free factorization ----- */
   [_sdec,_tcont] : sqfr(_t,_var),
-  
   print("_sdec square free = ",_sdec),
 
   /* this is the order*/
   _m : length(_sdec),
-
   print("m = ",_m),
 
   _t : _tcont,
@@ -357,22 +353,25 @@ if member(1,_listl) then (
       /* method of undetermined coefficients */
       sol:undetcoeff(_srem,trest,_var,rt,2*nu,2*nu),
 
-      ac[nu] : ratsimp(sol^(1/2)),
+      _ac[nu] : ratsimp(sol^(1/2)),
       for k from nu-1 thru 2 step -1 do (
-        ac[k] : vtemp,
-        result : sum(ac[l]*ac[nu+k-_l],_l,k,nu), 
+        _ac[k] : vtemp,
+        result : sum(_ac[l]*_ac[nu+k-_l],_l,k,nu), 
 
-        /* can we do ac[k]=undetcoeff directly because result is already solved?*/
+        /* can we do _ac[k]=undetcoeff directly because result is already solved?*/
         undet : undetcoeff(_srem,trest,_var,rt,2*nu,k+nu),
-        ac[k] : solve(result=undet,vtemp)
+	print("result:",result),
+	print("undet:",undet),
+        _ac[k] : rhs(solve(result=undet,vtemp)[1]),
+        print("_ac[k]=",_ac[k]) 
       ), 
 
-      /* sum of ac[k]*ac[nu+1-k] */
-      result : sum(ac[k]*ac[nu+1-k],k,2,nu-1), 
+      /* sum of _ac[k]*_ac[nu+1-k] */
+      result : sum(_ac[k]*_ac[nu+1-k],k,2,nu-1), 
 
-      d[k1] : (undetcoeff(_srem,trest,_var,rt,2*nu,nu+1)-result)/ac[nu],
+      d[k1] : (undetcoeff(_srem,trest,_var,rt,2*nu,nu+1)-result)/_ac[nu],
 
-      result : sum(ac[k]/(_var-rt)^k,k,2,nu), 
+      result : sum(_ac[k]/(_var-rt)^k,k,2,nu), 
 
       _theta[k1] : 2*result + d[k1]/(_var-rt)
 
@@ -403,25 +402,25 @@ else if member(1,_listl) then (
   print("_squo = ",_squo),
   print("_var = ",_var),
   print("coeff=",coeff(_squo,_var,2*nu)),          /* should we just use lcoeff? it uses ratexpand..*/
-  ac[nu]:ratsimp(coeff(_squo,_var,2*nu)^(1/2)),
-  print("ac[nu]=",ac[nu]),
+  _ac[nu]:ratsimp(coeff(_squo,_var,2*nu)^(1/2)),
+  print("_ac[nu]=",_ac[nu]),
   for i from nu-1 thru 0 step -1 do (
-    ac[i]:vtemp,
+    _ac[i]:vtemp,
     print("i=",i),
-    print("ac[i]=",ac[i]),
+    print("_ac[i]=",_ac[i]),
 
-    _temp_var : sum(ac[_j]*ac[i+nu-_j],_j,i,nu),
+    _temp_var : sum(_ac[_j]*_ac[i+nu-_j],_j,i,nu),
 
     print("_temp_var = ",_temp_var),
     print("coeff = ",coeff(_squo,_var,i+nu)),
-    ac[i]:rhs(solve(_temp_var=coeff(_squo,_var,i+nu),vtemp)[1]),
-    print("ac[i]=",ac[i]) 
+    _ac[i]:rhs(solve(_temp_var=coeff(_squo,_var,i+nu),vtemp)[1]),
+    print("_ac[i]=",_ac[i]) 
   ),
   /* note: ac is not a list, we have just defined ac[1],ac[2]*/
-  print("1.ac = ",ac),
+  print("1.ac = ",_ac),
   
   print("nu = ",nu),
-  _temp_var : sum(ac[_l]*ac[nu-_l-1],_l,0,nu-1),
+  _temp_var : sum(_ac[_l]*_ac[nu-_l-1],_l,0,nu-1),
   print("tempvar = ",_temp_var),
 
   if nu=0 then (
@@ -448,15 +447,15 @@ else if member(1,_listl) then (
 
   /* the denominator can be zero - we catch it by saying that d[0] should be zero then */
   /* but is this true?*/
-  if (_tmp1=0 or ac[nu]=0) then (
+  if (_tmp1=0 or _ac[nu]=0) then (
     d[0]:0
   )
   else (
-    d[0]:_tmp1/ac[nu]
+    d[0]:_tmp1/_ac[nu]
   ),
   print("d[0] = ",d[0]), 
 
-  _tmp2 : sum(ac[_l]*_var^_l,_l,0,nu),
+  _tmp2 : sum(_ac[_l]*_var^_l,_l,0,nu),
 
   _theta[0]:2*_tmp2
 )
@@ -478,17 +477,12 @@ print("Now entering step 2: forming trial ds and _thetas, length= ",length(_list
 _solfound:0,
  
 for i from 1 thru length(_listl) do (
-
   print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"),
   print("!!!   CASE ",_listl[i], "/",length(_listl),"      !!!"),
   print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"),
 
-  /*n:op(i,_listl);*/
   _n:_listl[i],
  
-  /*print("i = ",i," of ",length(_listl)),*/
-  /*print("n = ",_n),*/
-
   /* Saunders */
   if _n = 1 then (
     _m : k1
@@ -510,9 +504,7 @@ for i from 1 thru length(_listl) do (
     /* -n/2, -n/2, -n/2, -n/2, ... */ 
     sq[_j]:-1/2 * _n
   ),
-  /*print("sq = ",sq[0]," ",sq[1]," ",sq[2]),*/
   /* in case of n=1 (case 1) this is (-1/2, +1/2) */
-  /*print("sequence s=",sq[0]),*/
   _solution:[],
   alls:false,
   /* for all sequences s={-n/2, -n/2+1, ..., n/2}*/
@@ -520,26 +512,15 @@ for i from 1 thru length(_listl) do (
   /* preliminary: d0 should be */
   while (alls # true) do (
     print("entering do loop"),
-    /*print("alls:",alls),*/
 
     /*tezt : sq[0]*d[0] - sum(sq[_l]*d[_l],_l,1,_m),*/
     tezt : sq[0]*d[0],
-
-    print("tezt = ",tezt), 
-
     for _l from 1 thru _m do (
-      /*print("l = ",l),*/
-      /*print("sq = ",sq[_l]),*/
-      /*print("d = ",d[_l]),*/
-      /*print("theta = ",_theta[_l]),*/
       tezt : tezt - sq[_l]*d[_l]
     ), 
 
-    /*print("_dfix = ",_dfix), */
-    /*print("n = ",_n), */
-    /*print("tezt = ",tezt), */
     ds:ratsimp(_n*_dfix+tezt),
-    print("ds = ",ds, ", should be >= 0 and integer ",featurep(ds,integer), " ",is(ds>=0)),
+    print("ds = ",ds, ", should be integer and >=0",featurep(ds,integer), " ",is(ds>=0)),
     if (integerp(ds)=true) then (
       if (ds>=0) then (
       print("ds is a positive or zero integer"),
@@ -593,7 +574,6 @@ for i from 1 thru length(_listl) do (
         soln1:radcan(soln1),
 
         print("x. soln1 = ",soln1),
-
 
         /*soln2 :radcan(soln1*integrate((exp(-integrate(ratio,_var))/(soln1*soln1)),_var)),*/
         soln2:-integrate(ratio,_var),
@@ -668,10 +648,6 @@ for i from 1 thru length(_listl) do (
       )
     ),
 
-    /*print("_JJ : ",_jj),*/
-
-    /*print("sq_jj = ",sq[0]," ",sq[1]," ",sq[2]),*/
-
     if (_jj < 0) then (
       print("No Liouvillian solutions exist"),
       _solution: [],
@@ -697,26 +673,12 @@ for i from 1 thru length(_listl) do (
     /* -------------------------------------------------- */
     /* ----- METHOD 1                                     */
     /* -------------------------------------------------- */
-
-  
     _E : exp(integrate(_b,_var)),
     print("E = ",_E),
     _PP : integrate(_E*_s[1]*_d,_var), 
     print("10. PP = ",_PP),
     print("10. PP = ",grind(_PP)),
 
-    /*    _PP : trigreduce(_PP),
-    print("15. PP = ",_PP),
-    _PP : trigsimp(_PP),
-    print("14. PP = ",_PP),
-    */
-    /*    _PP : radcan(_PP),
-    print("12. PP = ",_PP),
-    */
-    /*
-    _PP : ratsimp(_PP),
-    print("13. PP = ",_PP),
-    */
     print(grind(_E*_s[1]*_s[1])),
     /* we need radcan because of the quotient by zero bug */
     _PP : (_PP/(_E*_s[1]*_s[1])), 
@@ -732,15 +694,6 @@ for i from 1 thru length(_listl) do (
     /* example kamke 2.234 */
     /* so we hope that simplification of the smallest term will still lead to */
     /* a simpler expression than simplification of the largest term */
-    /*
-    print("1. PP = ",_PP),
-    _PP : trigreduce(_PP),
-    print("2. PP = ",_PP),
-    _PP : trigsimp(_PP),
-    print("3. PP = ",_PP),
-    _PP : radcan(_PP),
-    print("4. Particular solution method 1  = ",_PP),
-    */
     /* -------------------------------------------------- */
     /* ----- METHOD 2                                     */
     /* -------------------------------------------------- */
@@ -847,9 +800,11 @@ for i from 1 thru length(_listl) do (
 
 /*****************************************************************************************************/
 step3(_n,_d,_theta,rhs1,_var):=block([_p,listv,_i,_a,_a0,_a1,_a2,_a3,_a4,_a5,_pr,sete,soln,trial,_w],
+/*****************************************************************************************************/
 /* ************************************************* */
-/* *****  step 3 -                            ***** */
+/* *****   step 3 -                            ***** */
 /* ************************************************* */
+
   /*# form P in terms of undetermined coefficients a_i */
   /*# P = a-{d}*x^{d} + a_{d-1}*x^{d-1} + ... + a_0*/
 
@@ -972,7 +927,8 @@ lcoeff(_t2,_var):=block([],
 
 
 /*****************************************************************************************************/
-/* calculate the roots and expand the multiple roots */
+/* ----- calculate the roots and expand the multiple roots                                     ----- */
+/*****************************************************************************************************/
 rootz(_expr,_var):=block([_sol,_mult,_rlist2,_j,_i],
   /* note: this has the potential to fail */
   _sol:solve(_expr,_var),
@@ -985,11 +941,9 @@ rootz(_expr,_var):=block([_sol,_mult,_rlist2,_j,_i],
 
 
 /*****************************************************************************************************/
-/* method of undetermined coefficients */
-/* determine coefficient of a factor in a partial fraction expansion */
+/* ----- determine coefficient of a factor in a partial fraction expansion                     ----- */
+/*****************************************************************************************************/
 undetcoeff(_num,_rden,_var,_root,_m,_ex):=block([_k,_p],
-
-
   _k : _m - _ex,
   _p : _num/_rden,
 
@@ -1011,6 +965,7 @@ undetcoeff(_num,_rden,_var,_root,_m,_ex):=block([_k,_p],
 
 /*****************************************************************************************************/
 /* ----- Transform second order ode y"=f(x)y'+g(x)y to normal form y"=F(x)y ----- */
+/*****************************************************************************************************/
 Normalform(_phi,_y,_x) := block([_f,_g,_df,_F],
   _f : coeff(ratexpand(_phi),_y), 
   _g : coeff(ratexpand(_phi),'diff(_y,_x)),
@@ -1021,7 +976,8 @@ Normalform(_phi,_y,_x) := block([_f,_g,_df,_F],
 
 
 /*****************************************************************************************************/
-/* ----- transforms _expr from normal form to actual form using original rhs of the ode ----- */
+/* ----- transforms _expr from normal form solution to actual solution using rhs of the ode    ----- */
+/*****************************************************************************************************/
 NormalSolutionToActualSolution(_expr,_phi) :=block([_f,_g,_df,_sol],
   _f : coeff(ratexpand(_phi),_y), 
   _g : coeff(ratexpand(_phi),'diff(_y,_x)),
@@ -1032,14 +988,16 @@ NormalSolutionToActualSolution(_expr,_phi) :=block([_f,_g,_df,_sol],
 
 
 /*****************************************************************************************************/
-/* return the primary part of the polynomial */
+/* ----- return the primary part of the polynomial                                              -----*/
+/*****************************************************************************************************/
 primpart(_expr,_x):=block([],
   return(_expr/content(_expr,_x))
 )$
 
 
 /*****************************************************************************************************/
-/* Yun, On square free decomposition algorithms */
+/* ----- Squar-free decomposition (Yun, On square free decomposition algorithms)               ----- */
+/*****************************************************************************************************/
 sqfr(_expr,_var):=block([_i,_signp,_pp,_tc,_tlist1,_c,_d],
   _expr:ratexpand(_expr),
   /* get the highest power of the expression, sorted by leading terms first, then get the operator */
@@ -1086,7 +1044,9 @@ sqfr(_expr,_var):=block([_i,_signp,_pp,_tc,_tlist1,_c,_d],
 )$
 
 
-/* simple method of finding the constant factor in front of an equation */
+/*****************************************************************************************************/
+/* ----- simple method of finding the constant factor in front of an equation                  ----- */
+/*****************************************************************************************************/
 constant_factors(_expr) := block([inflag:true],
            if not mapatom(_expr) and op(_expr)="*"
            then xreduce("*",listify(subset(setify(args(_expr)),'constantp)))
@@ -1095,14 +1055,15 @@ constant_factors(_expr) := block([inflag:true],
 
 
 
-/* calculates the number of operators in the expression */
-/* this is a simple measure of complexity               */
-
+/*****************************************************************************************************/
+/* ----- calculates the number of operators in the expression ----- */
+/* ----- this is a simple measure of complexity               ----- */
+/*****************************************************************************************************/
 nrOps(expression):=
  block( [ ],
         print("expression:",expression),
         allOpsPriv (expression, [])
-       );
+       )$
 
 allOpsPriv(expression, opList) :=
  block ( [x, args, newList],
@@ -1120,4 +1081,4 @@ allOpsPriv(expression, opList) :=
               /*print("operators:",newList),*/
               newList
              )
-        );
+        )$
