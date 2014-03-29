@@ -477,7 +477,7 @@ _solfound:0,
  
 for i from 1 thru length(_listl) do (
   dprint(1,"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"),
-  dprint(1,"!!!   CASE ",_listl[i], "/",length(_listl),"      !!!"),
+  dprint(1,"!!!   CASE ",_listl[i], " ",i,"/",length(_listl),"      !!!"),
   dprint(1,"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"),
 
   _n:_listl[i],
