@@ -34,7 +34,7 @@ put('kovacic,001,'version)$
 /*****************************************************************************************************/
 
 /* ----- print everything with flag lower than DEBUGFLAG ----- */
-DEBUGFLAG:3$
+DEBUGFLAG:1$
 
 /* load absimp to get rid of abs(a) when a>0 */
 /*load(absimp)$*/
@@ -100,7 +100,7 @@ defmatch (linear, _c1*_x+_c2,_x)$
 
 /*****************************************************************************************************/
 /*****************************************************************************************************/
-kovacicODE(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_d,_s,_t,_r,_ord_inf,_l,_m,_n,_j,_trial,_squo,_srem,_tcont],
+kovacicODE(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_d,_s,_t,_r,_ord_inf,_l,_m,_n,_j,_trial,_squo,_srem,_tcont,_nu],
 /*****************************************************************************************************/
 /*****************************************************************************************************/
   /* ----- substitute our own local _variables ----- */
@@ -211,8 +211,8 @@ kovacicODE(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_
 
 
   /* TODO: can we replace part(_sdec,i) with _sdec[i] ? */
-  for i:1 thru _m do (
-    _t : _t*part(_sdec,i)^i
+  for _i:1 thru _m do (
+    _t : _t*part(_sdec,_i)^_i
   ),
 
   if _m>0 then (
@@ -293,14 +293,14 @@ kovacicODE(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_
   dprint(5,"_t2=",_t2),
 
   /* k2 is the number of roots of _t2*/
-  k2:length(_rlist2),
-  dprint(5,"k2 = ",k2),
+  _k2:length(_rlist2),
+  dprint(5,"_k2 = ",_k2),
 
   /* loop over all roots */
-  for i:1 thru k2 do (
+  for i:1 thru _k2 do (
     dprint(5,"i=",i),
 
-    trest : _t/_t2^2 * product((_var-_rlist2[_j])^2,_j,1,i-1) * product((_var-_rlist2[_j])^2,_j,i+1,k2),
+    trest : _t/_t2^2 * product((_var-_rlist2[_j])^2,_j,1,i-1) * product((_var-_rlist2[_j])^2,_j,i+1,_k2),
     dprint(5,"srem  = ",_srem),
     dprint(5,"trest = ",trest),
     dprint(5,"var = ",_var),
@@ -318,61 +318,61 @@ kovacicODE(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_
 
   /* high order poles  - needs to be tested */
   /* STEP 3 PART (c) */
-  k1 : k2,
+  _k1 : _k2,
 
 if member(1,_listl) then (
   dprint(1,"1 is in L so we calculate higher order poles"),
-  for i:4 thru _m step 2 do (
-    dprint(5,"i = ",i, "/",_m),
-    L_i : _sdec[i],
+  for _i:4 thru _m step 2 do (
+    dprint(5,"_i = ",_i, "/",_m),
+    L_i : _sdec[_i],
     dprint(5,"L_i=",L_i),
     _rlisthigher : rootz(L_i,_var),
     /*lcoeff : ratcoef(ratexpand(L_i),_var,hipow(ratexpand(L_i),_var)),*/
     dprint(5,"sdec = ",_sdec),
-    dprint(5,"i-1:",i-1),
+    dprint(5,"_i-1:",_i-1),
     dprint(5,"_m:",_m),
-    dprint(5,"part1 = ",create_list(_sdec[ii],ii,1,i-1)),
+    dprint(5,"part1 = ",create_list(_sdec[ii],ii,1,_i-1)),
     dprint(5,"part2 = ",L_i/lcoeff(L_i,_var)),
-    dprint(5,"part3 = ",create_list(_sdec[ii],ii,i+1,_m)),
+    dprint(5,"part3 = ",create_list(_sdec[ii],ii,_i+1,_m)),
     /* */
-    _sdec : append(create_list(_sdec[ii],ii,1,i-1), [L_i/lcoeff(L_i,_var)], create_list(_sdec[ii],ii,i+1,_m)),
+    _sdec : append(create_list(_sdec[ii],ii,1,_i-1), [L_i/lcoeff(L_i,_var)], create_list(_sdec[ii],ii,_i+1,_m)),
     dprint(5,"sdec = ",_sdec), 
-    nu : i/2,
+    _nu : _i/2,
     /* we could do for rt in _rlisthigher ??? */
     for _j from 1 thru length(_rlisthigher) do (
-      k1 : k1 + 1,
+      _k1 : _k1 + 1,
       rt : _rlisthigher[_j], /* !!! */
-      dprint(5,_t,_sdec[i],i),
-      trest : _t/_sdec[i]^i * product((_var-_rlisthigher[_l])^i,_l,1,_j-1) * product((_var-_rlisthigher[_l])^i,_l,_j+1,length(_rlisthigher)),
+      dprint(5,_t,_sdec[_i],_i),
+      trest : _t/_sdec[_i]^_i * product((_var-_rlisthigher[_l])^_i,_l,1,_j-1) * product((_var-_rlisthigher[_l])^_i,_l,_j+1,length(_rlisthigher)),
       dprint(5,_srem,trest), 
       /* method of undetermined coefficients */
-      sol:undetcoeff(_srem,trest,_var,rt,2*nu,2*nu),
+      sol:undetcoeff(_srem,trest,_var,rt,2*_nu,2*_nu),
       if (sol=0) then (
         dprint(0,"No Liouvillian solutions exist"),
         return(false)
       ),
       print("sol = ",sol),
-      _ac[nu] : ratsimp(sol^(1/2)),
-      for k from nu-1 thru 2 step -1 do (
-        _ac[k] : vtemp,
-        result : sum(_ac[l]*_ac[nu+k-_l],_l,k,nu), 
+      _ac[_nu] : ratsimp(sol^(1/2)),
+      for _k from _nu-1 thru 2 step -1 do (
+        _ac[_k] : vtemp,
+        result : sum(_ac[_l]*_ac[_nu+_k-_l],_l,_k,_nu), 
 
         /* can we do _ac[k]=undetcoeff directly because result is already solved?*/
-        undet : undetcoeff(_srem,trest,_var,rt,2*nu,k+nu),
+        undet : undetcoeff(_srem,trest,_var,rt,2*_nu,_k+_nu),
 	dprint(5,"result:",result),
 	dprint(5,"undet:",undet),
-        _ac[k] : rhs(solve(result=undet,vtemp)[1]),
-        dprint(5,"_ac[k]=",_ac[k]) 
+        _ac[_k] : rhs(solve(result=undet,vtemp)[1]),
+        dprint(5,"_ac[_k]=",_ac[_k]) 
       ), 
 
-      /* sum of _ac[k]*_ac[nu+1-k] */
-      result : sum(_ac[k]*_ac[nu+1-k],k,2,nu-1), 
+      /* sum of _ac[k]*_ac[_nu+1-k] */
+      result : sum(_ac[_k]*_ac[_nu+1-_k],_k,2,_nu-1), 
 
-      _dd[k1] : (undetcoeff(_srem,trest,_var,rt,2*nu,nu+1)-result)/_ac[nu],
+      _dd[_k1] : (undetcoeff(_srem,trest,_var,rt,2*_nu,_nu+1)-result)/_ac[_nu],
 
-      result : sum(_ac[k]/(_var-rt)^k,k,2,nu), 
+      result : sum(_ac[_k]/(_var-rt)^_k,_k,2,_nu), 
 
-      _theta[k1] : 2*result + _dd[k1]/(_var-rt)
+      _theta[_k1] : 2*result + _dd[_k1]/(_var-rt)
 
     )
   )
@@ -396,33 +396,33 @@ if _ord_inf = 2 then (
 )
 else if member(1,_listl) then (
   dprint(1,"1 is in L"),
-  nu:(-_ord_inf)/2,
-  dprint(5,"nu = ",nu),
+  _nu:(-_ord_inf)/2,
+  dprint(5,"_nu = ",_nu),
   dprint(5,"_squo = ",_squo),
   dprint(5,"_var = ",_var),
-  dprint(5,"coeff=",coeff(_squo,_var,2*nu)),          /* should we just use lcoeff? it uses ratexpand..*/
-  _ac[nu]:ratsimp(coeff(_squo,_var,2*nu)^(1/2)),
-  dprint(5,"_ac[nu]=",_ac[nu]),
-  for i from nu-1 thru 0 step -1 do (
-    _ac[i]:vtemp,
-    dprint(5,"i=",i),
-    dprint(5,"_ac[i]=",_ac[i]),
+  dprint(5,"coeff=",coeff(_squo,_var,2*_nu)),          /* should we just use lcoeff? it uses ratexpand..*/
+  _ac[_nu]:ratsimp(coeff(_squo,_var,2*_nu)^(1/2)),
+  dprint(5,"_ac[_nu]=",_ac[_nu]),
+  for _i from _nu-1 thru 0 step -1 do (
+    _ac[_i]:vtemp,
+    dprint(5,"_i=",_i),
+    dprint(5,"_ac[_i]=",_ac[_i]),
 
-    _temp_var : sum(_ac[_j]*_ac[i+nu-_j],_j,i,nu),
+    _temp_var : sum(_ac[_j]*_ac[_i+_nu-_j],_j,_i,_nu),
 
     dprint(5,"_temp_var = ",_temp_var),
-    dprint(5,"coeff = ",coeff(_squo,_var,i+nu)),
-    _ac[i]:rhs(solve(_temp_var=coeff(_squo,_var,i+nu),vtemp)[1]),
-    dprint(5,"_ac[i]=",_ac[i]) 
+    dprint(5,"coeff = ",coeff(_squo,_var,_i+_nu)),
+    _ac[_i]:rhs(solve(_temp_var=coeff(_squo,_var,_i+_nu),vtemp)[1]),
+    dprint(5,"_ac[_i]=",_ac[_i]) 
   ),
   /* note: ac is not a list, we have just defined ac[1],ac[2]*/
   dprint(5,"1.ac = ",_ac),
   
-  dprint(5,"nu = ",nu),
-  _temp_var : sum(_ac[_l]*_ac[nu-_l-1],_l,0,nu-1),
+  dprint(5,"_nu = ",_nu),
+  _temp_var : sum(_ac[_l]*_ac[_nu-_l-1],_l,0,_nu-1),
   dprint(5,"tempvar = ",_temp_var),
 
-  if nu=0 then (
+  if _nu=0 then (
     _t : ratexpand(_t), 
     _srem : ratexpand(_srem),
     _squo : ratexpand(_squo),
@@ -440,21 +440,21 @@ else if member(1,_listl) then (
     )
   )
   else (
-    _tmp1:coeff(_squo,_var,nu-1) - _temp_var
+    _tmp1:coeff(_squo,_var,_nu-1) - _temp_var
   ),
   dprint(5,"_tmp1=",_tmp1),
 
   /* the denominator can be zero - we catch it by saying that d[0] should be zero then */
   /* but is this true?*/
-  if (_tmp1=0 or _ac[nu]=0) then (
+  if (_tmp1=0 or _ac[_nu]=0) then (
     _dd[0]:0
   )
   else (
-    _dd[0]:_tmp1/_ac[nu]
+    _dd[0]:_tmp1/_ac[_nu]
   ),
   print("_dd[0] = ",_dd[0]), 
 
-  _tmp2 : sum(_ac[_l]*_var^_l,_l,0,nu),
+  _tmp2 : sum(_ac[_l]*_var^_l,_l,0,_nu),
 
   _theta[0]:2*_tmp2
 )
@@ -484,10 +484,10 @@ for i from 1 thru length(_listl) do (
  
   /* Saunders */
   if _n = 1 then (
-    _m : k1
+    _m : _k1
   )
   else (
-    _m : k2
+    _m : _k2
   ),
 
   dprint(3,"m = ",_m),
@@ -826,7 +826,7 @@ step3(_n,_d,_theta,rhs1,_var):=block([_p,_listv,_i,_a,_a0,_a1,_a2,_a3,_a4,_a5,_p
     dprint(5,"_listv = ",_listv),  
 
     if(length(_listv)=0) then (
-      dprint(1,"No Liouvillian solutions exist"),
+      dprint(0,"No Liouvillian solutions exist"),
       return(false)
     ), 
 
