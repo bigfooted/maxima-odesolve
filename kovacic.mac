@@ -266,8 +266,8 @@ kovacicODE(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_
   dprint(1,"list of cases that apply: L=",_listl),
 
   if length(_listl)=0 then (
-    dprint(0,"Non-Liouvillian ode!"),
-    return([])
+    dprint(0,"No Liouvillian solutions exist!"),
+    return(false)
   ),
 
 
@@ -348,8 +348,8 @@ if member(1,_listl) then (
       /* method of undetermined coefficients */
       sol:undetcoeff(_srem,trest,_var,rt,2*nu,2*nu),
       if (sol=0) then (
-        dprint(0,"so solutions found"),
-        return([])
+        dprint(0,"No Liouvillian solutions exist"),
+        return(false)
       ),
       print("sol = ",sol),
       _ac[nu] : ratsimp(sol^(1/2)),
@@ -621,8 +621,8 @@ for i from 1 thru length(_listl) do (
           )
         )
         else (
-          dprint(0,"No Liouvillian solutions exits"),
-          _solution: []
+          dprint(0,"No Liouvillian solutions exist"),
+          _solution: false
         ),
 
       dprint(5,"alls:",alls)
@@ -648,7 +648,7 @@ for i from 1 thru length(_listl) do (
 
     if (_jj < 0) then (
       dprint(0,"No Liouvillian solutions exist"),
-      _solution: [],
+      _solution: false,
       alls:true
     )
 
@@ -826,7 +826,7 @@ step3(_n,_d,_theta,rhs1,_var):=block([_p,_listv,_i,_a,_a0,_a1,_a2,_a3,_a4,_a5,_p
     dprint(5,"_listv = ",_listv),  
 
     if(length(_listv)=0) then (
-      dprint(1,"empty variable list - no Liouvillian solutions"),
+      dprint(1,"No Liouvillian solutions exist"),
       return(false)
     ), 
 
