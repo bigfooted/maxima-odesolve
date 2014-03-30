@@ -216,10 +216,10 @@ kovacicODE(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_
   ),
 
   if _m>0 then (
-    t1 : part(_sdec,1)
+    _t1 : part(_sdec,1)
   )
   else (
-    t1 : 1
+    _t1 : 1
   ),
 
   if _m>1 then (
@@ -242,8 +242,8 @@ kovacicODE(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_
   _listl : [],
   
   _oddti : true,
-  for i from 3 step 2 thru _m do (
-    if (part(_sdec,i)#1) then (
+  for _i from 3 step 2 thru _m do (
+    if (part(_sdec,_i)#1) then (
       dprint(2,"_oddti is false, it cannot be case 1"),
       _oddti : false
     )
@@ -276,8 +276,8 @@ kovacicODE(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_
 /* ************************************************* */
 
   /* STEP 1 PART (a) */
-  _dfix : (min(_ord_inf,2) - hipow(ratexpand(_t),_var) - 3*hipow(ratexpand(t1),_var))/4,
-  _thetafix : ratsimp((diff(_t,_var)/_t + 3*diff(t1,_var)/t1)/4),
+  _dfix : (min(_ord_inf,2) - hipow(ratexpand(_t),_var) - 3*hipow(ratexpand(_t1),_var))/4,
+  _thetafix : ratsimp((diff(_t,_var)/_t + 3*diff(_t1,_var)/_t1)/4),
   dprint(5,"_dfix=",_dfix),
   dprint(5,"_thetafix=",_thetafix),
 
@@ -297,26 +297,26 @@ kovacicODE(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_
   dprint(5,"_k2 = ",_k2),
 
   /* loop over all roots */
-  for i:1 thru _k2 do (
-    dprint(5,"i=",i),
+  for _i:1 thru _k2 do (
+    dprint(5,"i=",_i),
 
-    trest : _t/_t2^2 * product((_var-_rlist2[_j])^2,_j,1,i-1) * product((_var-_rlist2[_j])^2,_j,i+1,_k2),
+    trest : _t/_t2^2 * product((_var-_rlist2[_j])^2,_j,1,_i-1) * product((_var-_rlist2[_j])^2,_j,_i+1,_k2),
     dprint(5,"srem  = ",_srem),
     dprint(5,"trest = ",trest),
     dprint(5,"var = ",_var),
-    dprint(5,"_rlist2 = ",_rlist2[i]),
+    dprint(5,"_rlist2 = ",_rlist2[_i]),
     
-    sol:undetcoeff(_srem,trest,_var,_rlist2[i],2,2),
-    dprint(5,"sol:",sol),
-    _dd[i] : ratsimp(1+4*sol)^(1/2),
-    _theta[i] : ratsimp(_dd[i]/(_var-_rlist2[i])),
-    dprint(5,"d1 = ",_dd[i]),
-    dprint(5,"_theta1 = ",_theta[i])
+    _sol:undetcoeff(_srem,trest,_var,_rlist2[_i],2,2),
+    dprint(5,"_sol:",_sol),
+    _dd[_i] : ratsimp(1+4*_sol)^(1/2),
+    _theta[_i] : ratsimp(_dd[_i]/(_var-_rlist2[_i])),
+    dprint(5,"d1 = ",_dd[_i]),
+    dprint(5,"_theta1 = ",_theta[_i])
   ),
 
   dprint(5,"m = ",_m),
 
-  /* high order poles  - needs to be tested */
+  /* high order poles */
   /* STEP 3 PART (c) */
   _k1 : _k2,
 
@@ -346,22 +346,22 @@ if member(1,_listl) then (
       trest : _t/_sdec[_i]^_i * product((_var-_rlisthigher[_l])^_i,_l,1,_j-1) * product((_var-_rlisthigher[_l])^_i,_l,_j+1,length(_rlisthigher)),
       dprint(5,_srem,trest), 
       /* method of undetermined coefficients */
-      sol:undetcoeff(_srem,trest,_var,rt,2*_nu,2*_nu),
-      if (sol=0) then (
+      _sol:undetcoeff(_srem,trest,_var,rt,2*_nu,2*_nu),
+      if (_sol=0) then (
         dprint(0,"No Liouvillian solutions exist"),
         return(false)
       ),
-      print("sol = ",sol),
-      _ac[_nu] : ratsimp(sol^(1/2)),
+      print("_sol = ",_sol),
+      _ac[_nu] : ratsimp(_sol^(1/2)),
       for _k from _nu-1 thru 2 step -1 do (
-        _ac[_k] : vtemp,
+        _ac[_k] : _vtemp,
         result : sum(_ac[_l]*_ac[_nu+_k-_l],_l,_k,_nu), 
 
         /* can we do _ac[k]=undetcoeff directly because result is already solved?*/
         undet : undetcoeff(_srem,trest,_var,rt,2*_nu,_k+_nu),
 	dprint(5,"result:",result),
 	dprint(5,"undet:",undet),
-        _ac[_k] : rhs(solve(result=undet,vtemp)[1]),
+        _ac[_k] : rhs(solve(result=undet,_vtemp)[1]),
         dprint(5,"_ac[_k]=",_ac[_k]) 
       ), 
 
@@ -390,8 +390,8 @@ if _ord_inf = 2 then (
   dprint(5,"s=",_s),
   dprint(5,"t=",_t),
 
-  sol:lcoeff(_s,_var)/lcoeff(_t,_var),
-  _dd[0]:ratsimp((1+4*sol)^(1/2)),
+  _sol:lcoeff(_s,_var)/lcoeff(_t,_var),
+  _dd[0]:ratsimp((1+4*_sol)^(1/2)),
   _theta[0]:0
 )
 else if member(1,_listl) then (
@@ -404,7 +404,7 @@ else if member(1,_listl) then (
   _ac[_nu]:ratsimp(coeff(_squo,_var,2*_nu)^(1/2)),
   dprint(5,"_ac[_nu]=",_ac[_nu]),
   for _i from _nu-1 thru 0 step -1 do (
-    _ac[_i]:vtemp,
+    _ac[_i]:_vtemp,
     dprint(5,"_i=",_i),
     dprint(5,"_ac[_i]=",_ac[_i]),
 
@@ -412,7 +412,7 @@ else if member(1,_listl) then (
 
     dprint(5,"_temp_var = ",_temp_var),
     dprint(5,"coeff = ",coeff(_squo,_var,_i+_nu)),
-    _ac[_i]:rhs(solve(_temp_var=coeff(_squo,_var,_i+_nu),vtemp)[1]),
+    _ac[_i]:rhs(solve(_temp_var=coeff(_squo,_var,_i+_nu),_vtemp)[1]),
     dprint(5,"_ac[_i]=",_ac[_i]) 
   ),
   /* note: ac is not a list, we have just defined ac[1],ac[2]*/
@@ -533,12 +533,12 @@ for i from 1 thru length(_listl) do (
         dprint(5,"_thetas = ",_thetas),
         /* step3 - determine polynomial P if possible and hence omega and _solution */
         dprint(5,"step 3"),
-        soln:step3(_n,ds,_thetas,_s/_t,_var),
+        _soln:step3(_n,ds,_thetas,_s/_t,_var),
         dprint(5,"finished step 3"),
-        soln : radcan(soln), /* to simplify */
-        dprint(3,"soln = ",soln,length([soln])),
+        _soln : radcan(_soln), /* to simplify */
+        dprint(3,"_soln = ",_soln,length([_soln])),
       
-        if soln#false then (
+        if _soln#false then (
           print("finding sol2"),
           ratio:_b, 
 
@@ -546,76 +546,76 @@ for i from 1 thru length(_listl) do (
           /* actually, better to work with gamma to prevent complex logarithms like kamke196 */
           /* kamke 2.111: we should get exp(-x)/x here */
 
-          soln1:exp(integrate(-1/2*ratio,_var))*soln, /* list [soln] necessary?*/
-          dprint(5,"soln1 = ",soln1),
+          _soln1:exp(integrate(-1/2*ratio,_var))*_soln, /* list [soln] necessary?*/
+          dprint(5,"_soln1 = ",_soln1),
 
           /* kill the impaginary part so we don't have to cancel out all the imaginary bits */
-          soln1:trigsimp(radcan(soln1)),
-          if not(freeof(%i,soln1)) then (
-            soln1 : trigsimp(realpart(soln1))
+          _soln1:trigsimp(radcan(_soln1)),
+          if not(freeof(%i,_soln1)) then (
+            _soln1 : trigsimp(realpart(_soln1))
           ),
-          soln1:factor(soln1),
-          soln1:ev(soln1,integrate), 
+          _soln1:factor(_soln1),
+          _soln1:ev(_soln1,integrate), 
        
           /* logarc gets rid of arcsinh stuff inside exponentials */
           /* sometimes this increases the complexity of the solution, so do a check afterwards */
-          soln11:radcan(logarc(soln1)),
+          _soln11:radcan(logarc(_soln1)),
 
           /* if logarc has lead to a better solution, then use it */
-          _nrOps11 : nrOps(soln11),
-          _nrOps1 : nrOps(soln1),
+          _nrOps11 : nrOps(_soln11),
+          _nrOps1 : nrOps(_soln1),
 
           /* use the radcan-logarc solution when the expression contains less operations 
              or less types of operations */
           if ((length(_nrOps11) <= length(_nrOps1)) or (length(unique(_nrOps11))<=length(unique(_nrOps1))) ) then (
-            soln1 : soln11
+            _soln1 : _soln11
           ),
 
-          soln1:radcan(soln1),
+          _soln1:radcan(_soln1),
 
-          dprint(3,"x. soln1 = ",soln1),
+          dprint(3,"x. _soln1 = ",_soln1),
 
           /*soln2 :radcan(soln1*integrate((exp(-integrate(ratio,_var))/(soln1*soln1)),_var)),*/
-          soln2:-integrate(ratio,_var),
-          soln2:exp(soln2)/(soln1*soln1),
-          soln22:radcan(logarc(soln2)),
+          _soln2:-integrate(ratio,_var),
+          _soln2:exp(_soln2)/(_soln1*_soln1),
+          _soln22:radcan(logarc(_soln2)),
 
           /* if logarc has lead to a better solution, then use it */
-          _nrOps22 : nrOps(soln22),
-          _nrOps2 : nrOps(soln2),
+          _nrOps22 : nrOps(_soln22),
+          _nrOps2 : nrOps(_soln2),
 
           /* use the radcan-logarc solution when the expression contains less operations 
              or less types of operations */
           if ((length(_nrOps22) <= length(_nrOps2)) or (length(unique(_nrOps22))<=length(unique(_nrOps2))) ) then (
-            soln2 : soln22
+            _soln2 : _soln22
           ),
 
-          dprint(3,"x1. soln2 = ",soln2,", ",_var),
+          dprint(3,"x1. _soln2 = ",_soln2,", ",_var),
 
-          soln2:integrate(soln2,_var),
-          dprint(3,"x2. soln2 = ",soln2),
-          soln2:trigsimp(radcan(soln1*soln2)),
-          dprint(3,"x3. soln2 = ",soln2),
-          if not(freeof(%i,soln2)) then (
-          dprint(3,"x3a. soln2 = ",soln2),
+          _soln2:integrate(_soln2,_var),
+          dprint(3,"x2. _soln2 = ",_soln2),
+          _soln2:trigsimp(radcan(_soln1*_soln2)),
+          dprint(3,"x3. _soln2 = ",_soln2),
+          if not(freeof(%i,_soln2)) then (
+          dprint(3,"x3a. _soln2 = ",_soln2),
 
-            soln2:trigsimp(realpart(soln2))  /* take the real part and drop the imaginary part */ 
+            _soln2:trigsimp(realpart(_soln2))  /* take the real part and drop the imaginary part */ 
           ),
-          dprint(3,"x4. soln2 = ",soln2),
-          soln2 : radcan(soln2), /*  to further simplify - we still have exp(2^(3/2)*x-sqrt(2)*x) here */
-          dprint(3,"x5. soln2 = ",soln2),
-          soln2 : ev(soln2,nouns),
-          dprint(3,"length=",length([soln])),
-          if length([soln]) = 1 then (
-            dprint(3,"soln 1"), 
-            _solution: [ratsimp(soln1),ratsimp(soln2)], /* realpart because we can have imaginary solutions for y'' + y = 0  and we don't want to deal with the trouble of cancelling them out elegantly by itself, so we just delete them*/
+          dprint(3,"x4. _soln2 = ",_soln2),
+          _soln2 : radcan(_soln2), /*  to further simplify - we still have exp(2^(3/2)*x-sqrt(2)*x) here */
+          dprint(3,"x5. _soln2 = ",_soln2),
+          _soln2 : ev(_soln2,nouns),
+          dprint(3,"length=",length([_soln])),
+          if length([_soln]) = 1 then (
+            dprint(3,"_soln 1"), 
+            _solution: [ratsimp(_soln1),ratsimp(_soln2)], /* realpart because we can have imaginary solutions for y'' + y = 0  and we don't want to deal with the trouble of cancelling them out elegantly by itself, so we just delete them*/
             dprint(3,"homogeneous solution:",_solution),
             _solfound : 1,
             return(true)
           )
           else (
-            dprint(3,"soln 2"), 
-            _solution: [ratsimp(soln1),ratsimp(soln2)],op(2,[soln]),
+            dprint(3,"_soln 2"), 
+            _solution: [ratsimp(_soln1),ratsimp(_soln2)],op(2,[_soln]),
             _solfound:1,
             return(true)
           )
