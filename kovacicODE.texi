@@ -1,9 +1,22 @@
+@setfilename kovacicODE.info
+@settitle kovacicODE
+
+@ifinfo 
+@macro var {expr}
+<\expr\>
+@end macro
+@end ifinfo
+
+@node Top, Introduction to kovacicODE, (dir), (dir)
+@top
 @menu
 * Introduction to kovacicODE::
 * Functions and variables for kovacicODE::
+* Function and variable index::
 @end menu
+@chapter kovacicODE
 
-@node Introduction to kovacicODE, Functions and variables for kovacicODE, kovacicODE, kovacicODE
+@node Introduction to kovacicODE, Functions and variables for kovacicODE, Top, Top
 @section Introduction to kovacicODE
 
 @deffn {Function} kovacicODE (@var{ode}, @var{y}, @var{x})
@@ -18,12 +31,19 @@ solution, kovacicODE will return false.
 
 @code{load ("kovacicODE")} loads this package.
 
-@opencatbox
-@category{Package kovacicODE}
-@closecatbox
+@c @opencatbox
+@c @category{Package kovacicODE}
+@c @closecatbox
 @end deffn
 
-@node Functions and variables for kovacicODE, ,Introduction to kovacicODE, kovacicODE
+@node Functions and variables for kovacicODE, Function and variable index, Introduction to kovacicODE, Top
 @section Functions and variables for kovacicODE
 
 @c No contents yet.
+
+@node Function and variable index,  , Functions and variables for kovacicODE, Top
+@appendix Function and variable index
+@printindex fn
+@printindex vr
+
+@bye
