@@ -1,4 +1,4 @@
-/* kovacic.mac
+/* kovacicODE.mac
 
   Solve second order linear ODEs with Liouvillian solutions using Kovacic' algorithm
 
@@ -30,7 +30,7 @@
 */
 
 /*****************************************************************************************************/
-put('kovacic,001,'version)$
+put('kovacicODE,001,'version)$
 /*****************************************************************************************************/
 
 /* ----- print everything with flag lower than DEBUGFLAG ----- */
@@ -100,7 +100,7 @@ defmatch (linear, _c1*_x+_c2,_x)$
 
 /*****************************************************************************************************/
 /*****************************************************************************************************/
-kovacic(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_d,_s,_t,_r,_ord_inf,_l,_m,_n,_j,_trial,_squo,_srem,_tcont,_nu],
+kovacicODE(_expr,_y1,_x1) := block([_y,_x,_var,_ode_order,_ddy,_ode,_phi,_b,_c,_d,_s,_t,_r,_ord_inf,_l,_m,_n,_j,_trial,_squo,_srem,_tcont,_nu],
 /*****************************************************************************************************/
 /*****************************************************************************************************/
   /* ----- substitute our own local _variables ----- */
