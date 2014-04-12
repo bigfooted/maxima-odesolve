@@ -34,7 +34,7 @@ put('kovacicODE,002,'version)$
 /*****************************************************************************************************/
 
 /* ----- print everything with flag lower than DEBUGFLAG ----- */
-_DEBUGFLAG:1$
+_DEBUGFLAG:0$
 
 /* load absimp to get rid of abs(a) when a>0 */
 if get('absimp,'version)=false then
@@ -118,7 +118,7 @@ kovacicODE(_expr,_y,_x) := block([_i,_ode_order,_ddy,_ode,_phi,_b,_c,_d,_s,_t,_r
   /* ----- find the order of the ODE ----- */
   _ode_order : derivdegree(_expr,_y,_x),
   if (_ode_order=2) then (
-    dprint(0,"Second order ODE found.")
+    dprint(1,"Second order ODE found.")
   )
   else (
     dprint(0,_expr," is not a second order ODE."),
@@ -132,7 +132,7 @@ kovacicODE(_expr,_y,_x) := block([_i,_ode_order,_ddy,_ode,_phi,_b,_c,_d,_s,_t,_r
   _ode: solve(_expr,_ddy)[1],
   _phi : rhs(_ode),
   if (lhs(_ode)=_ddy) and (freeof(_ddy,_phi)) then (
-    dprint(1,"ODE: ",grind(_ode))
+    dprint(1,grind(_ode))
   )
   else (
     dprint(0,"could not separate second order differential operator ",_ode),
@@ -146,14 +146,16 @@ kovacicODE(_expr,_y,_x) := block([_i,_ode_order,_ddy,_ode,_phi,_b,_c,_d,_s,_t,_r
     return(false)
   )
   else (
-    dprint(1,"ODE is linear: ",_b,_c,_d),
+    dprint(1,"ODE is linear"),
+    dprint(2,"b=",_b,", c=",_c,", d=",_d),
     _b:-_b,
     _c:-_c,
     _d:-_d
   ),
 
   /* ----- check if equation is homogeneous ----- */
-  if (ev(_phi,_y = 0)=0) then (
+  /*if (ev(_phi,_y = 0)=0) then (*/
+  if (_d = 0) then (
     dprint(1,"ODE is homogeneous:")
   )
   else (
@@ -373,8 +375,6 @@ if _ord_inf>2 then (
 ) else 
 if _ord_inf = 2 then (
   dprint(1,"_ord_inf=2"),
-  dprint(5,"s=",_s),
-  dprint(5,"t=",_t),
 
   _sol:lcoeff(_s,_x)/lcoeff(_t,_x),
   _dd[0]:ratsimp((1+4*_sol)^(1/2)),
@@ -462,9 +462,9 @@ dprint(1,"Now entering step 2: forming trial ds and _thetas, length= ",length(_l
 _solfound:0,
  
 for i from 1 thru length(_listl) do (
-  dprint(1,"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"),
-  dprint(1,"!!!   CASE ",_listl[i], " ",i,"/",length(_listl),"      !!!"),
-  dprint(1,"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"),
+  dprint(3,"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"),
+  dprint(3,"!!!   CASE ",_listl[i], " ",i,"/",length(_listl),"      !!!"),
+  dprint(3,"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"),
 
   _n:_listl[i],
  
@@ -517,7 +517,7 @@ for i from 1 thru length(_listl) do (
         dprint(5,"_thetas = ",_thetas),
         /* step3 - determine polynomial P if possible and hence omega and _solution */
         dprint(5,"step 3"),
-        print("facts of var:",facts(_x)),
+        dprint(5,"facts of var:",facts(_x)),
         _soln:step3(_n,ds,_thetas,_s/_t,_x),
         dprint(5,"finished step 3"),
         _soln : radcan(_soln), /* to simplify */
@@ -532,9 +532,9 @@ for i from 1 thru length(_listl) do (
           /* kamke 2.111: we should get exp(-x)/x here */
 
           _soln1:exp(integrate(-(1/2)*ratio,_x)), /* list [soln] necessary?*/
-          dprint(1,"_soln1 = ",_soln1),
+          dprint(3,"_soln1 = ",_soln1),
           _soln1:_soln1*_soln, 
-          dprint(1,"_soln1 = ",_soln1),
+          dprint(3,"_soln1 = ",_soln1),
 
           /* kill the impaginary part so we don't have to cancel out all the imaginary bits */
           _soln1:trigsimp(radcan(_soln1)),
@@ -565,9 +565,9 @@ for i from 1 thru length(_listl) do (
           /*soln2 :radcan(soln1*integrate((exp(-integrate(ratio,_x))/(soln1*soln1)),_x)),*/
           _soln2:-integrate(ratio,_x),
           _soln2:exp(_soln2)/(_soln1*_soln1),
-          dprint(1,"_soln2 = ",_soln2),
+          dprint(3,"_soln2 = ",_soln2),
           _soln22:radcan(logarc(_soln2)),
-          dprint(2,"_soln2 = ",_soln22),
+          dprint(3,"_soln2 = ",_soln22),
 
           /* if logarc has lead to a better solution, then use it */
           _nrOps22 : nrOps(_soln22),
@@ -686,7 +686,7 @@ for i from 1 thru length(_listl) do (
     _W : trigreduce(_W),
     _W : ratsimp(_W),
     dprint(5,"5. wronskian : ", _W),
-    dprint(1,"nonhomogeneous part : ", _d),
+    dprint(3,"nonhomogeneous part : ", _d),
     /* particular _solution of the ODE */
     _P : _s[2]*integrate(_s[1]*_d/_W,_x) - _s[1]*integrate(_s[2]*_d/_W,_x),
 
@@ -717,14 +717,14 @@ for i from 1 thru length(_listl) do (
     /* if method 1 has less operation than method 2, use method 1 */
     if (length(nrOps(_PP)) <= length(nrOps(_P)) ) then (
       _P : _PP,
-      dprint(1,"1: P = ",_P)
+      dprint(3,"1: P = ",_P)
     )
     else (
       /*_P : subst([_x=_x1],_P),*/
-      dprint(1,"2: P = ",_P)
+      dprint(3,"2: P = ",_P)
 
     ),
-    dprint(0,"starting simplification"),
+    dprint(3,"starting simplification"),
     if freeof(abs,_P) then(
     _P : trigreduce(_P),
     _P : trigsimp(_P),
@@ -734,9 +734,9 @@ for i from 1 thru length(_listl) do (
     dprint(5,"3. particular solution : ", _P)
   ), 
 
-  dprint(1,"0. solution[1]:",_solution[1]),
-  dprint(1,"0. solution[2]:",_solution[2]),
-  dprint(1,"1. P:",_P),
+  dprint(3,"0. solution[1]:",_solution[1]),
+  dprint(3,"0. solution[2]:",_solution[2]),
+  dprint(3,"1. P:",_P),
 
 
   _C1 : constant_factors(factor(_solution[1]),_x), 
@@ -746,25 +746,25 @@ for i from 1 thru length(_listl) do (
   _solution[1] : ratsimp(_solution[1]/_C1), /* ratsimp necessary for kamke 2.286*/ 
   _solution[2] : ratsimp(_solution[2]/_C2),
   /*_P : ratsimp(_P/_C3), */ /* divide particular solution by constant factor, absorbed by integration constants */
-  dprint(1,"1. P:",_P),
+  dprint(3,"1. P:",_P),
   /* for some reason, we need to do ratsimp again to simplify, e.g. for the simple problem of y''+ay'+by=c */
   /* lets also ratsimp the solution:*/
   _solution[1]:ratsimp(_solution[1]),
   _solution[2]:ratsimp(_solution[2]),
   _P:ratsimp(_P),
 
-  dprint(1,"0. solution[1]:",_solution[1]),
-  dprint(1,"0. solution[2]:",_solution[2]),
-  dprint(1,"1. P:",_P),
+  dprint(3,"0. solution[1]:",_solution[1]),
+  dprint(3,"0. solution[2]:",_solution[2]),
+  dprint(3,"1. P:",_P),
 
 /* try to get rid of unevaluated integrals */
 
   _solution[1]:ev(_solution[1],nouns), 
   _solution[2]:ev(_solution[2],nouns),
   _P:ev(_P,nouns),
-  dprint(2,"0. solution[1]:",_solution[1]),
-  dprint(2,"0. solution[2]:",_solution[2]),
-  dprint(2,"1. P:",_P),
+  dprint(3,"0. solution[1]:",_solution[1]),
+  dprint(3,"0. solution[2]:",_solution[2]),
+  dprint(3,"1. P:",_P),
 
   _solution[1]:trigsimp(trigreduce(_solution[1])), 
   _solution[2]:trigsimp(trigreduce(_solution[2])),
@@ -777,18 +777,18 @@ for i from 1 thru length(_listl) do (
   if not lfreeof([log,%e],_solution[2]) then _solution[2]:logcontract(_solution[2]),
   if not lfreeof([log,%e],_P) then _P:logcontract(_P),
 */
-  dprint(4,"0. solution[1]:",_solution[1]),
-  dprint(4,"0. solution[2]:",_solution[2]),
-  dprint(4,"1. P:",_P),
+  dprint(3,"0. solution[1]:",_solution[1]),
+  dprint(3,"0. solution[2]:",_solution[2]),
+  dprint(3,"1. P:",_P),
 
   _solution[1]:ratsimp(_solution[1]),
   _solution[2]:ratsimp(_solution[2]),
   _P:ratsimp(_P),
  
 
-  dprint(1,"1. solution[1]:",_solution[1]),
-  dprint(1,"1. solution[2]:",_solution[2]),
-  dprint(1,"1. P:",_P),
+  dprint(3,"1. solution[1]:",_solution[1]),
+  dprint(3,"1. solution[2]:",_solution[2]),
+  dprint(3,"1. P:",_P),
 
   _solution: [_y = _solution[1]*%k1 + _solution[2]*%k2 + _P]
 
@@ -812,16 +812,16 @@ step3(_n,_d,_theta,rhs1,_x):=block([_sol,_solution,_p,_listv,_i,_a,_a0,_a1,_a2,_
 
   /*# form P in terms of undetermined coefficients a_i */
   /*# P = a-{d}*x^{d} + a_{d-1}*x^{d-1} + ... + a_0*/
-  dprint(1,"_x=",_x),
-  dprint(1,"facts(_x)=",facts(_x)),
-  dprint(1,"degree of polynomial = ",_d),
-  dprint(1,"n=",_n),
-  dprint(1,"_theta=",_theta),
-  dprint(1,"rhs1=",rhs1),
+  dprint(3,"_x=",_x),
+  dprint(3,"facts(_x)=",facts(_x)),
+  dprint(3,"degree of polynomial = ",_d),
+  dprint(3,"n=",_n),
+  dprint(3,"_theta=",_theta),
+  dprint(3,"rhs1=",rhs1),
   
   /* start with highest order*/
   _p:_x^_d,
-  dprint(1,"P = ",_p),
+  dprint(3,"P = ",_p),
 
   /* [a_d-1, a_d-2, ..., a_2, a_1, a_0] */
   _listv : makelist(concat(_a,_d-1 -_i),_i,_d-1,0,-1),
@@ -1082,7 +1082,7 @@ abs_remove(_s) := block([_constlist,_C,_solLarger,_solSmaller],
   /* delete the independent variable from the list */
   _constlist:delete(_x,_constlist), 
 
-  for _C in _constlist do print(freeof(_C,_s)),
+  for _C in _constlist do dprint(1,freeof(_C,_s)),
 
   /* now we have a list with constants C appearing in the solution. Now check if we have abs(C) */
   /* if we don't have abs(C) then remove it from the list */
