@@ -1,0 +1,576 @@
+/* ODE tests - Second order linear equations 1-100
+
+  Reference:
+    Vol 1, Geest & Portig, Leipzig, 1961
+*/
+(kill (all),load(kovacicODE), 
+
+/* Print ode number*/
+pn_(n_):=print("Kamke ODE 2.",n_),
+
+/* Kamke 2. 1 */
+pn_(1),ans:kovacicODE(eqn:'diff(y,x,2)=0,y,x));
+[y=%k2*x+%k1];
+
+/* Kamke 2. 2 */
+(pn_(2),ans:kovacicODE(eqn:'diff(y,x,2)+y=0,y,x));
+[y=%k1*cos(x)+%k2*sin(x)];
+
+/* Kamke 2. 3 */
+(pn_(3),ans:kovacicODE(eqn:'diff(y,x,2)+y-sin(n*x)=0,y,x));
+[y=-sin(n*x)/(n^2-1)+%k1*cos(x)+%k2*sin(x)];
+
+/* Kamke 2. 4 */
+(pn_(4),ans:kovacicODE(eqn:'diff(y,x,2)+y-a*cos(b*x)=0,y,x));
+[y=-a*cos(b*x)/(b^2-1)+%k1*cos(x)+%k2*sin(x)];
+
+/* Kamke 2. 5 */
+(pn_(5),ans:kovacicODE(eqn:'diff(y,x,2)+y-sin(a*x)*sin(b*x)=0,y,x));
+[y=((b^2-2*a*b+a^2-1)*cos((b+a)*x)+(-b^2-2*a*b-a^2+1)*cos((b-a)*x))/(2*b^4+(-4*a^2-4)*b^2+2*a^4-4*a^2+2)+%k1*cos(x)+%k2*sin(x)];
+
+/* Kamke 2. 6 */
+(pn_(6),ans:kovacicODE(eqn:'diff(y,x,2)-y=0,y,x));
+[y=%k1*%e^-x+%k2*%e^x];
+
+/* Kamke 2. 7 */
+(pn_(7),ans:kovacicODE(eqn:'diff(y,x,2)-2*y-4*x^2*%e^x^2=0,y,x));
+[y=%e^x^2+%k2*%e^(2^(1/2)*x)+%k1*%e^-(2^(1/2)*x)];
+
+/* Kamke 2. 8 */
+(assume(a>0),
+  declare(a,constant),
+  pn_(8),
+  ans:kovacicODE(eqn:'diff(y,x,2)+a^2*y-cot(a*x)=0,y,x),
+  forget(a>0),
+  remove(a,constant),
+  ans);
+[y = -sin(a*x)*(log(cos(a*x)+1)-log(cos(a*x)-1))/(2*a^2)
+   +%k2*sin(a*x)+%k1*cos(a*x)];
+/*
+[y = -((sin(a*x)*log(cos(a*x)+1)-sin(a*x)*log(cos(a*x)-1))/(2*a^2))
+   +%k2*sin(a*x)+%k1*cos(a*x)];
+*/
+
+/* Kamke 2. 9 */
+(assume(l>0),
+  declare(l,constant),
+  pn_(9),
+  ans:kovacicODE(eqn:'diff(y,x,2)+l*y=0,y,x),
+  forget(l>0),
+  remove(l,constant),
+  ans)$
+[y=%k2*sin(sqrt(l)*x)+%k1*cos(sqrt(l)*x)];
+
+/* Kamke 2. 10  */
+(pn_(10),ans:kovacicODE(eqn:'diff(y,x,2)+(a*x+b)*y=0,y,x));
+false;
+/*
+  kovacicODE and ode2 fail to arrive at a solution
+  contrib_ode gives an answer in terms of bessel functions,
+  which is the answer in the version of the Kamke database
+  in share.  odelin also gives this answer.
+  y = bessel_y(1/3,2*(a*x+b)^(3/2)/(3*a))*%k2*sqrt(a*x+b)
+     +bessel_j(1/3,2*(a*x+b)^(3/2)/(3*a))*%k1*sqrt(a*x+b)
+*/
+
+
+/* Kamke 2. 11 */
+(pn_(11),ans:kovacicODE(eqn:'diff(y,x,2)-(x^2+1)*y=0,y,x));
+[y = %k2*%e^(x^2/2)*erf(x)+%k1*%e^(x^2/2)];
+
+
+/* Kamke 2. 12 */
+
+(pn_(12),ans:kovacicODE(eqn:'diff(y,x,2)-(x^2+a)*y=0,y,x));
+false;
+
+
+/* Kamke 2. 13 */
+/* maple returns sqrt(a), without any restrictions on 'a' */
+(assume(a>0),
+  declare(a,constant),
+  pn_(13),ans:kovacicODE(eqn:'diff(y,x,2)-(a^2*x^2+a)*y=0,y,x),
+  forget(a>0),
+  remove(a,constant),
+  ans);
+[y = %k2*%e^(a*x^2/2)*erf(sqrt(a)*x)+%k1*%e^(a*x^2/2)];
+
+/* Kamke 2. 14 */
+/* Non-Liouvillian */
+(pn_(14),ans:kovacicODE(eqn:'diff(y,x,2)-c*x^a*y=0,y,x));
+false;
+
+
+/* Kamke 2. 15 */
+(pn_(15),ans:kovacicODE(eqn:'diff(y,x,2)-(a^2*x^(2*n)-1)*y=0,y,x));
+false;
+
+
+/* Kamke 2. 16 */
+(pn_(16),ans:kovacicODE(eqn:'diff(y,x,2)+(a*x^(2*c)+b*x^(c-1))*y=0,y,x));
+false;
+
+
+/* Kamke 2. 17 */
+(pn_(17),ans:kovacicODE(eqn:'diff(y,x,2)+(%e^(2*x)-v^2)*y=0,y,x));
+false;
+
+
+/* Kamke 2. 18 */
+(pn_(18),ans:kovacicODE(eqn:'diff(y,x,2)+a*%e^(b*x)*y=0,y,x));
+false;
+
+
+/* Kamke 2. 19 */
+(pn_(19),ans:kovacicODE(eqn:'diff(y,x,2)-(4*a^2*b^2*x^2*%e^(2*b*x^2)-1)*y=0,y,x));
+false;
+
+/* Kamke 2. 20 */
+(pn_(20),ans:kovacicODE(eqn:'diff(y,x,2)+(a*%e^(2*x)+b*%e^x+c)*y=0,y,x));
+false;
+
+/* Kamke 2. 21 */
+(pn_(21),ans:kovacicODE(eqn:'diff(y,x,2)+(a*cos(x)^2+b)*y=0,y,x));
+false;
+
+/* Kamke 2. 22 */
+(pn_(22),ans:kovacicODE(eqn:'diff(y,x,2)+(a*cos(2*x)+b)*y=0,y,x));
+false;
+
+/* Kamke 2. 23 */
+(pn_(23),ans:kovacicODE(eqn:'diff(y,x,2)+(a*cos(x)^2+b)*y=0,y,x));
+false;
+
+/* Kamke 2. 24 */
+(pn_(24),ans:kovacicODE(eqn:'diff(y,x,2)-(2*tan(x)^2+1)*y=0,y,x));
+false;
+
+
+/* Kamke 2. 25 */
+(pn_(25),ans:kovacicODE(eqn:'diff(y,x,2)-((n-1)*n/sin(x)^2+(m-1)*m/cos(x)^2+a)*y=0,y,x));
+false;
+
+/* Kamke 2. 26 */
+(pn_(26),ans:kovacicODE(eqn:'diff(y,x,2)-y*(B+p(x)*A)=0,y,x));
+false;
+
+/* Kamke 2. 27 */
+(pn_(27),ans:kovacicODE(eqn:'diff(y,x,2)+(a*jacobi_sn(x,m)^2+b)*y=0,y,x));
+false;
+
+/* Kamke 2. 28 */
+(pn_(28),ans:kovacicODE(eqn:'diff(y,x,2)-('diff(p(x),x,4)/30+7*'diff(p(x),x,2)/3+a*p(x)+b)*y=0,y,x));
+false;
+
+
+/* Kamke 2. 29 */
+(pn_(29),ans:kovacicODE(eqn:'diff(y,x,2)-('diff(f(x),x,1)+f(x)^2)*y=0,y,x));
+false;
+
+/* Kamke 2. 30 */
+(pn_(30),ans:kovacicODE(eqn:'diff(y,x,2)+(P(x)+l)*y=0,y,x));
+false;
+
+/* Kamke 2. 31 */
+(pn_(31),ans:kovacicODE(eqn:'diff(y,x,2)-f(x)*y=0,y,x));
+false;
+
+/* Kamke 2. 32 */
+(pn_(32),ans:kovacicODE(eqn:'diff(y,x,2)+('diff(g(x),x,3)/(2*'diff(g(x),x,1))-3*('diff(g(x),x,2))^2/(4*('diff(g(x),x,1))^2)+(1/4-v^2)*('diff(g(x),x,1))^2/g(x)+('diff(g(x),x,1))^2)*y=0,y,x));
+false;
+
+/* Kamke 2. 33 */
+/* Non-Liouvillian !! */
+(pn_(33),ans:kovacicODE(eqn:'diff(y,x,2)+'diff(y,x,1)+a*%e^-(2*x)*y=0,y,x));
+false;
+/*[y=%k2*cos(sqrt(a)*%e^-x)-%k1*sin(sqrt(a)*%e^-x)];*/
+
+/* Kamke 2. 34 */
+/* Non-Liouvillian !! */
+(pn_(34),ans:kovacicODE(eqn:'diff(y,x,2)-'diff(y,x,1)+%e^(2*x)*y=0,y,x));
+/*[y=%k1*sin(%e^x)+%k2*cos(%e^x)];*/
+false;
+
+
+/* Kamke 2. 35 */
+(declare(a,constant),
+  declare(b,constant),
+  assume(a^2-4*b>0),
+  pn_(35),ans:kovacicODE(eqn:'diff(y,x,2)+a*'diff(y,x,1)+b*y=0,y,x),
+  forget(a^2-4*b>0),
+  remove(a,constant),
+  remove(b,constant),
+  ans);
+[y=%k2*%e^(sqrt(a^2-4*b)*x/2-a*x/2)+%k1*%e^(-sqrt(a^2-4*b)*x/2-a*x/2)];
+
+/* Kamke 2. 36 */
+(declare(a,constant),
+  declare(b,constant),
+  assume(a^2-4*b>0),
+  pn_(36),
+  ans:kovacicODE(eqn:'diff(y,x,2)+a*'diff(y,x,1)+b*y-f(x)=0,y,x),
+  forget(a^2-4*b>0),
+  remove(a,constant),
+  remove(b,constant),
+  ans);
+/*
+[y = %e^-((sqrt(a^2-4*b)*x+a*x)/2)*'integrate( %e^(sqrt(a^2-4*b)*x) *'integrate(
+     %e^-((sqrt(a^2-4*b)*x-a*x)/2)*f(x),x),x)
+    + %k2*%e^(sqrt(a^2-4*b)*x/2-a*x/2)
+    + %k1*%e^(-sqrt(a^2-4*b)*x/2-a*x/2)];
+*/
+[y = %e^(-sqrt(a^2-4*b)*x/2-a*x/2)*'integrate( %e^(sqrt(a^2-4*b)*x) *'integrate(
+     %e^(a*x/2-sqrt(a^2-4*b)*x/2)*f(x),x),x)
+   +%k2*%e^(sqrt(a^2-4*b)*x/2-a*x/2)+%k1*%e^(-sqrt(a^2-4*b)*x/2-a*x/2)];
+/*
+[y=-%e^(-sqrt(a^2-4*b)*x/2-a*x/2)*('integrate(%e^(sqrt(a^2-4*b)*x/2+a*x/2)*f(x),x)-%e^(sqrt(a^2-4*b)*x)*'integrate(%e^(a*x/2-sqrt(a^2-4*b)*x/2)*f(x),x))/sqrt(a^2-4*b)+%k2*%e^(sqrt(a^2-4*b)*x/2-a*x/2)+%k1*%e^(-sqrt(a^2-4*b)*x/2-a*x/2)];
+*/
+
+/* Kamke 2. 37 */
+(pn_(37),ans:kovacicODE(eqn:'diff(y,x,2)+a*'diff(y,x,1)+(-b^2*x^2-c)*y=0,y,x));
+false;
+
+/* Kamke 2. 38 */
+(pn_(38),ans:kovacicODE(eqn:'diff(y,x,2)+2*a*'diff(y,x,1)+f(x)*y=0,y,x));
+false;
+
+/* Kamke 2. 39 */
+(pn_(39),ans:kovacicODE(eqn:'diff(y,x,2)+x*'diff(y,x,1)+y=0,y,x));
+[y = %k2*%e^-(x^2/2)*erf(%i*x/sqrt(2))+%k1*%e^-(x^2/2)];
+
+/* Kamke 2. 40 */
+(pn_(40),ans:kovacicODE(eqn:'diff(y,x,2)+x*'diff(y,x,1)-y=0,y,x));
+[y = gamma_incomplete(-1/2,x^2/2)*%k2*abs(x)+%k1*x];
+
+/* Kamke 2. 41 */
+(declare(n,integer),
+  assume(n>=0),
+  pn_(41),
+  ans:kovacicODE(eqn:'diff(y,x,2)+x*'diff(y,x,1)+(n+1)*y=0,y,x),
+  remove(n,integer),
+  forget(n>=0),
+  ans);
+false;
+
+/* Kamke 2. 42 actually, two part solution for n<=-1 and n>=0*/
+/* limited by askinteger, integerp determination*/
+(declare(n,integer),
+  assume(n>=0),
+  assume(x>0),
+  pn_(42),
+  ans:kovacicODE(eqn:'diff(y,x,2)+x*'diff(y,x,1)-n*y=0,y,x),
+  remove(n,integer),
+  forget(n>=0),
+  forget(x>0),
+  ans);
+false;
+/*[y = gamma_incomplete(-1/2,x^2/2)*%k2*abs(x)+%k1*x];*/
+
+/* Kamke 2. 43 */
+(pn_(43),ans:kovacicODE(eqn:'diff(y,x,2)-x*'diff(y,x,1)+2*y=0,y,x));
+/*[y = %k2*(x^2-x)*'integrate(%e^(x^2/2)/(x^4-2*x^3+x^2),x)+%k1*(x^2-x)];*/
+[y = %k2*(x^2*'integrate(%e^(x^2/2)/(x^4-2*x^3+x^2),x)
+         -x*'integrate(%e^(x^2/2)/(x^4-2*x^3+x^2),x))
+   +%k1*(x^2-x)];
+/*
+[y = %k2*(x^2*'integrate(%e^(x^2/2)/(x^4-2*x^3+x^2),x)
+         -x*'integrate(%e^(x^2/2)/(x^4-2*x^3+x^2),x))
+   +%k1*(x^2-x)];
+*/
+
+/* Kamke 2. 44 */
+(pn_(44),ans:kovacicODE(eqn:'diff(y,x,2)-x*'diff(y,x,1)-a*y=0,y,x));
+false;
+
+/* Kamke 2. 45 */
+(pn_(45),ans:kovacicODE(eqn:'diff(y,x,2)-x*'diff(y,x,1)+(x-1)*y=0,y,x));
+[y = %k2*%e^(x-2)*erf((%i*x-2*%i)/sqrt(2))+%k1*%e^x];
+
+/* Kamke 2. 46 */
+(pn_(46),ans:kovacicODE(eqn:'diff(y,x,2)-2*x*'diff(y,x,1)+a*y=0,y,x));
+false;
+
+/* Kamke 2. 47 */
+(pn_(47),ans:kovacicODE(eqn:'diff(y,x,2)+4*x*'diff(y,x,1)+(4*x^2+2)*y=0,y,x));
+[y = %k2*x*%e^-x^2+%k1*%e^-x^2];
+
+/* Kamke 2. 48 */
+(pn_(48),ans:kovacicODE(eqn:'diff(y,x,2)-4*x*'diff(y,x,1)+(3*x^2+2*n-1)*y=0,y,x));
+false;
+
+/* Kamke 2. 49 */
+(pn_(49),ans:kovacicODE(eqn:'diff(y,x,2)-4*x*'diff(y,x,1)+(4*x^2-1)*y-%e^x=0,y,x));
+[y = sqrt(%pi)*%e^x^2
+              *((sin((2*x-1)/2)-%i*cos((2*x-1)/2))*erf((2*x+%i-1)/2)
+               +(sin((2*x-1)/2)+%i*cos((2*x-1)/2))*erf((2*x-%i-1)/2))
+   /4
+   +%k2*%e^x^2*sin(x)+%k1*%e^x^2*cos(x)];
+/*
+[y = sqrt(%pi)*((%e^x^2*sin((2*x-1)/2)-%i*%e^x^2*cos((2*x-1)/2))
+               *erf((2*x+%i-1)/2)
+               +(%e^x^2*sin((2*x-1)/2)+%i*%e^x^2*cos((2*x-1)/2))
+                *erf((2*x-%i-1)/2))
+   /4
+   +%k2*%e^x^2*sin(x)+%k1*%e^x^2*cos(x)];
+*/
+/* Kamke 2. 50 */
+(pn_(50),ans:kovacicODE(eqn:'diff(y,x,2)-4*x*'diff(y,x,1)+(4*x^2-2)*y=0,y,x));
+[y = %k2*x*%e^x^2+%k1*%e^x^2];
+
+/* Kamke 2. 51 */
+(pn_(51),ans:kovacicODE(eqn:'diff(y,x,2)-4*x*'diff(y,x,1)+(4*x^2-3)*y-%e^x^2=0,y,x));
+[y = %k2*%e^(x^2+x) + %k1*%e^(x^2-x) - %e^(x^2)];
+
+/* Kamke 2. 52 */
+(pn_(52),ans:kovacicODE(eqn:'diff(y,x,2)+a*x*'diff(y,x,1)+b*y=0,y,x));
+false;
+
+/* Kamke 2. 53 */
+(declare(a,constant),
+  assume(a>0),
+  pn_(53),
+  ans:kovacicODE(eqn:'diff(y,x,2)+2*a*x*'diff(y,x,1)+a^2*x^2*y=0,y,x),
+  remove(a,constant),
+  forget(a>0),
+  ans);
+[y = %k2*%e^(sqrt(a)*x-(a*x^2/2))+%k1*%e^(-(a*x^2/2)-sqrt(a)*x)];
+
+/* Kamke 2. 54 */
+(pn_(54),ans:kovacicODE(eqn:'diff(y,x,2)+(a*x+b)*'diff(y,x,1)+(c*x+d)*y=0,y,x));
+false;
+
+/* Kamke 2. 55 */
+(pn_(55),ans:kovacicODE(eqn:'diff(y,x,2)+(a*x+b)*'diff(y,x,1)+(a1*x^2+b1*x+c_1)*y=0,y,x));
+false;
+
+/* Kamke 2. 56 */
+(pn_(56),ans:kovacicODE(eqn:'diff(y,x,2)-x^2*'diff(y,x,1)+x*y=0,y,x));
+[y = gamma_incomplete(-1/3,-x^3/3)*%k2*x+%k1*x];
+
+/* Kamke 2. 57 */
+(pn_(57),ans:kovacicODE(eqn:'diff(y,x,2)-x^2*'diff(y,x,1)-(x+1)^2*y=0,y,x));
+[y = %k2*%e^(x^3/3+x)*'integrate(%e^(-x^3/3-2*x),x)+%k1*%e^(x^3/3+x)];
+
+/* Kamke 2. 58 */
+(pn_(58),ans:kovacicODE(eqn:'diff(y,x,2)-x^2*(x+1)*'diff(y,x,1)+x*(x^4-2)*y=0,y,x));
+[y = %k2*%e^(x^3/3)*'integrate(%e^(x^4/4-x^3/3),x)+%k1*%e^(x^3/3)];
+
+/* Kamke 2. 59 */
+(pn_(59),ans:kovacicODE(eqn:'diff(y,x,2)+x^4*'diff(y,x,1)-x^3*y=0,y,x));
+[y = gamma_incomplete(-1/5,x^5/5)*%k2*x+%k1*x];
+
+/* Kamke 2. 60 */
+(pn_(60),ans:kovacicODE(eqn:'diff(y,x,2)+a*x^(q-1)*'diff(y,x,1)+b*x^(q-2)*y=0,y,x));
+false;
+
+/* Kamke 2. 61 */
+/* TODO: check solution */
+(pn_(61),ans:kovacicODE(eqn:'diff(y,x,2)+sqrt(x)*'diff(y,x,1)+(x/4+1/(4*sqrt(x))-9)*y-x*%e^-(x^(3/2)/3)=0,y,x));
+[y = %k1*%e^(-x^(3/2)/3 - 3*x) + %k2*%e^(-x^(3/2)/3 + 3*x) - x*%e^(-x^(3/2)/3)/9];
+
+/* Kamke 2. 62 */
+/* TODO: check solution */
+(pn_(62),ans:kovacicODE(eqn:'diff(y,x,2)-'diff(y,x,1)/sqrt(x)+(x+sqrt(x)-8)*y/(4*x^2)=0,y,x));
+[y = %k1*%e^(sqrt(x))/x + %k2*x^2*%e^(sqrt(x))];
+
+/* Kamke 2. 63 */
+(pn_(63),ans:kovacicODE(eqn:'diff(y,x,2)-(2*%e^x+1)*'diff(y,x,1)+%e^(2*x)*y-%e^(3*x)=0,y,x));
+[y = %k2*%e^(%e^x+x)+%k1*%e^%e^x+%e^x+2];
+
+/* Kamke 2. 64 */
+/* correct, but expression match of the solution fails */
+(assume(a^2>4*b),
+  pn_(64),
+  ans:kovacicODE(eqn:'diff(y,x,2)+a*'diff(y,x,1)+b*y+tan(x)=0,y,x),
+  forget(a^2>4*b),
+  ans);
+[y = -%e^(-sqrt(a^2-4*b)*x/2-a*x/2)*'integrate(
+                                    %e^(sqrt(a^2-4*b)*x)
+                                     *'integrate(
+                                      %e^(a*x/2-sqrt(a^2-4*b)*x/2)*sin(x)
+                                       /cos(x),x),x)
+   +%k2*%e^(sqrt(a^2-4*b)*x/2-a*x/2)+%k1*%e^(-sqrt(a^2-4*b)*x/2-a*x/2)];
+/*
+[y = -%e^-((sqrt(a^2-4*b)*x+a*x)/2)*'integrate(%e^(sqrt(a^2-4*b)*x) *'integrate( %e^-((sqrt(a^2-4*b)*x-a*x)/2)*sin(x) /cos(x),x),x) +%k2*%e^(sqrt(a^2-4*b)*x/2-a*x/2)/sqrt(a^2-4*b) +%k1*%e^(-sqrt(a^2-4*b)*x/2-a*x/2)];
+*/
+/*[y=%e^(-sqrt(a^2-4*b)*x/2-a*x/2)*('integrate(%e^(sqrt(a^2-4*b)*x/2+a*x/2)*tan(x),x)-%e^(sqrt(a^2-4*b)*x)*'integrate(%e^(a*x/2-sqrt(a^2-4*b)*x/2)*tan(x),x))/sqrt(a^2-4*b)+%k2*%e^((sqrt(a^2-4*b)-a)*x/2)+%k1*%e^((-sqrt(a^2-4*b)-a)*x/2)];*/
+
+
+/* Kamke 2. 65 */
+(pn_(65),ans:kovacicODE(eqn:'diff(y,x,2)+2*n*cot(x)*'diff(y,x,1)+(n^2-a^2)*y=0,y,x));
+false;
+
+/* Kamke 2. 66 */
+(pn_(66),ans:kovacicODE(eqn:'diff(y,x,2)+tan(x)*'diff(y,x,1)+cos(x)^2*y=0,y,x));
+false;
+
+/* Kamke 2. 67 */
+(pn_(67),ans:kovacicODE(eqn:'diff(y,x,2)+tan(x)*'diff(y,x,1)-cos(x)^2*y=0,y,x));
+false;
+
+/* Kamke 2. 68 */
+(pn_(68),ans:kovacicODE(eqn:'diff(y,x,2)+cot(x)*'diff(y,x,1)+v*(v+1)*y=0,y,x));
+false;
+
+/* Kamke 2. 69 */
+(pn_(69),ans:kovacicODE(eqn:'diff(y,x,2)-cot(x)*'diff(y,x,1)+sin(x)^2*y=0,y,x));
+false;
+
+/* Kamke 2. 70 */
+(pn_(70),ans:kovacicODE(eqn:'diff(y,x,2)+a*tan(x)*'diff(y,x,1)+b*y=0,y,x));
+false;
+
+/* Kamke 2. 71 */
+(pn_(71),ans:kovacicODE(eqn:'diff(y,x,2)+2*a*cot(a*x)*'diff(y,x,1)+(b^2-a^2)*y=0,y,x));
+false;
+
+/* Kamke 2. 72 */
+(pn_(72),ans:kovacicODE(eqn:'diff(y,x,2)+a*'diff(p(x),x,2)*'diff(y,x,1)+(-4*a*n*p(x)^2+b*p(x)+a)*y=0,y,x));
+false;
+
+/* Kamke 2. 73 */
+(pn_(73),ans:kovacicODE(eqn:'diff(y,x,2)+('diff(p(x),x,3)-'diff(p(x),x,2)-p(x)*'diff(p(x),x,1))*'diff(y,x,1)/('diff(p(x),x,1)+p(x)^2)+(-p(x)*'diff(p(x),x,2)+('diff(p(x),x,1))^2-p(x)^2*'diff(p(x),x,1))*y/('diff(p(x),x,1)+p(x)^2)=0,y,x));
+false;
+
+/* Kamke 2. 74 */
+(pn_(74),ans:kovacicODE(eqn:'diff(y,x,2)+m*jacobi_cn(x,m)*jacobi_sn(x,m)*'diff(y,x,1)/jacobi_dn(x,m)+n^2*jacobi_dn(x,m)^2*y=0,y,x));
+false;
+
+/* Kamke 2. 75 */
+(pn_(75),ans:kovacicODE(eqn:'diff(y,x,2)+f(x)*'diff(y,x,1)+g(x)*y=0,y,x));
+false;
+
+/* Kamke 2. 76 */
+(pn_(76),ans:kovacicODE(eqn:'diff(y,x,2)+f(x)*'diff(y,x,1)+('diff(f(x),x,1)+a)*y-g(x)=0,y,x));
+false;
+
+/* Kamke 2. 77 */
+(pn_(77),ans:kovacicODE(eqn:'diff(y,x,2)+(a*f(x)+b)*'diff(y,x,1)+(c*f(x)+d)*y=0,y,x));
+false;
+
+/* Kamke 2. 78 */
+(declare(a,constant),
+  assume(a<0),
+  depends(f,x),
+  declare(f,real),
+  pn_(78),
+  ans:kovacicODE(eqn:'diff(y,x,2)+f*'diff(y,x,1)+('diff(f,x,1)/2+f^2/4+a)*y=0,y,x),
+  remove(a,constant),
+  remove(f,dependency),
+  forget(a<0),
+  remove(f,real),
+  ans);
+false;
+
+/* Kamke 2. 79: don't know how to deal with f(x) in a Liouvillian way so it returns no solution */
+(declare(a,constant),
+  assume(a>0),
+  pn_(79),
+  ans:kovacicODE(eqn:'diff(y,x,2)-a*'diff(f(x),x,1)*'diff(y,x,1)/f(x)+b*f(x)^(2*a)*y=0,y,x),
+  remove(a,constant),
+  forget(a>0),
+  ans);
+false;
+/*[y=%k1*sin(sqrt(b)*'integrate(f(x)^a,x))+%k2*cos(sqrt(b)*'integrate(f(x)^a,x))];*/
+
+/* Kamke 2. 80 */
+(pn_(80),ans:kovacicODE(eqn:'diff(y,x,2)-('diff(f(x),x,1)/f(x)+2*a)*'diff(y,x,1)+(a*'diff(f(x),x,1)/f(x)-b^2*f(x)^2+a^2)*y=0,y,x));
+false;
+
+/* Kamke 2. 81 */
+(pn_(81),ans:kovacicODE(eqn:'diff(y,x,2)+f(x)*'diff(f(x),x,3)*'diff(y,x,1)/(f(x)^2+b^2)-a^2*('diff(f(x),x,1))^2*y/(f(x)^2+b^2)=0,y,x));
+false;
+
+/* Kamke 2. 82 */
+(pn_(82),ans:kovacicODE(eqn:'diff(y,x,2)-('diff(g(x),x,2)/'diff(g(x),x,1)+(2*m-1)*'diff(g(x),x,1)/g(x))*'diff(y,x,1)+((m^2-v^2)*('diff(g(x),x,1))^2/g(x)+('diff(g(x),x,1))^2)*y=0,y,x));
+false;
+
+/* Kamke 2. 83 */
+(pn_(83),ans:kovacicODE(eqn:'diff(y,x,2)-'diff(f(x),x,1)*'diff(y,x,1)/f(x)+('diff(g(x),x,3)/(2*'diff(g(x),x,1))-3*('diff(g(x),x,2))^2/(4*('diff(g(x),x,1))^2)+(1/4-v^2)*('diff(g(x),x,1))^2/g(x)^2+('diff(g(x),x,1))^2-'diff(f(x),x,2)/(2*f(x))+3*('diff(f(x),x,1))^2/(4*f(x)^2))*y=0,y,x));
+false;
+
+/* Kamke 2. 84 */
+(pn_(84),ans:kovacicODE(eqn:'diff(y,x,2)-('diff(g(x),x,2)/'diff(g(x),x,1)-'diff(g(x),x,1)/g(x)+2*'diff(f(x),x,1)/f(x))*'diff(y,x,1)+('diff(f(x),x,1)*('diff(g(x),x,2)/'diff(g(x),x,1)-'diff(g(x),x,1)/g(x)+2*'diff(f(x),x,1)/f(x))/f(x)-v^2*('diff(g(x),x,1))^2/g(x)^2+('diff(g(x),x,1))^2-'diff(f(x),x,2)/f(x))*y=0,y,x));
+false;
+
+/* Kamke 2. 85 */
+(pn_(85),ans:kovacicODE(eqn:'diff(y,x,2)-(2*'diff(h(x),x,1)/h(x)+'diff(g(x),x,2)/'diff(g(x),x,1)+(2*v-1)*'diff(g(x),x,1)/g(x))*'diff(y,x,1)+(-'diff(h(x),x,2)/h(x)+'diff(h(x),x,1)*(2*'diff(h(x),x,1)/h(x)+'diff(g(x),x,2)/'diff(g(x),x,1)+(2*v-1)*'diff(g(x),x,1)/g(x))/h(x)+('diff(g(x),x,1))^2)*y=0,y,x));
+false;
+
+/* Kamke 2. 86 */
+(pn_(86),ans:kovacicODE(eqn:4*'diff(y,x,2)+9*x*y=0,y,x));
+false;
+
+/* Kamke 2. 87 */
+(pn_(87),ans:kovacicODE(eqn:4*'diff(y,x,2)-(x^2+a)*y=0,y,x));
+false;
+
+/* Kamke 2. 88 */
+(pn_(88),ans:kovacicODE(eqn:4*'diff(y,x,2)+4*tan(x)*'diff(y,x,1)+(-5*tan(x)^2-2)*y=0,y,x));
+false;
+
+/* Kamke 2. 89 */
+(pn_(89),ans:kovacicODE(eqn:a*'diff(y,x,2)-(x+c+a*b)*'diff(y,x,1)+(b*(x+c)+d)*y=0,y,x));
+false;
+
+/* Kamke 2. 90 */
+(declare(a,constant),
+  assume(a>0),
+  pn_(90),
+  ans:kovacicODE(eqn:a^2*'diff(y,x,2)+a*(a^2-2*b*%e^-(a*x))*'diff(y,x,1)+b^2*%e^-(2*a*x)*y=0,y,x),
+  remove(a,constant),
+  forget(a>0),
+  ans);
+[y = %k1*%e^(-b*%e^-(a*x)/a^2-a*x)+%k2*%e^-(b*%e^-(a*x)/a^2)];
+
+/* Kamke 2. 91 - we get a result in gamma_incomplete */
+/*(gamma_expand:true,0);
+0;
+*/
+(pn_(91),ans:kovacicODE(eqn:x*('diff(y,x,2)+y)-cos(x)=0,y,x));
+[y=-((cos(x)*'integrate(sin(2*x)/x,x)-sin(x)*'integrate(cos(2*x)/x,x)-log(x)*sin(x))/2)+%k2*sin(x)+%k1*cos(x)];
+/*
+(gamma_expand:false,0);
+0;
+*/
+/* Kamke 2. 92 */
+(pn_(92),ans:kovacicODE(eqn:x*'diff(y,x,2)+(x+a)*y=0,y,x));
+false;
+
+/* Kamke 2. 93 */
+(pn_(93),ans:kovacicODE(eqn:x*'diff(y,x,2)+'diff(y,x,1)=0,y,x));
+[y=%k2*log(x)+%k1];
+
+/* Kamke 2. 94 */
+(pn_(94),ans:kovacicODE(eqn:x*'diff(y,x,2)+'diff(y,x,1)+a*y=0,y,x));
+false;
+
+/* Kamke 2. 95 */
+(pn_(95),ans:kovacicODE(eqn:x*'diff(y,x,2)+'diff(y,x,1)+l*x*y=0,y,x));
+false;
+
+/* Kamke 2. 96 */
+(pn_(96),ans:kovacicODE(eqn:x*'diff(y,x,2)+'diff(y,x,1)+(x+a)*y=0,y,x));
+false;
+
+/* Kamke 2. 97 */
+(pn_(97),ans:kovacicODE(eqn:x*'diff(y,x,2)-'diff(y,x,1)+a*y=0,y,x));
+false;
+
+/* Kamke 2. 98 */
+(assume(a>0),
+  declare(a,constant),
+  pn_(98),
+  ans:kovacicODE(eqn:x*'diff(y,x,2)-'diff(y,x,1)-a*x^3*y=0,y,x),
+  forget(a>0),
+  remove(a,constant),
+  ans);
+[y=%k1*%e^(-sqrt(a)*x^2/2)+%k2*%e^(sqrt(a)*x^2/2)];
+
+/* Kamke 2. 99 */
+(pn_(99),ans:kovacicODE(eqn:x*'diff(y,x,2)-'diff(y,x,1)+x^3*(%e^x^3-v^2)*y=0,y,x));
+false;
+
+/* Kamke 2. 100 */
+(pn_(100),ans:kovacicODE(eqn:x*'diff(y,x,2)+2*'diff(y,x,1)-x*y-%e^x=0,y,x));
+[y = (2*x-1)*%e^x/(4*x)+%k2*%e^x/x+%k1*%e^-x/x];
