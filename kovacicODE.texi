@@ -1,0 +1,49 @@
+@setfilename kovacicODE.info
+@settitle kovacicODE
+
+@ifinfo 
+@macro var {expr}
+<\expr\>
+@end macro
+@end ifinfo
+
+@node Top, Introduction to kovacicODE, (dir), (dir)
+@top
+@menu
+* Introduction to kovacicODE::
+* Functions and variables for kovacicODE::
+* Function and variable index::
+@end menu
+@chapter kovacicODE
+
+@node Introduction to kovacicODE, Functions and variables for kovacicODE, Top, Top
+@section Introduction to kovacicODE
+
+@deffn {Function} kovacicODE (@var{ode}, @var{y}, @var{x})
+
+@code{kovacicODE} kovacicODE is an implementation of the Kovacic
+algorithm for finding the solution of
+second order linear ordinary differential equations (ODEs) with
+Liouvillian solutions. If the ODE has
+a Liouvillian solution, the kovacic algorithm will find and return the
+solution. If the ODE does not have a Liouvillian
+solution, kovacicODE will return false.
+
+@code{load ("kovacicODE")} loads this package.
+
+@c @opencatbox
+@c @category{Package kovacicODE}
+@c @closecatbox
+@end deffn
+
+@node Functions and variables for kovacicODE, Function and variable index, Introduction to kovacicODE, Top
+@section Functions and variables for kovacicODE
+
+@c No contents yet.
+
+@node Function and variable index,  , Functions and variables for kovacicODE, Top
+@appendix Function and variable index
+@printindex fn
+@printindex vr
+
+@bye
