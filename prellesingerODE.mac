@@ -1,0 +1,1949 @@
+/*****************************************************************************/ 
+/*                                                                           */
+/*                 O D E F I                                                 */ 
+/*                                                                           */ 
+/* Differential Equation solver using First Integrals                        */ 
+/* Based on the Prelle-Singer Algorithm and the ODEFI code                   */
+/* Original author: R. Shtokhamer, 1988                                      */
+/* Re-implementation: N. Beishuizen, 2014-2015                               */
+/* To do: 1. run kamke database, check nr of equations solved and time       */ 
+/*        2. improve cases that can be solved                                */
+/*        3. extended prelle-singer method 
+          4. system of ode's
+          5. second order ode's
+          6. nth order ode's
+         
+*/
+/*****************************************************************************/ 
+/*****************************************************************************/ 
+/*                                                                           */
+/*                 Extending the ODE package.                                */ 
+/*                                                                           */ 
+/* Includes: The Prelle-Singer method, and a subroutine for finding special  */ 
+/*           forms of an integrating factor.                                 */ 
+/*****************************************************************************/ 
+/* GLOBALS: */
+
+/* ----- THE DEFAULT SETTINGS ----- */
+/*                                  */
+define_variable(type_of_intfactor  ,3     ,fixnum)$ 
+define_variable(elementary         ,4     ,fixnum)$ 
+define_variable(primitiveflag      ,false ,boolean)$ 
+define_variable(LISTOFTERMS        ,false ,any)$ 
+define_variable(MAXTERMS           , 5     ,fixnum)$  
+define_variable(INTFACTOR_FI       ,false ,any)$ 
+define_variable(METHOD_FI          ,false ,any)$ 
+define_variable(ODEFI_GRAD_LIST    ,[]    ,any)$ 
+/* */ 
+define_variable(nil,[],any_check,"nil has to bound to []")$ 
+put('nil,lambda([x],if x # [] then error("Don't reset nil")),'value_check)$ 
+
+
+/* define linear function as a*x+b*/
+matchdeclare (%a%, freeof(%x%), %b%,freeof(%x%));
+defmatch (linearp, %a%*%x% + %b%, %x%);
+/* */ 
+/*****************************************************************************/ 
+/*****************************************************************************/ 
+/* */ 
+
+prellesingerODE(eq,y ,x):= block([_A,_B,_X,_a:0,_b,_p:1,_q:1,res:false,%x%,%y%,y_x_depend:false,mon2nspace:10,newres,oldres], 
+  local(%y%,%x%),declare(mon2nspace,integer), 
+  METHOD_FI:false,
+  INTFACTOR_FI:false, 
+
+  eq:eqmysimp(lhs(eq)-rhs(eq)),
+ 
+  /* check if it is a first order equation */
+  if derivdegree(eq,y,x) # 1 
+    then (METHOD: " Illegal Equation for Prelle-Singer, not first order", return (false)), 
+
+  /* The P-S assumes the variables y,x to be independent */
+  /* so we remove the possible dependency                */ 
+  /* we have y(x) or x(y) and we want y,x */
+  if (radcan(diff(y,x)) # 0) or (radcan(diff(x,y))#0) then (
+    print("removing x-y dependency"),
+    y_x_depend:true, 
+    eq:subst(%x%,x,subst(%y%,y,eq)), 
+    LISTOFTERMS:subst(%x%,x,subst(%y%,y,LISTOFTERMS)),
+
+    /* Pick all atoms for which gradient with respect to x,y was defined */ 
+    if ODEFI_GRAD_LIST # nil then (
+      ODEFI_GRAD_LIST:subst(%x%,x,subst(%y%,y,ODEFI_GRAD_LIST)), 
+      for _q in ODEFI_GRAD_LIST do (
+        _p:lhs(_q),
+        _a:diff(_p,x),
+        _b:diff(_p,y), 
+        if _a#0 or _b#0 then (
+          apply('gradef,[_p,%x%,subst(%x%,x,subst(%y%,y,_a))]), 
+          apply('gradef,[_p,%y%,subst(%x%,x,subst(%y%,y,_b))]) 
+        ) 
+      )
+    )
+  ) 
+  else (%y%:y,%x%:x),
+  print("ODE:",eq),
+  print("x:",x),
+  /* */ 
+  _p:ratcoeff(eq,'diff(%y%,%x%),1), 
+  _q:-ratsimp(eq - _p*'diff(%y%,%x%)), 
+
+  print("P = ",_p),
+  print("Q = ",_q),
+
+  /* ----- Get the integrating factor ----- */ 
+  /* ------------------------------------------------------ */
+  res:intfactor_control(_p,_q,%x%,%y%), 
+  /* ------------------------------------------------------ */
+
+
+  remarray(vfunv,vifunv),/* Declared in the procedure "newgradient" */
+
+  if res=false then return(false), 
+
+  /* ----- FIRST RESULT ----- */
+  eq:first(res), 
+
+  if eq #false then ( /* " Rational Solution obtained " */ 
+    print("rational solution"),
+    /* add integration constant */
+    /* note that integration constant can depend on the dependent variable vx */
+    eq:eq+'\%c=0, 
+    if ODEFI_GRAD_LIST # nil then (
+      eq:subst(ODEFI_GRAD_LIST,eq), 
+      INTFACTOR_FI:subst(ODEFI_GRAD_LIST,INTFACTOR_FI), 
+      remlet(all,defi_let_package)
+    ), 
+    /* try to solve explicitly in terms of y */
+    eq:solve(eq,%y%),
+    /* substitute the dependency back */ 
+    if y_x_depend then (
+      eq:subst(y,%y%,subst(x,%x%,eq)), 
+      LISTOFTERMS:subst(y%y%,subst(x,%x%,LISTOFTERMS)), 
+      INTFACTOR_FI:subst(y,%y%,subst(x,%x%,INTFACTOR_FI))
+    ),
+    print(grind(eq)), 
+    return([eq])
+  ),
+ 
+
+  /* ----- find solution ----- */
+  /* eq: irreducible polynomial f */
+  eq:second(res), 
+  print("construct solution from irreducible polynomial f:",eq),
+  print("ODEFI_GRAD_LIST=",ODEFI_GRAD_LIST),
+  if ODEFI_GRAD_LIST # nil then (
+    eq:subst(ODEFI_GRAD_LIST,eq), 
+    _p:subst(ODEFI_GRAD_LIST,_p),
+    _q:subst(ODEFI_GRAD_LIST,_q), 
+    INTFACTOR_FI:subst(ODEFI_GRAD_LIST,INTFACTOR_FI),
+    print("intfactor_fi = ",INTFACTOR_FI),
+    remlet(all,defi_let_package)
+  ),
+  print("INTFACTOR = ",INTFACTOR_FI),
+  print("p = ",_p),
+  print("q = ",_q),
+ 
+  /* simplify the integrating factor not that if +mu is an integrating factor, then -mu is also an integrating factor */
+  /* note that if the integrating factor is premultiplied by a constant, we could eliminate it to have a cleaner solution */
+  INTFACTOR_FI:ratsimp(trigsimp(INTFACTOR_FI)),
+  print("INTFACTOR = ",INTFACTOR_FI),
+  /* when y'= Q(x,y)/P(x,y) and we have an integrating factor then: */
+  /* u(x,y) = int(mu*Pdy) -int(mu*Q+ddx(int(mu*Pdy))dx)*/
+  res:integrate(mysimp(-INTFACTOR_FI*_q),%x%), 
+  print("res = ",grind(res)),
+  res:res + integrate(INTFACTOR_FI*_p,%y%) - integrate(trigsimp(ratsimp(diff(res,%y%))),%y%) +%c, 
+  print("res = ",grind(res)),
+  /* add integration constant */
+  if not freeof(log,res) then res:logcontract(mysimp(res)), 
+  print("res = ",grind(res)),
+
+  if y_x_depend then (
+    res:subst(y,%y%,subst(x,%x%,res)), 
+    LISTOFTERMS:subst(y,%y%,subst(x,%x%,LISTOFTERMS)), 
+    INTFACTOR_FI:subst(y,%y%,subst(x,%x%,INTFACTOR_FI))
+  ), 
+  print("after dependencies res = ",grind(res)),
+
+/* for some reason this doesn't work correctly */
+  res: ev(res,nouns),
+  print("after evaluating res = ",grind(res)),
+
+  /* if there is an integral it might be that we have int(f(x)*y,x) and we need declare integrate,linear to 
+     get y out of the integral. however, it messes up a lot of things  */
+
+  if not freeof(integrate,res) then (
+    declare(integrate,linear),
+    res1:solve(res,y),
+    remove(integrate,linear)
+  )
+  else res1:solve(res,y),
+
+  /* check if we got a solution and if it is explicit in y */
+  if res1 # [] and freeof(y,rhs(res1)) then res:res1 else res:[res=0],
+
+  print("after"),
+  print("after evaluating unevaluated integrals = ",grind(res)),
+  print("res = ",res),
+  /* solve for y (return first solution) */
+  print(solve = grind(res)),
+  print("integration factor: ",INTFACTOR_FI),
+  print(grind(res)),
+
+  /* simplify result */
+  /* 1. if integration constant is premultiplied by constant, then merge into integration constant*/
+  /* 3. if we have y=-f(x)-%c, make %c positive */
+  if(lhs(res[1])=y) then (
+    linearconstants:linearp(ratexpand(rhs(res[1])),%c),
+    print("linearc = ",linearconstants),
+    if linearconstants#false then (
+     _A:rhs(linearconstants[1]),
+     _B:rhs(linearconstants[2]),
+     _X:rhs(linearconstants[3]),
+     print(_A,", ",_B,", ",_X),
+     /*if not atom(_A) and (op(_A)="-") then _A: - _A,*//* This is not true */
+     if not atom(_B) and (op(_B)="-") then _B: - _B,
+     if (_B#0) and (freeof(x,_B)) then _B:1,
+     res: [y = _A + _B*_X ]
+    )  
+  ),
+  print("finishing up"),
+  /* for some reason we need to do ev,nouns  again */ 
+  res:ev(res,nouns),
+  res:SimpConstInExp(res,y,x),
+  /*res:MakeConstPos(res),*/
+  print("returning res = ",grind(res)),
+  return(res)
+)$ 
+/* */
+
+
+/*****************************************************************************/ 
+eqmysimp(eq):=block([], 
+  eq:factor(lhs(eq)-rhs(eq)), 
+  if part(eq,0)="-" then eq:-eq, 
+  if not member(part(eq,0),["*","/"]) then return(eq), 
+  return(map(lambda([z],if freeof(nounify('diff),z) then 1 else z),eq))
+)$ 
+
+
+/*****************************************************************************/ 
+intfactor_control(p,q,vx,vy):= 
+/* */ 
+/* This is the controlling routine for finding integrating factors           */ 
+/* It chooses type of algorithm applied depending on the flags               */ 
+/* Applies heuristics as well as the P-S algorithm                           */ 
+/* Returns a rational First-Integral if such found using the P-S method      */ 
+/* The "Prelle-Singer" algorithm is adopted to treat transcendentals         */ 
+/* LOCAL VARIABLES:                                                          */ 
+/* degree = bound on the order of monomial in solution of df/f               */ 
+/* nterms = number of terms allowed or list (of list) of monomials           */ 
+/* trlst = list of the transcendentals appearing in grad                     */
+/* prlst = some other symbolic parameters appearing in p,q, in the           */ 
+/* case that prlst # nil consistency conditions can be                       */ 
+/* obtained to enable solutions of the problem                               */ 
+/* THIS OPTION IS NOT IMPLEMENTED IN THIS VERSION SO                         */ 
+/* prlst is set to nil                                                       */ 
+/* n2mon and mon2n are two function to be supplied by the user               */ 
+/* (a crude version is supplied )                                            */ 
+/* n2mon is bijection from integers to monomials                             */ 
+/* mon2n is inverse of n2mon                                                 */ 
+/* OUTPUT:                                                                   */ 
+/* false, if no integrating factor or rational solution are found.           */ 
+/* otherwise the result is set to [ratres,integfactor]                       */ 
+/* where a) in case that rational first-integral is found                    */ 
+/* then ratres is set to the solution and integfactor is false               */ 
+/* b) else ratres is false and integfactor is the INTFACTOR                  */ 
+/* The global variable METHOD_FI describes the method used                   */ 
+/* In the case that a "rational" first-integral is found                     */ 
+/* using the Prelle-Singer method, firstintegral is set to the               */ 
+/* solution and METHOD_FI to:" Prelle-Singer rational first integral"        */ 
+/* */ 
+block([_f,_g,solutions,primitive,sol1,heursol:false,lg,defpol,gradnew, 
+  algexact:true,ratalgdenom:true,algebraic:true, 
+  exptsubst:true,a,b,trlst:nil,prlst:nil,degree,lst,nterms, 
+  rootscondmode: 'all,radexpand:'all, rhs,newtr], 
+  declare([lg],integer), 
+  /*declare([lg],integer,[n2mon,mon2n],special), */
+  /* */
+
+
+  /* first try heuristics */
+  /* try only linear equation, the rest we can do with prelle singer */
+  /* we check if we can get y'=f(x)+g(x)*y */
+  /* R = f(x) + g(x)*y */
+  /* dR/dy = g(x) */
+  _rhs:ratsimp(q/p), 
+  _g:-diff(_rhs,vy),
+  
+  print("g = ",_g,", vy = ",vy),
+  if (freeof(vy,_g)) then (
+
+    print("equation is linear"),
+    _f:subst(vy=0,q/p),
+    print("f = ",_f),
+    METHOD_FI: "linear",
+
+    if freeof(vx,_rhs) then (
+     /* */
+     print("y' = F(y)"),  
+     _xi:1,
+     _eta:0
+    ) else if freeof(vy,_rhs) then (
+     print("y' = F(x)"),  
+     _xi:0,
+     _eta:1
+    ) else if _f=0 then (
+     print("y' = f(x)*y"),  
+      _xi:0,
+      _eta:vy /* NOTE is this the right variable?*/
+    ) else (
+     print("y' = f(x)*y+g(x)"),  
+      /* symmetry generators for linear eq */
+      _xi : 0,
+      _eta: exp(-integrate(_g,vx))
+    ),
+
+    /*INTFACTOR_FI: -exp(integrate(_g,x)), *//* this is the integrating factor*/
+    INTFACTOR_FI: 1/(_xi*q-_eta*p), /* this is the integrating factor*/
+    heursol: INTFACTOR_FI, /* this is the heuristic solution integrating factor*/
+    return([false,heursol])
+  ), 
+
+
+
+/*
+
+  if type_of_intfactor#2 then ( 
+    print("trying heuristics"),
+    heursol:specialintfactor(q,-p,vx,vy), 
+    if heursol # false then heursol:[false,heursol], 
+    if (type_of_intfactor=1) or (heursol # false) then return(heursol) 
+  ), 
+
+*/
+
+
+  /* Check for the trivial case of exact equation for the setting              */
+  /* of type_of_intfactor=2                                                    */ 
+/*
+  if not ((elementary=2) or (elementary=3)) then (
+    print("checking if equation is exact"), 
+    a:mysimp(diff(p,vx) + diff(q,vy)), 
+    if a=0 then (
+      print("equation is exact!"),
+      INTFACTOR_FI:1,
+      METHOD_FI:'EXACT,
+      return ([false,1])
+    )
+  ), 
+*/
+
+   
+  /* ----- We continue with the Prelle-Singer algorithm ...              ----- */ 
+  /* The field is assumed to be generated by the kernels in p and q and by     */ 
+  /* the derivatives of those kernels                                          */ 
+  /* */
+  lst:showratvars([p,q]), /* list of all unknowns */
+  print("lst: ",lst),
+  /* now add to the list the derivatives wrt the dependent and independent variable */ 
+  lst:append(map(lambda([a],diff(a,vx)),lst), map(lambda([a],diff(a,vy)),lst), lst), 
+  print("lst:",lst),
+  lst:showratvars(lst), 
+  print("lst:",lst),
+  
+  /* remove everything that is not depending on x,y */
+  for a in lst do if not freeof(vx,vy,a) or diff(a,vx)#0 or diff(a,vy)#0 then trlst:cons(a,trlst), 
+  print("trimmed list containing only dependencies of x,y: ",trlst),
+
+  /* */ 
+  /* This section comes to insure proper substitution (no internal substitutions)*/ 
+  /* inside the transcendentals ! */ 
+  lst:nil, 
+
+  /* check for double entries */
+  while trlst # nil do( 
+    a:first(trlst), 
+    trlst:rest(trlst), 
+    if freeof(a,trlst) then lst:endcons(a,lst) else trlst:endcons(a,trlst)
+  ), 
+  print("list:",lst),
+  print("trimmedlist:",trlst),
+
+  /* */ 
+  /* It is assumed that all entries in trlst are algebraically independent!    */ 
+  /* One may use the Rothstein-Caviness algorithm to determine algebraic       */ 
+  /* dependence (see Siam.J.Comp. Vol 8 No.3. Aug 1979. )                      */ 
+  /* */ 
+  degree:if MAXTERMS < 0 then - MAXTERMS else max(MAXTERMS,length(lst)+1), 
+  nterms:if LISTOFTERMS=false then degree else LISTOFTERMS, 
+  trlst:lst, 
+
+  print("degree: ",degree),
+  print("nterms: ",nterms), 
+
+  /* */ 
+  /* Now the Prelle-Singer method */ 
+  /* */ 
+  /* Check if a closed differential field */ 
+  sol1:map(lambda([z],diff(z,vx)),trlst), 
+  sol1:append(map(lambda([z],diff(z,vy)), trlst),sol1), 
+  sol1:showratvars(sol1), 
+  print("sol1 : ",sol1),
+
+
+  for a in sol1 do if (not freeof(vx,vy,a) or radcan(diff(a,vx))#0 
+  or radcan(diff(a,vy))#0) and (not member(a,trlst)) 
+  then (print (a," is non constant in the field R", trlst), 
+    print(" The result may be WRONG! "), 
+    let([a,0],defi_let_package)
+  ), 
+
+  /*  this finds -(dP/dx + dQ/dy) for the ode Qdx=Pdy or dy/dx=Q/P */
+  rhs:newgradient([p,q],[vx,vy],trlst), 
+  print("gradients: ",rhs),
+  newtr:first(rhs), /* List of transcendentals */ 
+  gradnew:second(rhs) ,
+  rhs:third(rhs) , /* this is the actual -(dP/dx+dQ/dy) term */
+  /* */
+  
+  
+
+  /* Only the trivial extension F(i) is checked, Future releases will include */ 
+  /* general treatment of algebraic extensions */ 
+  /* */ 
+  if freeof(%i,p) and freeof(%i,q) then (
+    primitive:nil,
+    defpol:nil
+  ) else (
+    primitive:%i,
+    block([simp:false],defpol:%i^2+1)
+  ),
+ 
+  /* */ 
+  if listp(nterms) then (  
+    /* Transform the list nterms into list of numbers identifying terms */ 
+    b:trlst,
+    for a in newtr do (
+      nterms:ratsubst(a,first(b),nterms), 
+      b:rest(b)
+    ), 
+    nterms :ordl1(nterms,newtr)
+  ),
+ 
+  print("nterms: ",nterms),
+
+  /* */
+  /*  Now solve the Dp/p problem */ 
+  /* */
+  solutions:prelle_singer_dfovf(degree,nterms,gradnew,newtr,prlst, 
+                              primitive,defpol,n2mon,mon2n), 
+  print("solutions: ",solutions),
+
+  primitive:second(solutions), 
+  defpol:third(solutions), 
+  p:rest(solutions,3), 
+  solutions:first(solutions), 
+
+  if solutions=nil then if heursol = false then( 
+    METHOD_FI:concat("No Solution Found to the Dp/p Problem. 
+                     Try to increase MAXTERMS. "), return(false)) 
+  else return([false,heursol]), 
+
+  lg:first(p), 
+  /* this is the right hand side -(P_x +Q_y) */
+  print("r1Df/f + r2Df/f = rhs: ",rhs),
+  /* this is the list of f's */
+  print("trlst: ",trlst),
+  print("newtr: ",newtr),
+  print("vx: ",vx),
+  print("vy: ",vy),
+  print("solutions: ",solutions),
+  print("primitive: ",primitive),
+  print("defpol: ",defpol),
+  print("lg: ",lg),
+
+  /* */
+  /* Check the dependencies */ 
+  /* */
+  p:prelle_singer_dep(rhs,trlst,newtr,vx,vy,solutions, 
+                      primitive,defpol,lg,n2mon,mon2n), 
+  if p=false then if heursol = false then return(false) else return([false,heursol]), 
+  print("p ",p),
+  sol1:first(p), 
+
+  METHOD_FI: if sol1 # false then " Prelle-Singer Rational Solution" 
+  else" Prelle-Singer Integrating Factor", 
+
+  print("exiting Prelle-Singer-dfovf"),
+
+  INTFACTOR_FI:if sol1 # false then -diff(sol1,vx)/q else second(p), 
+  return(p)
+)$ 
+
+
+
+/*****************************************************************************/ 
+/* specialintfactor: Procedure finding integrating                           */ 
+/* factor belonging to some of the classes discussed                         */ 
+/* in the book by Davis. Introduction to non linear                          */ 
+/* differential and integral equations.                                      */ 
+/* Dover Pub. 1962                                                           */ 
+/*                                                                           */ 
+/*****************************************************************************/ 
+/* */ 
+specialintfactor(p,q,x,y):= 
+/* input : p,q are such that the equation is p*dx+q*dy=0 */ 
+/* output: f, the integrating factor */ 
+/* INTFACTOR_FI is set to f, METHOD_FI describes the method used */ 
+/* */ 
+block([a1,a2,a3,a,b,c,d,k,m,solved:false,pwr],
+  declare([m,k],integer), 
+
+  /* type 0 , simple check for exactness */ 
+  a1:mysimp(diff(p,y)-diff(q,x)), 
+  if a1=0 then (
+    INTFACTOR_FI:1,
+    METHOD_FI:'EXACT,
+    return (1)
+  ), 
+
+
+  /* */ 
+  /* type 1 */ 
+  /* Homogeneous equation */ 
+  k:hipow(p,x)+hipow(p,y), 
+  a2:diff(p,x)*x + diff(P,y)*y, 
+  if mysimp(a2-k*p)=0 then ( 
+    a2:diff(q,x)*x+diff(q,y)*y, 
+    if mysimp(a2-k*q)=0 then( 
+      INTFACTOR_FI:1/(x*p+y*q), 
+      METHOD_FI:concat("Homogeneous polynomial of order ",k), 
+      return(INTFACTOR_FI)
+    )
+  ), 
+
+
+  /* */
+  /* Next examine non polynomial case. */
+  /* The case p,q are polynomials this is catched by the above */
+  /* */ 
+  a2:subst([x=x*'%%k,y=y*%%k],p)/p, 
+  a2:mysimp(a2), 
+  if freeof_l([x,y],a2) then 
+    if mysimp(a2-subst([x=x*'%%k,y=y*'%%k],q)/q)=0 then(
+      INTFACTOR_FI:1/(x*p+y*q), 
+      METHOD_FI: concat("Homogeneous of order ",hipow(a2,'%%k)), 
+      return(INTFACTOR_FI)
+    ), 
+
+
+  /* */ 
+  /* type 2 : (y+xF(x**2 + y**2)dx - (x-yF(x**2+y**2))dy = 0 */ 
+  /*integfac = 1/(x**2+y**2) */ 
+  a2:(p-y)/x,
+  a3:(q+x)/y, 
+  if ratsimp(a2-a3)=0 and ratsimp(diff(trigsimp(subst([x=a*sin(b),y=a*cos(b)],a2)),b))=0 then (
+    INTFACTOR_FI: 1/(x^2+y^2),
+    METHOD_FI: " DAVIS method # 2 ", 
+    return(INTFACTOR_FI)
+  ), 
+
+  /* type 3 */ 
+  a2:a1/q, 
+  if freeof(y,a2) then (
+    INTFACTOR_FI:exp(integrate(a2,x)), 
+    METHOD_FI: " DAVIS method #3 x-dependent", 
+    return(INTFACTOR_FI)
+  ), 
+  a3:-a1/p, 
+  if freeof(x,a3) then (
+    INTFACTOR_FI:exp(integrate(a3,y)), 
+    METHOD_FI: " DAVIS method #3 y-dependent", 
+    return(INTFACTOR_FI)
+  ), 
+
+
+  /* */ 
+  /* type 4 : Too general to check */ 
+  /* */ 
+  a1:expand(p/y),
+  a2:expand(q/x), 
+
+
+
+
+  /* */ 
+  /* type 5 P=x*(a+b*x^m*y^n),Q=y*(c+d*x^m*y^n), integfactor=x^p*y^q */ 
+  /* Davis, introduction to nonlinear differential and integral equations */
+  /* */ 
+  if block([%a%,%b%,%c%,%d%,%e%,%m%,%n%] , (a:defi_type6(a1,x,y))# false 
+  and (b:defi_type6(a2,x,y))# false and ((c:second(a))=second(b))) then (
+    matchdeclare([_a,_b,_c,_d],freeof([x,y])),
+    print("a:",c), 
+    print("b:",c), 
+    print("c:",c," ",first(c)," ",second(c)), 
+    m:first(c),
+    n:second(c), 
+    c:first(b),
+    d:second(c),
+    c:first(c), 
+    b:first(a),
+    a:first(b),
+    b:second(b), 
+    a1:'a1, 
+    a2:'a2, 
+    print("a:",a), 
+    print("b:",b), 
+    print("c:",c), 
+    print("d:",d), 
+    print("k:",k), 
+    print("m:",m), 
+/* NB: bug, k is never mentioned, should be n */
+/*    a3:linsolve([c*a1 - a*a2 - (a-c), d*a1 - b*a2 - b*(k+1) + d*(m+1)], [a1,a2]), */
+    a3:linsolve([c*a1 - a*a2 - (a-c), d*a1 - b*a2 - b*(n+1) + d*(m+1)], [a1,a2]), 
+    print("A3:",a3[1],a3[2]),
+    INTFACTOR_FI:x^rhs(first(a3))*y^rhs(second(a3)), 
+    METHOD_FI: " DAVIS method #5, Goursat", 
+    return(INTFACTOR_FI)
+  ) 
+
+
+  /* type 6 : P=y*p(x,y),nQ=x*q(x,y), integfactor=1/(x*P-y*Q) */ 
+  /* */ 
+  else if ratsimp(subst([x=x*'%%k,y=y/'%%k],a1)-a1)=0 
+  and ratsimp(subst([x=x*'%%k,y=y/'%%k],a2)-a2)=0 then ( 
+    INTFACTOR_FI: 1/(x*p-y*q), 
+    METHOD_FI: " DAVIS method '6, p=y*f(xy), q-x*g(xy) ", 
+    return (INTFACTOR_FI)
+  ), 
+
+
+  /* type 7, Analytic function */ 
+  a1:mysimp(diff(p,x)-diff(q,y)), 
+  if a1=0 then if mysimp(diff(p,y)+diff(q,x))=0 then (
+    INTFACTOR_FI:1/(p^2+q^2), 
+    METHOD_FI : " ANALYTICAL FUNCTION ", 
+    return(INTFACTOR_FI)
+  ), 
+
+  return(false)
+)$ 
+
+
+/* */
+matchdeclare([%a%,%b%,%n%,%m%] ,freeof(x,y) ,%c%,freeof(x) ,%e%,freeof(y)); 
+notfreeofxy(x,y,z):=not freeof(x,y,z); 
+
+matchdeclare(%d%,notfreeofxy(x,y)); 
+defmatch(defi_type6_0, %a% + %d%, x,y); 
+defmatch(defi_type6_1, %e%*y^%n%, y); 
+defmatch(defi_type6_2, %b%*x^%m%, x); 
+defi_type6(exp,x,y):=block([a,b,c,d], 
+  if (a:defi_type6_0(exp,x,y)) # false and (b:defi_type6_1(%d%,y))# false 
+  and (c:defi_type6_2(%e%,x))# false then 
+  subst(a,subst(b,subst(c,[[%a%,%b%],[%m%,%n%]]))) else false
+)$ 
+
+
+/* -------------------------------------------------------------------------------------------------------- */
+/* this stuff below is for simplifying constants of integration appearing in exponentials, like exp(%c+a*x) */
+/* this can be simplified to %c*exp(a*x) */
+matchdeclare (_a, lambda ([_e], _e#0 and freeof(_x, _e)), _b, freeof(_x));
+defmatch (linearp, _a*_x + _b, _x);
+
+
+/* collect all terms exp(a(x,y)*%c+b(x,y)) */
+allTerms(expression):=
+ block( [ ],
+        allOpsPriv (expression,[])
+       )$
+
+allOpsPriv(expression, opList) :=
+ block ( [_x, _args, _constcoef,_expterm,_newList:opList],
+
+        if atom(expression) then opList else
+             (
+              _x: op(expression),
+              _args: args(expression),
+              if (_args[1] = %e)  and not freeof(%c,_args[2]) then
+              (
+               print("args = ",_args),
+               /* only exponential terms containing %c */
+               _constcoef:rhs(linearp(_args[2],%c)[2]),
+               _expterm:rhs(linearp(_args[2],%c)[1]),
+               /*if freeof(constcoef,depvar) and freeof(constcoef,indepvar) then*/
+                _newList: cons([_constcoef,_expterm],opList),
+                print("newList = ",_newList)
+              ),
+              for arg in _args do
+                _newList: allOpsPriv(arg, _newList),
+              _newList
+             )
+
+        )$
+
+/* simplify constant appearing in exponential term */
+SimpConstInExp(expr,depvar,indepvar):=block([_Expterms,_coef:0,_newExpr,_subst],
+
+  /* temporary substitution */
+  subst(%c%,%c,expr),
+
+
+  _newExpr:expr,
+  _Expterms: allTerms(expr),
+
+  if length(_Expterms)>0 then  
+    for i:1 thru length(_Expterms) do   
+      if not(freeof(depvar,_Expterms[i][1])) or not(freeof(indepvar,_Expterms[i][1])) then _subst:false,
+
+  if length(_Expterms)>1 then   
+    for i:2 thru length(_Expterms) do   
+      if _Expterms[i-1][1]#_Expterms[i][1] then _subst:false,
+
+  if _subst=false then return(expr),
+
+  for arg in _Expterms do 
+    _newExpr:subst(%c*exp(arg[2]),exp(arg[1]*%c+arg[2]),_newExpr),
+
+  /* this happens when there were other %c terms in the expression that are not inside exp(), like %c*exp(a*%c+b) */
+  if not freeof(%c%,_newExpr) then return(expr),
+
+  return(_newExpr)
+)$
+
+
+MakeConstPos(expr):=block([newexpr],
+newexpr: ratsimp((ratexpand(rhs(expr)-lhs(expr)+%c))),
+if freeof(%c,newexpr) then return(ratsimp(expr+2*%c))
+)$
+/*****************************************************************************/
+prelle_singer_dfovf(degree,nterms,grad,vrlst,prlst,primitive,defpol,fun,ifun):= 
+/*****************************************************************************/
+/* Solving the Dp/p problem of many variable case                            */ 
+/* Input :                                                                   */ 
+/*         degree   =  maximal order of monomial appearing if p              */ 
+/*         nterms   =  maximal number of terms allowed                       */
+/*                     or list of terms to be examined                       */ 
+/*         grad     =  list of polynomials (D = sum of pi*diff(.,xi))        */ 
+/*         vrlst    =  list of the variables (transcendentals)               */ 
+/*         prlst    =  list of parameters appearing in grad                  */ 
+/*         primitive=  primitive element of the algebraic extension          */ 
+/*         defpol   =  The irreducible polynomial defining primitive         */ 
+/*         fun      =  bijection from positive integers onto monomials       */ 
+/*         ifun     =  inverse of fun                                        */ 
+/* output:                                                                   */ 
+/*         list [ll,primitive,defpol,lg], where                              */ 
+/*              ll=list of [[f,g], ... ,], where Df=f*g,                     */ 
+/*              primitive =  possible a new primitive element                */ 
+/*              defpol    =  defining polynomial                             */ 
+/*              ng        =  maximal number of terms in the g's              */ 
+/*                                                                           */ 
+/* Arrays used : vgrad = vector of distributive representation of grad       */ 
+/*               vf    =  ..       symbols vf [i]                            */ 
+/*               vg    =  ..       ..      vg[i]                             */ 
+/*               veq   =  ..    of equations                                 */ 
+/*               vgmon = vector of monomials in g                            */ 
+/*****************************************************************************/
+block([ngr,i,ng,m,nmax,n,nf, 
+       a,b,c,d,e,glist,flist,fpol1,gpol1,cof,var, 
+       monom,fpol,gpol,lindex,nlindex,res,eql,nleql, 
+       nterms1,solvedlist,savenleq,saveleq,list_of_terms,nfm, 
+       zerolist,nozerolist,endloop:false,nofsol:0,lc, 
+       oprimitive,odefpol,overpol,oldofnew:nil,irred] , 
+  /* */
+  declare([ngr,i,ng,m,nmax,n,nf,nfm,degree],integer), 
+  /*declare([vg,vgmon,vf,vgrad,veq] ,special), */
+  print("entering prellesinger_dfovf"),
+  print("maximal order of monomial : ",degree),
+  print("maximum number of terms allowed:",nterms),     
+  print("list of polynomials : ",grad),   
+  print("list of transcendentals : ", vrlst),
+  print("list of parameters in poly list : ",prlst),
+  print("primitive element of the algebraic extension : ",primitive),
+  print("irreducible polynomial defining primitive : ", defpol),
+  print("the bijection from positive integers into monomials : ",fun),
+  print("inverse of bijection : ",ifun),
+
+  /* comment of Rami on nterms:nterms-1: degree-1 (BUG?) */
+  /* is nterms an integer or a rational number? */
+  if numberp(nterms) then nterms:nterms-1,  
+  print("nterms = ",nterms),
+
+  /* Because the coefficient of the highest term if f (in the df/f problem)    */
+  /* can be set to 1                                                           */     
+  res :nil, 
+  ngr:length(grad), 
+
+  /* declare the array vgrad */ 
+  array(vgrad,ngr), 
+
+  /* */
+  print("calling pol2dist"),
+  for i:1 thru ngr do ( 
+    a:first(grad),
+    vgrad[i]:pol2dist(a,vrlst,vrlst,ifun),
+    grad:rest(grad)
+  ), 
+  /* */
+  print("vgrad = ",listarray(vgrad)),
+  /* vgrad has the following form for the polynomials: 
+     [index,term,coefficient], where index is the index to the vfunv array. term is the poly term in terms of transcendentals
+     and coefficient is the constant prefactor in Complex C 
+*/
+
+ 
+
+  print("determining highest monomial in g"),
+  /* note, g is the remainder term of the division: Df/f = g */
+  /* Nijso: if N=2, then we only have to look in monomials 1..6 */
+  /*        if N=3, then we only have to look in monomials 1..10*/
+  /*        if N=4, then we only have to look in monomials 1..15*/
+
+  /* Determine the highest monomial appearing in g */ 
+  /* but... we know this, right? */
+  b:vrlst,ng:0, 
+  for i:1 thru ngr do (
+    print("---- i=",i,"/",ngr),
+    a:first(vgrad[i]),
+    cof:third(a),
+    var:first(b), 
+    print("a=",a),
+    print("cof=",cof),
+    print("var=",var),
+
+    if cof # 0 then (
+      monom:second(a), /* this is the maximal monomial in A, M(A)*/
+      m:first(a),
+      print("   monom=",monom," ,m=",m), 
+      if hipow(monom,var)>0 then m:apply(ifun,[ratsimp(monom/var),vrlst]),
+      print("m = ",m), /* this is the degree of A, deg(A)=Phi^-1(M(A)) */
+      ng:max(ng,m)
+    ), 
+    b:rest(b)
+  ), 
+
+  /* g gives the index in the list of polynomials with the highest monomial occuring in the ode*/ 
+  print("highest monomial in g = ",ng),
+  print("monomial = ",monom), 
+
+
+  /* Initialize */ 
+  array(vg,ng),array(vgmon,ng),array(vf,degree), 
+  /* */
+  flist:[vf[1]], /* flist will hold the list of all unknowns vf(1] .. vf[.] */ 
+  fpol : vf[1],  
+  glist:nil,
+  gpol: 0, 
+  /* */
+  print("glist"),
+  for i:1 thru ng do (
+    glist:cons(vg[i],glist),
+    b:apply(fun,[i,vrlst]), 
+    vgmon[i]:b, 
+    gpol:gpol+b*vg[i]
+  ), 
+
+  print("glist = ",glist),
+  print("vgmon = ",listarray(vgmon)),
+  print("gpol = ",gpol), /* this is the first polynomial f */
+
+  /* find nmax the maximal monomial appearing in f*g */ 
+  print("find nmax for degree=",degree),
+  nmax:apply(ifun,[ratsimp(vgmon[ng]*apply(fun,[degree,vrlst])),vrlst]), 
+  print("nmax = ",nmax),
+
+  /* */ 
+  array(veq,nmax), 
+  /* */ 
+
+  /* initialize lindex = list of integers from 1 to nmax */ 
+  /* and set all the equations veq[i] to zero */ 
+  lindex: nil, 
+  for i:1 thru nmax do (veq[i] :0,lindex:cons(i,lindex)), 
+  /*   */             
+  for i:1 thru ng do veq[i]:vg[i]*vf[1],   
+
+  print("veq = ",listarray(veq)), 
+   print("lindex = ",lindex),
+
+  /*                             */             
+  /*   Start   the main loop :   */     
+  /*                             */             
+  for nf : 2 thru degree do (
+
+    monom: apply(fun,[nf,vrlst]), 
+    print("monom = ",monom),
+
+    /* */ 
+    /* Depending on "nterms" prepare the list "list_of_terms" */
+    /* */
+    print("--------------------"), 
+    print("----- N=",nf," -----"), 
+    print("--------------------"), 
+    print("prepare listofterms"),
+
+    print("nterms = ",nterms),
+    if numberp(nterms) then (
+      print("   --- numberp(nterms) is true"), 
+      solvedlist:nil, 
+      nterms1: nterms ,nfm:nf-1,
+      print("nterms1 = ",nterms),
+      print("nfm = ",nfm),
+      if nterms1 > nfm then nterms1:nfm, 
+      list_of_terms:combinations(flist,nfm,nterms1),
+      print("-- list of terms = ",list_of_terms)
+      
+    ) /* rami put cross - wrong here */ 
+    else(
+      print("   --- numberp(nterms) is false"),
+      list_of_terms:nil,
+      c:nterms,
+      while c#nil do(
+        a:first(c), 
+        /* *rami put a cross through the following code: */
+        nfm:first(a), 
+        if nfm = nf /* only lists whose highest order term is nf examined */
+        then(
+          list_of_terms: cons(combinations1(flist,rest(a)),list_of_terms) , 
+          nterms: rest (c)
+        ) 
+        else if nfm>nf then c:[nil] 
+        else error(print(" incompatible terms ",a," for nf= ",nf)), 
+                                           c:rest(c)
+      ), 
+      if nterms=nil then endloop:true
+    ),
+
+      print("nterms = ",nterms),
+      print("endloop = ",endloop),
+      print("list of terms = ",list_of_terms),
+ 
+/* rami ends the cross through the code here */ 
+
+    /* update the equations except the one arising from vf[nf]*g */
+    /* NB: here we start constructing the matrix F */ 
+    c:vrlst, /* for example [x,y] */
+    print("update equations"),
+
+/*
+    for i:1 thru ngr do (
+      var:first(c),
+      b:vgrad[i],
+      m:hipow(monom,var), 
+      if m>0 then (
+        d:ratsimp(monom/var), 
+        while b # nil do (
+          e:first(b),
+          a:second(e), 
+          cof:third(e),
+          n:apply(ifun,[a*d,vrlst]), 
+          veq[n] : veq[n]-cof*m*vf[nf] , 
+          b:rest(b)
+        ) 
+      ), 
+      c:rest(c)
+    ),
+*/
+
+    print("veqn = ",listarray(veq)),
+    for i:1 thru ngr do (
+      var:first(c),
+      b:vgrad[i],
+      print("var=",var),
+      print("b=",b),
+      print("monom=",monom),
+      m:hipow(monom,var),
+      print("m = ",m),
+      
+      if m>0 then (
+        d:ratsimp(monom/var), 
+        while b # nil do (
+          e:first(b),
+          a:second(e), 
+          cof:third(e),
+          n:apply(ifun,[a*d,vrlst]), 
+          print("a=",a),
+          print("d=",d),
+          print("a*d=",a*d),
+          print("vrlist=",vrlst),
+          print("apply=",n),
+          veq[n] : veq[n]-cof*m*vf[nf] , 
+          print("veq=",listarray(veq)),
+          b:rest(b)
+        ) 
+      ), 
+      c:rest(c)
+    ),
+
+
+    print("vrlist of transcendentals = ",vrlst),
+    print("vgrad = ",listarray(vgrad)),
+    print("veq = ",veq, listarray(veq)),
+
+ 
+    /* */
+    print("pick linear equations"),
+    /* Pick up the linear equations */
+    n:apply(ifun,[monom*vgmon[ng],vrlst]), 
+    eql:nil, 
+    nlindex : rest(lindex,nmax-n),
+    for i:1 thru ng do (
+      print("nlindex = ",nlindex),
+      print("vgmon[i]=",vgmon[i]),
+      m:apply(ifun,[monom*vgmon[i],vrlst]), 
+      print("m = ",m),
+      eql:cons(-ratsubst(1,vf[nf],veq[m]),eql),/* we eliminate the highest vf[i], i.e. vf[ng]*/ 
+      print("eql = ",eql," ",nf," ",vf[nf]," ",veq[m]),
+      nlindex:delete(m,nlindex) 
+    ), 
+    print("eql = ",eql),
+
+    saveleq : eql,
+    /* */ 
+    /* Collect the nonlinear equations */ 
+    print("pick nonlinear equations"),
+    nleql:nil , 
+    while nlindex # nil do ( 
+      m:first(nlindex), 
+      a:ratsubst(1,vf[nf] ,veq[m]), 
+      if a#0 then nleql:cons(a,nleql), 
+      nlindex:rest(nlindex)
+    ),
+    print("nleql = ",nleql),
+
+ 
+    /* */ 
+    savenleq:nleql, 
+    /* */ 
+    /* */ 
+
+    /* Loop on members in the list "list_of_terms" */ 
+    /* rami comments: no while*/
+    /* rami comments: nozerolist:flist    ???nolist:nil*/
+    print("loop over listofterms",list_of_terms),
+    while list_of_terms # nil do (
+      print("insert list_of_terms"), 
+      print(first(list_of_terms)),
+      zerolist: first (list_of_terms),
+      nozerolist:first(zerolist), 
+      zerolist: second(zerolist), 
+
+      /* -------------------------------- */
+      /* -------------------------------- */
+      /* -------------------------------- */
+      /* */
+      /* solve the linear equations */
+      /* */
+      print("solve linear equations, ",zerolist," ",saveleq," ",glist),
+      eql: subst(zerolist,saveleq), 
+      print("eql = ",eql), 
+      eql: lsolveforg(eql,glist),
+      print("eql = ",eql), 
+      /* -------------------------------- */
+      /* -------------------------------- */
+      /* -------------------------------- */
+
+
+
+      /* */
+      /* Solve the set of nonlinear equations in nleql */
+      /* save the old primitive and defining polynomial */
+      print("solve nonlinear equations"),
+      oprimitive:primitive, 
+      odefpol:defpol, 
+
+      /* rami crosses appendzerolist here */
+      nleql : subst (append(zerolist,eql),savenleq), 
+      print("nleql = ",nleql), 
+      nleql : nlsolverpp(delete(0,nleql),nozerolist,primitive,defpol), 
+      print("nleql = ",nleql), 
+      /* */
+      /*Resolve the output */
+      oldofnew:first(rest(nleql,3)), 
+      defpol:third(nleql), 
+      primitive:second(nleql), 
+      nleql:first(nleql), 
+      print("nleql,first = ",nleql), 
+
+      /* rami comments: not necessary */
+      if numberp(nterms) then if (terms < (degree-1)) then ( 
+        /* examine redundant solutions */ 
+        lc : solvedlist, 
+        c : nleql,b:nil, 
+        while c#nil do(
+          a:first(c),
+          m:0, i:1,
+          while a # nil do (
+            if rhs(first(a))#0 then m:m+2^first(lhs(first(a))) else i:0,
+            a:rest(a)
+          ), 
+          if i=1 then b:cons(first(c),b) 
+          else if not member(m,lc) then (
+            solvedlist:cons(m,solvedlist), 
+            b: cons(first(c),b)
+          ), 
+          c:rest(c)
+        ), 
+        nleql:reverse(b) 
+      ),
+      print("nleql,reverse = ",nleql), 
+
+      /* */ 
+      /* Redefine the solutions in terms of the new primitive element */
+      /* */ 
+      /* rami remarks: X bug check!*/
+      if defpol # nil and primitive # oprimitive and oldofnew #nil 
+      then mysip(subst(oldofnew,oprimitive,nleql)), 
+      /* */
+
+      /* Now construct the actual polynomials */ 
+      print("construct polynomials, nleq = ",nleql),
+      c:res, 
+      print("c-res = ",res,",fpol= ",fpol,",monom= ",monom,",zerolist= ",zerolist),
+      /* rami crosses zerolist */
+      /* rami wants to move the while loop to after 'if domainp line */
+print("---------- BEGIN eliminate nonlinear equations ----------"),    
+  while nleql # nil do (
+        print("----- nleql = ",nleql),
+        a:first(nleql),
+        print("a = ",a),
+        fpol1:rat(mysimp(subst(append(a,zerolist),fpol)+monom)),
+        print("fpol1=",fpol1," ",fpol," ",monom),
+        b:subst(a,eql),
+        print("a = ",a),
+        print("eql= ",eql),
+        print("b = ",b),
+        print("gpol = ",gpol),
+        gpol1:rat(mysimp(subst(b,gpol))),
+        print("gpol1 = ",gpol1), 
+        /* */
+        /* Now check for irreducability is performed */
+        /* Irreducability in Q or Q(i) only, is checked */
+        /* */
+        print("check irreducibility"),
+        b:c,irred:true, 
+        while b # nil do (
+          a:first(first(b)), 
+          a:mysimp(fpol1/a), 
+          if domainp(denom(a),vrlst) then (b : [1] ,irred:false), 
+          b:rest(b)
+        ), 
+
+        print("irred = ",irred),
+        if irred then (
+          print("irreduceable"), 
+          nofsol :nofsol+1, /* Check Lemma 1 */
+          print("nofsol = ",nofsol," ",ng), 
+          if nofsol > ng then (endloop:true,nleql:[1]),
+          print("res = ",res,", ",fpol1,", ",gpol1), 
+          res:cons([fpol1,gpol1],res)
+        ), 
+        nleql:rest(nleql)
+      ),
+      print("nleql = ",nleql), 
+      print("res = ",res), 
+      /* */ 
+      list_of_terms:rest(list_of_terms)
+    ), /* end loop over list_of_terms... rami has crossed this list_of_terms */
+
+print("---------- END eliminate nonlinear equations ----------"),    
+    print("list_of_terms = ",list_of_terms),
+
+    /* */
+    /* Update veq , fpol and flist */ 
+    for i:1 thru ng do (
+      m:apply(ifun,[vgmon[i]*monom,vrlst]), 
+      veq [m] : veq[m]+vf[nf]*vg[i]
+    ),
+    print("veq = ",listarray(veq)),
+    print("fpol=",fpol,", monom=",monom,", vf=",vf[nf]),
+    fpol:rat(fpol+monom*vf[nf]), 
+    flist:cons(vf[nf],flist), 
+    print("flist= ",flist), 
+
+    /* but how do we know we can exit the loop when we have found 2 independent solutions? */
+    if endloop then nf:degree 
+  ), /* End of the main loop over nf */
+
+  print("end of loop over listofterms"), 
+  remarray(vf,vg,veq,vgmon,vgrad), 
+  print("----- exiting prellesinger_dfovf ----- "),
+  print("result = ",res," ",primitive," ",defpol," ",ng),
+  return ([reverse(res),primitive,defpol,ng]) 
+
+)$ 
+
+
+
+/*****************************************************************************/
+/*  Checking linear dependence of the solutions                              */
+/*  returned by the subroutine prelle_singer_dfovf.                          */
+/*  Constructing rational first-integral or an integrating factor            */
+/*****************************************************************************/
+prelle_singer_dep(rhs,trlst,newtr,vx,vy, 
+                  solutions,primitive,defpol,lg,n2mon,mon2n):= 
+/* INPUT: */ 
+/*        rhs = -(diff(p,vx)+diff(q,vy) (generalization of) the right hand   */
+/*              side of the equation Dp/p = rhs, for transcendentals.        */
+/*        trlst = list of transcendentals                                    */
+/*        newtr = The new names of transcendentals                           */
+/*        solutions = solutions returned by prelle_singer_dfovf              */ 
+/*OUTPUT: */
+/*        false if solution is not found                                     */ 
+/*        [first-integral, ... ] if "rational" solution found                */
+/*        [false,integrating-factor] otherwise                               */
+/*****************************************************************************/
+
+block([_a,_b,s,k,i,j,l,fpol,nofsol,exptsubst:true,indlist:nil, 
+gpol,lm,m,n,solved:false,degreeprim:0], 
+
+  declare([i,j,k,l,lm,nofsol,m,n,degreeprim] ,integer), 
+  /*declare([gvec,fun,per_vec] ,special), */
+
+print("----- entering prelle singer dep ----- "), 
+print("rhs = ",rhs),
+print("trlst = ",trlst),
+print("newtr = ",newtr),
+print("vx = ",vx),
+print("vy = ",vx),
+print("solutions = ",solutions),
+print("primitive = ",primitive),
+print("defpol = ",defpol),
+print("lg = ",lg),
+
+  /* */
+  degreeprim: 1, 
+
+  if primitive='%i then (
+    print("%i is a primitive!"),
+    degreeprim:2,
+    block([simp:false] , defpol:%i^2+1)
+  ) else if defpol # nil then 
+    degreeprim:hipow(defpol,primitive), 
+
+  degreeprim:degreeprim-1, 
+
+  print("primitiveflag: ",primitiveflag),
+  print("elementary:",elementary,evenp(elementary)),
+  if primitiveflag=false or evenp(elementary) then (
+    defpol=nil,
+    degreeprim=0,
+    primitive=nil
+  ), 
+print("defpol = ",defpol),
+print("degreeprim = ",degreeprim),
+print("primitive = ",primitive),
+
+  nofsol:length(solutions), 
+  array(gvec,nofsol,degreeprim,lg), 
+  array(fun,nofsol), 
+  array (per_vec,degreeprim,lg), 
+
+  /* set to zero all vectors */ 
+  for l:0 thru nofsol do ( 
+    fun[l]:0, 
+    for i:0 thru degreeprim do 
+      for j:1 thru lg do gvec[l,i,j]:0 
+  ), 
+
+
+  /* Prepare the substitution */ 
+  trlst:map("=",newtr,trlst), 
+
+
+  /* --- construct the gvec --- */ 
+  l:0, 
+  while solutions # nil do (
+    l:l+1, 
+    gpol:first(solutions),
+    fpol:first(gpol), 
+    gpol:second(gpol), 
+
+    print("fpol:",fpol),
+    print("gpol:",gpol),
+
+    /* If gpol =0 then solution found */ 
+    /* At this stage return the result and dont search any further */ 
+    /* */ 
+
+    if gpol=0 then 
+      if ((letsimp(diff(fpol:subst(trlst,fpol),vx),defi_let_package) #0) or 
+          (letsimp(diff(fpol,vy),defi_let_package)#0) ) 
+      then (
+        remarray(gvec,fun,per_vec), 
+        solved:true, 
+        return(1)
+      ) 
+      else (
+        l:l-1,
+        nofsol:nofsol-1
+      ) 
+    else ( 
+      fun[l] :fpol, 
+      gpol:pol2dist(gpol,newtr,newtr,mon2n), 
+      print("fun:",fun[l]),
+      print("gpol:",gpol),
+      while gpol # nil do (
+        _a:first(gpol), 
+        i:mode_identity(fixnum,first(_a)),
+        _a:third(_a), 
+        if _a # 0 then 
+          if primitive # nil then 
+            for k:0 thru degreeprim do 
+              gvec[l,k,i]:ratcoeff(_a,primitive,k) 
+          else 
+            gvec[l,0,i]:_a, 
+        gpol:rest(gpol)
+      )
+    ), 
+    solutions:rest(solutions) 
+  ), /* --- end of construction of gvec --- */
+  print("solutions: ",solutions),
+  /*print("gvec = ",listarray(gvec)),*/
+ 
+  /* */
+  if solved then return([fpol,false]), 
+  /* */
+
+  /* examine now the rhs· -(diff(p,x)+diff(q,y)) */ 
+  /* */ 
+
+  _a:rhs, 
+  _a:pol2dist(_a,newtr,newtr,mon2n), 
+  s:first(_a), 
+
+  if(first(s) > lg) then (
+    remarray(gvec,fun,per_vec), 
+    print(" BUG in prelle_singer_dep"), return(false)
+  ), 
+
+  /* */ 
+  while _a # nil do (
+    s:first(_a),
+    i:mode_identity(fixnum,first(s)),
+    rhs:third(s), 
+    if rhs # 0 then 
+      if primitive # nil then 
+        for k:0 thru degreeprim do 
+          gvec[0,k,i]:ratcoef(rhs,primitive,k) 
+      else gvec[0,0,i]:rhs, 
+
+    _a:rest(_a)
+  ), 
+
+  indlist: nil, 
+
+  for j:1 thru nofsol do(
+    print("------ j: ",j,"/",nofsol),
+    solved:true, 
+    for k:0 thru degreeprim do 
+      for i:1 thru lg do (
+        _b:[k,i], 
+        if not member(_b,indlist) then 
+          if (_a:ratsimp(gvec[j,k,i])) # 0 then (
+            per_vec[k,i]:j,
+            indlist:endcons(_b,indlist), 
+            solved:false,
+            k:degreeprim,
+            i:lg
+          )
+      ), 
+
+    m:_b[1],
+    n:_b[2], 
+
+
+/* at this point we have solved sigma r Df_i/f_i = -(P_x + Q_y) */
+print("gvec = ",listarray(gvec)),
+    if not solved then (
+      print("not solved!"),  
+      lm:j+1, 
+      for l:lm thru nofsol do ( 
+        gvec[l,m,n]:ratsimp(gvec[l,m,n]/_a)
+      ), 
+      gvec[0,m,n]:ratsimp(gvec[0,m,n]/_a), 
+      for k:0 thru degreeprim do 
+        for i:1 thru lg do ( 
+          _a:[k,i],
+          if _a#_b then ( 
+            for l:lm thru nofsol do gvec[l,k,i]:ratsimp(gvec[l,k,i]-gvec[j,k,i]*gvec[l,m,n]), 
+            gvec [0,k,i]:ratsimp(gvec [0,k,i] - gvec [j,k,i]*gvec[0,m,n]) 
+          )
+        )
+    ) else (
+      print("solved!, s=",s),  
+      _a:1,
+      _b:true, 
+      for k:0 thru degreeprim do 
+        for i:1 thru lg do 
+          if member([k,i],indlist) then (
+            s:gvec[j,k,i], 
+            print("fun=",fun[per_vec[k,i]]),
+            _a:_a*fun[per_vec[k,i]]^s, 
+            if not ratnump(s) then _b:false
+          ), 
+
+      _a:_a/fun[j], 
+
+      print("checking if a is trivial, a=",_a," ",trlst),
+      /* */
+      /* Check if a is trivial */
+      /* */
+      /* this could lead to 1/0 problems, that is why we need to errcatch this */
+      /* we now put a at 0 but maybe this is wrong??? */
+      _a:errcatch(subst(trlst,_a)),
+      if length(_a)#0 then _a:_a[1] else _a:0,   
+      print("checking if a is trivial, a=",_a),
+      print("letsimprules = ",let_rule_packages),
+      print("a_x = ",diff(_a,vx)),
+      print("a_y = ",diff(_a,vy)),
+      if (letsimp(ratsimp(diff(_a,vx)),defi_let_package)= 0) and(letsimp(ratsimp(diff(_a,vy)),defi_let_package)= 0) 
+      then solved:false else j:nofsol
+    ),
+    print("finished solving") 
+  ), 
+
+  /* */
+  if solved then (
+    print("solved, elementary = ",elementary), 
+    if elementary=3 and not _b then (
+      METHOD_FI:"Rational non-elementary solution rejected",
+      _a:false
+    ), 
+
+    if _a # false then ( 
+      if defpol # nil then block([simp:false], 
+      /* treat the case of defpol =%i^2 +1 */ 
+      _a:factor(_a,defpol)
+      )
+    ), 
+
+    if elementary = 2 or elementary = 3 then (
+      remarray(gvec,fun,per_vec) ,
+      return (if _a # false then [_a,false] else _a)
+    ),
+ 
+    /* */ 
+    /* If dependency found, then there exist elementary integral log(a) */ 
+    /* */ 
+    if _a # false  then(
+      if elementary # 4 then block([logexpand:'all],_a:log(_a)), 
+      return([_a,false])
+    ) 
+  ),
+
+ 
+  if elementary # 4 then return(false), 
+
+  /* */ 
+  /* Check if the "rhs" is dependent on the previous vectors */ 
+  /* */
+  print("checking if rhs depends on previous vectors"), 
+  solved:true, 
+  _a:1,
+  _b:true, 
+  print("constructing integrating factor using gvec = ",listarray(gvec)),
+  print("pervec = ",listarray(per_vec)),
+  block([algebraic:false,ratalgdenom:false], 
+    for k:0 thru degreeprim do(
+      print(k,"/",degreeprim), 
+      for i:1 thru lg do (
+        print(" ",i,"/",lg), 
+        if member([k,i],indlist) then(
+          /* these are the powers r_i of prelle-singer*/
+          s:ratsimp(gvec[0,k,i]), /* NB: added ratsimp*/ 
+          print("s:",s), 
+          print("f: ",fun[per_vec[k,i]]),
+          /* nijso added to prevent memory leak when fun=0 */
+          if fun[per_vec[k,i]] #0 then
+          /* f1^s1 * f2^s2 * f3^s3 ... */  
+          _a:_a*fun[per_vec[k,i]]^s, 
+
+          if not ratnump(s) then _b:false
+        ) else 
+          if ratsimp(gvec[0,k,i]) # 0 then (
+            solved:false,
+            i:lg,
+            k:degreeprim
+          )
+      )
+    )
+  ),
+
+  if solved then 
+    if not _b and elementary = 1 then (
+      _a:false, 
+      METHOD_FI:"Integrating Factor is not a radical "
+    ) else ( 
+      print("solved", _a),
+      print("trlst = ",trlst),
+      _a:subst(trlst,_a), 
+      print("new a = ",_a),
+      defpol:ratsimp:defpol, /* simplify */
+    
+      block([simp:false],
+      print("defpol = ",defpol), 
+      print("defpol = ",is(defpol#nil)), 
+      print("defpol = ",is(defpol#0)), 
+
+      if (defpol # nil) and (defpol # 0) then (
+        print("trying to factor a"),
+        /* for some reasons it crashes here when defpol is 0 */
+        _a:factor(_a,defpol),
+        print("new a = ",_a)
+       )
+      ), 
+      print("factor a = ",_a),
+      _a: [false,_a]
+    ) 
+  else (
+    METHOD_FI:" PRELLE-SINGER Failed: No Dependency Found, /* */ 
+                Try To Increase MAXTERMS", 
+    _a: false
+  ), 
+
+
+  print("ready to return and deleting gvec,fun,per_vec"), 
+  /* */ 
+  remarray(gvec,fun,per_vec), 
+  return(_a)
+
+)$ 
+/* *********************************************************************** */ 
+/* The procedures II newgradient and newgradientl substitute new           */ 
+/* variables for the transedentals in the equations and define their       */ 
+/* derivatives. It also determines dynamically the space needed mon2nspace */ 
+/* *********************************************************************** */ 
+newgradient(grad,vrlst,trlst):= block([i:0,ll:0,k:0,j:0,l:0, tr, vx , vy, trl:nil, tr1,tr2,dlst:nil,newgr ,exptsubst :true] ,
+  /*declare([vfunv, vifunvi,mon2nspace] ,special) , */
+ 
+  /* check here if vfunv exists???*/
+ 
+  declare([i,ll,l,k,j],integer), 
+  vx:first(vrlst),
+  vy:second(vrlst), 
+  print("----- newgradient --------------------------------"), 
+  print("grad = ",grad),
+  print("vrlst = ",vrlst),
+  print("trlst = ",trlst),
+
+  tr: '\%tr, 
+  newgr:trlst,  
+  while trlst # nil do (
+    i:i+1,
+    tr1:concat(tr,i), /* create variable %tr1, %tr2, ... for each element in trlst */
+    tr2:first(trlst), 
+    trl:cons(tr1,trl), 
+    dlst:cons ([diff(tr2,vx), diff(tr2,vy)],dlst), 
+    dlst:letsimp(dlst,defi_let_package), 
+    trlst:rest(trlst)
+  ), 
+  print("dlst:",dlst),/* this is the derivative list */
+  print("trlst:",trlst),
+  print("trl:",trl),
+
+  dlst:reverse(dlst),
+  trl:reverse(trl), 
+  vy:trl, 
+  while newgr # nil do (
+    vx:first(newgr), 
+    dlst:ratsubst(first(vy),vx,dlst), 
+    grad:ratsubst(first(vy),vx,grad) , 
+    vy:rest(vy),
+    newgr:rest(newgr)
+  ), 
+  print("dlst = ",dlst),
+  dlst:newgradient1(grad,vrlst,trl,dlst),
+  print("newgradient1 - dlst = ",dlst),
+ 
+  /* *** */ 
+  /* *** call procedure preparing the functions mon2n and n2mon    */ 
+  /* *** The current implementation uses vectors and hashing table */ 
+  /* *** For each problem mon2nspace is determined dynamically     */ 
+  ll:length(trl),
+  print("length trl:",ll),
+  for i:0 thru ll do (print("i:",i),vfunv[0,i]:1,print(vfunv[0,i])), 
+  print("vfunv = ",listarray(vfunv)),
+  print("vfunv: ",vfunv[0,0],vfunv[0,1],vfunv[0,2]),
+  i:0,
+  print("MAXTERMS = ",MAXTERMS),
+  print("vfunv(i,ll) = ",vfunv[i,ll]),
+  /* i,ll = 0,2 */
+  while MAXTERMS > vfunv[i,ll] do ( /* this means that if maxterms=2, then we go through this once and we have 2 rows */
+    i:i+1, 
+    vfunv[i,0]:1,
+    if ll>0 then for j:1 thru ll do vfunv[i,j]:vfunv[i-1,j]+vfunv[i,j-1] /* nijso added if ll>0 */
+  ),
+  print("vfunv = ",listarray(vfunv)),
+ 
+  j:max(maxtdeg(first(dlst),trl)+i,maxtdeg([second(dlst)],trl)),
+  print("j = ",j),
+  for k:i thru j do (
+    vfunv[k,0]:1,
+    if ll>0 then for l:1 thru ll do vfunv[k,l]:vfunv[k-1,l]+vfunv[k,l-1]
+  ),
+
+  print("j = ",j),
+  print("ll = ",ll),
+  mon2nspace:vfunv[j,ll],
+  print("mon2nspace:",mon2nspace), 
+  print(listarray(vfunv)),
+  remarray(vfunv),
+  print("creating new arrays"), 
+  array(vfunv,mon2nspace),
+  array(vifunv,mon2nspace),
+  preparefun(mon2nspace,trl),
+  print(listarray(vifunv)),
+  print(listarray(vfunv)),
+
+  print("newgradient : ",cons(trl,dlst)),
+  return(cons(trl,dlst))
+)$
+
+
+maxtdeg(grad,vrlst):= 
+apply('max,map(lambda([u],apply('max,map(lambda([v],subst("+","[", 
+  map(lambda([t],hipow(v,t)),vrlst))),
+  expndpls(u)))),
+  grad)
+)$ 
+
+/* x1+x2+x3 will become [x1,x2,x3] */
+expndpls(a):= 
+if (atom(a) or (part(a,0) # "+")) then [a] else subst("[","+",expand(a))$ 
+
+/*************************************************************************/ 
+newgradient1(grad,vrlst,trlst,dlst):= 
+block([l,d,rhs,e,t,vx,vy,p,q,a2,b2,s:'s,d1,d2], 
+  local(s) , 
+  vx:first(vrlst), 
+  vy:second(vrlst), 
+
+  p:first(grad), q:second(grad), 
+  l:trlst, 
+  for t in l do (
+    d:first(dlst), 
+    d1:first(d),
+    d2:second(d), 
+    apply('gradef,[t,vx,d1]), 
+    apply('gradef,[t,vy,d2]), 
+    dlst:rest(dlst)), 
+    b2:-(diff(p,vx) + diff(q,vy)), 
+    rhs:fullratsimp(b2), 
+    rhs:letsimp(rhs,defi_let_package), 
+ /* */ 
+ /* Remove the denominators */ 
+  depends(s,trlst), 
+  b2:p*diff(s,vx)+q*diff(s,vy), 
+  b2:ratsimp(b2) , 
+  b2:letsimp(b2,defi_let_package), 
+  a2:num(b2),b2:denom(b2), 
+  d:num(rhs),d1:denom(rhs), 
+  if d # 0 then ( 
+    t:apply('gcd,append([a2,d],trlst)), 
+    a2:apply('quotient,append([a2,t],trlst)), 
+    d:apply('quotient,append([d,t],trlst))
+  ), 
+  t:apply('gcd,append([b2,d1],trlst)), 
+  a2:ratsimp(a2*apply('quotient,append([d1,t],trlst))), 
+  rhs:ratsimp(d*apply('quotient,append([b2,t],trlst))), 
+
+  /* */ 
+  d1:nil, 
+  for t in trlst do (
+    d1:endcons(ratcoeff(a2,diff(s,t)),d1), 
+    apply('remove,[t,dependency]), 
+    apply('remove,[t,atomgrad])
+  ), 
+  remove(s,dependency), 
+  return([d1,rhs])
+)$ 
+
+/*****************************************************************************/ 
+/* SOLVER */ 
+/*****************************************************************************/ 
+/* ** */ 
+/* This is preliminary section solving special linear and a set of */ 
+/* non linear equations over algebraic fields */ 
+/* Notice that most of the procedures are "dummy" using the "ALGSYS" */ 
+/* of MACSYMA */ 
+/*****************************************************************************/ 
+lsolveforg(equations,unknowns):= 
+/* VERY UNECONOMICAL AND BAD IMPLEMENTATlqn OF SOLVING LEQ'S */ 
+/* BY USING THE SUBST FUNCTION OF MACSYMA */ 
+/* solving set of lowerdiagonal linear equations */ 
+/* The diagonal term is omitted */ 
+block([a,b,solutions],
+
+  print("solver: equations : ",equations),
+  print("solver: unknowns : ",unknowns),
+
+  solutions:nil, 
+  while equations # nil do ( 
+    a:first(equations), 
+    b:first(unknowns), 
+    a:ratsimp(subst(solutions,a)), 
+    solutions:cons(b=a,solutions), 
+    equations:rest(equations), 
+    unknowns:rest(unknowns)
+  ), 
+  return(solutions) 
+)$ 
+
+/* ----------------------------------------------------------------------- */ 
+nlsolver(equations,unknowns):= 
+  /* Solves set of non-linear equations in unknowns                    */ 
+  /* output: [list of solutions,primitive-element,defining-polynomial] */ 
+  /* solutions are polynomials in primitive-element                    */ 
+  block([solution,sol,a,b,primitive:nil,defpol:nil], 
+  solution:myalgsys(equations,unknowns), 
+  sol:solution, 
+  while sol # nil do (
+    a:first(sol), 
+    while a # nil do (
+      b:ratcoef(rhs(first(a)),%i,1), 
+      if b#0 then (
+        primitive:%i, 
+        block([simp:false],defpol:%i^2+1), 
+        a:[1],sol:[1]
+      ),
+      a:rest(a)
+    ), 
+  sol: rest(sol)), 
+  return([solution,primitive,defpol])
+)$ 
+
+/****************************************************************/ 
+nlsolverpp(equations,unknowns,primitive,defpol):= 
+/* Solves set of equations in unknowns. the equations might depend on the */ 
+/* primitive element, whose defining polynomial is defpol */ 
+/* output [list of solutions,newprimitive,newdefpol,oldofnew] */ 
+/* The field extension including the newprimitive includes all */
+/* the solutions as well as the old primitive element */
+/* oldofnew is a polynomial in primitive expressing the old prim. */
+/* */ 
+block([sol:nil,newprimitive:nil,newdefpol:nil,oldofnew:nil], 
+  sol:nlsolver(equations,unknowns), 
+  newprimitive:second(sol), 
+  newdefpol:first(rest(sol,2)), 
+  if newprimitive = nil then (newprimitive: primitive,newdefpol:defpol), 
+  sol:first(sol), 
+  /* We have to find the 'primitive as a polynomial in 'newprimitive */ 
+  /* It is known that Q(newprimitive) includes the field Q(primitive) */ 
+  /* ##### NOT IMPLEMENTED 1######### */ 
+  /* One can use for example: a:factor(defpol,newdefpol), */ 
+  /* b: picklinear_term(a,primitive) */ 
+  /* oldofnew: linsolve(b ,primitive) */ 
+  print("WARNING: NOT IMPLEMENTED !!!"),
+  return([sol,newprimitive,newdefpol,oldofnew])
+)$ 
+/* */ 
+
+myalgsys(equations,unknowns):= 
+block([programmode:true], 
+ return( algsys(equations,unknowns))
+)$ 
+
+/****************************************************************************/ 
+/* DISTRIBUTIVE POLYNOMIALS */ 
+/****************************************************************************/ 
+/* Package for simple arithmetics of distributive polynomials               */ 
+/* The order among terms is defined by the special functions: n2mon,mon2n   */ 
+/* */ 
+pol2dist(pol,vrlst,glbl,ifun):= 
+/* Transforming "macsyma" polynomial into distributive representation       */ 
+/* Using the order on monomials induced by the function ifun                */ 
+block([n,pwr,mv,lc,red,p1,p2],  
+  if domainp(pol,vrlst) then return ([[1,1,pol]]), 
+  mv:first(vrlst), 
+  n:hipow(pol,mv), 
+  pwr:mv^n,lc:ratcoeff(pol,mv,n), 
+  red:ratsimp(pol-pwr*lc), 
+  p1:pol2dist(lc,rest(vrlst),glbl,ifun), 
+  p2:pol2dist(red,vrlst,glbl,ifun), 
+  p1:pwrxdist(pwr,p1,glbl,ifun), 
+  return(adddist(p1,p2,glbl,ifun))
+)$ 
+
+
+/****************************************************************************/ 
+pwrxdist(pwr,pol,vrlst,ifun):= 
+block([a,b] , 
+  if pol=nil then return(nil), 
+  a:first(pol),
+  b:pwr*second(a), 
+  return(cons([apply(ifun,[b,vrlst]),b,third(a)],pwrxdist(pwr,rest(pol),vrlst,ifun)) )
+)$ 
+
+/****************************************************************************/ 
+adddist(p1,p2,vrlst,ifun):= 
+  /* Adding two distributive polynomials */ 
+  if p1=nil then 
+   p2 
+  else if p2=nil then 
+   p1 
+  else 
+    adddist(rest(p1),adddist1(first(p1),p2,vrlst,ifun),vrlst,ifun)
+$ 
+
+/****************************************************************************/ 
+adddist1(a,p2,vrlst,ifun):= 
+block([m,n,res,b] , 
+  if p2=nil then return([a]), 
+  m:first(a),
+  n:first(first(p2)), 
+  if m>n then 
+    res:cons(a,p2) 
+  else if m=n then (
+    b:ratsimp(third(a)+third(first(p2))), 
+    if b#0 then res:cons([m,second(a),b],rest(p2)) 
+    else res:rest(p2)
+  ) 
+  else res:cons(first(p2),adddist1(a,rest(p2),vrlst,ifun)), 
+return(res) 
+)$ 
+
+/****************************************************************************/ 
+n2mon(k,vrlst):=vfunv[k]$ 
+/****************************************************************************/ 
+ 
+mon2n(mon,vrlst):= 
+block([n,nt,var,ilst:nil] , 
+  declare([n,nt] ,integer) , 
+  if domainp(mon,vrlst) then return(1), 
+  nt:0, 
+  while vrlst # nil do ( 
+    var:first(vrlst),n:hipow(mon,var), 
+    ilst:cons(n,ilst), 
+    nt:nt+n, 
+    vrlst:rest(vrlst)
+  ), 
+  var: vifunv[nt], 
+  return(ifun1(var,reverse(ilst)))
+)$ 
+/* */ 
+
+/****************************************************************************/ 
+ifun1(q,ilst) := 
+if rest(ilst)=nil then first(q) 
+else ifun1(first(rest(q,first(ilst))),rest(ilst))$ 
+/* */
+
+/****************************************************************************/ 
+preparefun(nmax,vrlst):= 
+/* Experimental preparation of vector and hash-table for the functions */ 
+/* mon2n and n2mon */ 
+block([j,n,res], 
+  j:1,n:0, 
+  while j<=nmax and n<=nmax do( 
+    res:preparefun1(n,vrlst,1,j,nmax), 
+    j:first(res),vifunv[n]:second(res), n:n+1)
+)$
+
+ 
+/****************************************************************************/ 
+preparefun1(tdeg,vrlst,mon,fro,nmax):= 
+block([mv,j,res,l], 
+  if vrlst=nil then return(nil), 
+  mv:first(vrlst), 
+  vrlst:rest(vrlst), 
+  if vrlst=nil then (
+    mon:mv^tdeg * mon, 
+    vfunv[fro] :mon , 
+    res:[fro+1,[fro]] 
+  ) 
+  else ( 
+    j:0,res:nil, 
+    while j<= tdeg and fro <= nmax do ( 
+      fro:preparefun1(tdeg-j,vrlst,mon,fro,nmax), 
+      l:second(fro),fro:first(fro), 
+      res:cons(l,res),mon:mon*mv,j:j+1
+    ), 
+    res:[fro,reverse(res)] 
+  ), 
+  return(res) 
+)$ 
+
+/* ***************************************************************** */ 
+/* *** The procedures below define some ordering functions to enable */ 
+/* ** proper treatment of all the "nterms" options */ 
+/* *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ** */ 
+/* */ 
+ordl1(lst,vrlst):= 
+  if lst=nil then nil else 
+  ordl2(ordl3(map(lambda([v] ,mon2n(v,vrlst)),first(lst))), 
+  ordl1(rest(lst),vrlst) )$ 
+
+/*************************************************************************/ 
+ord12(l1,l2):= 
+  if l2=nil then [l1] 
+  else if l1=nil then l2 
+  else if first(l1) < first(first(l2)) then cons(l1,l2) 
+  else cons(first(l2),ordl2(l1,rest(l2)) )$ 
+
+/*************************************************************************/ 
+ordl3(lst) := 
+  if lst=nil then nil 
+  else ordl4(first(lst),ordl3(rest(lst)))$
+
+ 
+/*************************************************************************/ 
+  ordl4(a,lst) := 
+  if lst=nil then [a] 
+  else if a >= first(lst) then cons(a,lst) 
+  else cons(first(lst),ordl4(a,rest(lst)))$ 
+
+
+/*************************************************************************/ 
+/*** Routines finding the list of terms in the case nterms is a number */ 
+/*** smaller then degree in the procedure prelle_singer_dfovf */ 
+/*************************************************************************/ 
+combinations(lst,ln,k):= 
+block([res:nil,a,b,c,d,lst1,m1,m2,i,k1], 
+  declare([m1,m2,i,k1],integer), 
+  if k=0 then (a:map(lambda([x],x=0),lst),return([[nil,a]]) ), 
+  if k=ln then return([[lst,nil]]), 
+  m1:quotient(ln,2),m2:ln-m1, 
+  lst1:rest(lst,-m2),lst:rest(lst,m1), 
+  for i:0 thru k do (
+    k1 :k-i, 
+    if i <= m1 and k1 <= m2 then (
+      a: combinations(lst1,m1,i),b:combinations(lst,m2,k1), 
+      while a # nil do (
+        c:first(a), d:second(c), c:first(c), 
+        res:append(res,map(lambda([x],[append(c,first(x)),append(d,second(x))]),b)), 
+        a:rest(a)
+      )
+    )
+  ), 
+  return(res) 
+)$ 
+
+
+/*************************************************************************/ 
+combinations1(flist,lst):= 
+block([x,res1:nil,res2,m,n,i] ,declare([n,m,i],integer), 
+  m:length(lst) , 
+  n:length(flist), 
+  res1:nil, 
+  for i:1 thru m do 
+    res1:endcons(flist[n-lst[i]+1] ,res1), 
+  res2:flist,
+  for x in res1 do res2:delete(x,res2), 
+  res2:map(lambda([x] ,(x=0)) ,res2) , 
+  return([res1,res2]) 
+)$ 
+/***********************************************************/ 
+/*  */ 
+/* Some additional auxiliary functions :: */ 
+/* */ 
+mysimp(exp):=radcan(exp)$ 
+
+domainp(pol,vrlst):= freeof_l(vrlst,pol) $ 
+
+freeof_l(l,a):=apply('freeof,append(l,[a]))$ 
+
+second(x):= first(rest(x))$ 
+
+third(x):=first(rest(x,2))$ 
