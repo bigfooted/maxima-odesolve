@@ -26,7 +26,7 @@ put('prellesinger,001,'version)$
 /* ************************************************************************** */
 
 /* ***** print all statements with flag lower than DEBUGFLAG           ***** */
-DEBUGFLAG:5$
+DEBUGFLAG:1$
 
 
 load(lrats)$   /* for lratsubst */
