@@ -1,5 +1,5 @@
 /* ************************************************************************** */
-/* *****     prellesingeODE                                             ***** */
+/* *****     prellesingerODE                                            ***** */
 /* *****                                                                ***** */ 
 /* *****     Author: Nijso Beishuizen                                   ***** */ 
 /* *****                                                                ***** */
@@ -21,28 +21,46 @@
 /* ************************************************************************** */
 /* ************************************************************************** */
 
+
 /* ************************************************************************** */
 put('prellesinger,001,'version)$
 /* ************************************************************************** */
 
-/* ***** print all statements with flag lower than DEBUGFLAG           ***** */
+/* ***** print all statements with flag lower than DEBUGFLAG            ***** */
 DEBUGFLAG:1$
 
 
-load(lrats)$   /* for lratsubst */
-load(grobner)$ /* for computing grobner basis              */
-load(functs)$  /* for the least common multiple command lcm */
-define_variable(degreeboundf, 2, fixnum)$ /* max degree of trial polynomials for the invariant algebraic curves (realistic is 1-4) */
-define_variable(degreeboundP, 4, fixnum)$ /* max degree of trial polynomials for exponential factors(realistic is 1-4) */
-define_variable(degreeboundQ, 4, fixnum)$ /* max degree of trial polynomials for exponential factors(realistic is 1-4) */
-define_variable(ODEFI_GRAD_LIST    ,[]    ,any)$ /* not used (yet), copied from Shtokhamer's code */
-define_variable(convertImaginary,true, boolean)$ /* try to convert imaginary numbers to real numbers */
-define_variable(heuristics,true, boolean)$       /* try to use a heuristic method for solving the ode (linear, separable, etc) */
-define_variable(convertTrig,true, boolean)$      /* convert trig functions (sin,cos,csc,sec,cot) to tan  */
+load(lrats)$                                      /* for lratsubst */
+load(grobner)$                                    /* for computing Groebner the basis */
+load(functs)$                                     /* for the least common multiple command lcm */
 
-halfangles : true$   /* converts trigonometric halfangles, i.e. tan(x/2), sin(x/2), etc    */
-%edispflag : true$   /* writes negative powers of %e as a quotient, i.e. %e^-x  ->  1/%e^x */
-exptdispflag : true$ /* writes exponents with negative powers as quotients                 */
+define_variable(degreeboundf, 2, fixnum)$         /* max degree of trial polynomials for the invariant algebraic curves (realistic is 1-4) */
+define_variable(degreeboundP, 2, fixnum)$         /* max degree of trial polynomials for exponential factors(realistic is 1-4) */
+define_variable(degreeboundQ, 2, fixnum)$         /* max degree of trial polynomials for exponential factors(realistic is 1-4) */
+define_variable(ODEFI_GRAD_LIST    ,[]    ,any)$  /* not used (yet), This idea was introduced in Shtokhamer's paper */
+
+define_variable(convertImaginary ,false, boolean)$  /* true = try to convert complex Invariant Algebraic Curves to real */
+define_variable(convertTrig      , true, boolean)$  /* true = convert trig functions (sin,cos,csc,sec,cot) to tan  */
+define_variable(returnExplicit   , true, boolean)$  /* true = return and explicit solution, else return an implicit solution  */
+define_variable(returnIntFactor  ,false, boolean)$  /* true = returns only the integrating factor */
+define_variable(returnDarboux    ,false, boolean)$  /* true = returns only the Darboux polynomials+cofactors (and exponential factors if found) */
+define_variable(use_to_poly_solve,false, boolean)$  /* true = use to_poly_solve as solver */
+define_variable(convertVariables,false, boolean)$   /* true = try to convert dependent (transcendental variables) to y,x */
+
+halfangles   : true$                              /* if true, converts trigonometric halfangles, i.e. tan(x/2), sin(x/2), etc    */
+%edispflag   : true$                              /* if true, writes negative powers of %e as a quotient, i.e. %e^-x  ->  1/%e^x */
+exptdispflag : true$                              /* if true, writes exponents with negative powers as quotients                 */
+linsolvewarn : false$                             /* if true, linsolve prints a message "Dependent equations eliminated".        */
+
+/* this stuff below is for simplifying constants of integration appearing in exponentials, like exp(%c+a*x) */
+/* this can be simplified to %c*exp(a*x) */
+matchdeclare (_a, lambda ([_e], _e#0 and freeof(_x, _e)), _b, freeof(_x));
+defmatch (linearp, _a*_x + _b, _x);
+
+/* detect p1*sqrt(p2/q2) and split into sqrt(p2) and sqrt(q2) */
+matchdeclare(_p1,lambda([_e1],_e1#0),_p2,lambda([_e3],_e3#0),_q2,lambda([_e4],_e4#1));
+defmatch(sqrtOfFraction,_p1*sqrt(_p2/_q2));
+
 
 
 /* ************************************************************************** */
@@ -63,22 +81,30 @@ prellesingerODE(_ode1,_y,_x,[options]):=block(
   dprint(1,""),
 
   /* --- check all the optional arguments --- */
-  heuristics               : assoc('heuristics,options,true),               /* if true, then first try a number of fast specialized solvers for e.g. linear odes. */
-  searchExponentialFactors : assoc('searchExponentialFactors,options,true), /* if true, then also search for exponential factors */
+  searchExponentialFactors : assoc('searchExponentialFactors,options,true), /* if true, then also search for exponential factors (takes longer but you can solve more equations) */
   convertImaginary         : assoc('convertImaginary,options,true),         /* if true, convert imaginary numbers to real to simplify integrating factor. true if input ODE does not contain %i */
   searchRational           : assoc('searchRational,options,false),          /* if true, only search for rational solutions */
-  /*searchDarboux            : assoc('searchDarboux,options,false),*/       /* if true, only search (and return) the Darboux polynomials and cofactors */
   convertTrig		   : assoc('convertTrig,options,true),              /* if true, convert (sin,cos,csc,sec,cot) functions to tan to create a true transcendence base */
   basisFunctions           : assoc('basisFunctions,options,[]),             /* user-defined lexicographically ordered list of basis functions */
+  returnExplicit           : assoc('returnExplicit,options,true),           /* if true, tries to return an explicit solution in _y, else returns an implicit solution  */
+  returnIntFactor          : assoc('returnIntFactor,options,false),         /* if true, returns only the integrating factor instead of the solution of the ode */ 
+  returnDarboux            : assoc('returnDarboux,options,false),           /* if true, returns only the Darboux polynomials instead of the solution of the ode */ 
+  use_to_poly_solve        : assoc('use_to_poly_solve,options,false),       /* if true, use the to_poly_solve solver (in case you encounter "quotient" errors) */ 
+  convertVariables        : assoc('convertVariables,options,true),          /* if true, try to convert auxiliary variables v(x,y) in the basis functions to x,y in intermediate steps (rarely needs to be set to false)  */ 
 
   dprint(1,""),
   dprint(1,"---------- optional arguments : -----------------------------"),
-  dprint(1,"---------- use heuristics                  = ",heuristics),
   dprint(1,"---------- user defined basis functions    = ",basisFunctions),
   dprint(1,"---------- search only rational solutions  = ",searchRational),
   dprint(1,"---------- search for exponential factors  = ",searchExponentialFactors),
   dprint(1,"---------- convert imaginary to real       = ",convertImaginary),
   dprint(1,"---------- convert trig functions to tan   = ",convertTrig),
+  dprint(1,"---------- convert auxiliary variables     = ",convertVariables),
+
+  dprint(1,"---------- return explicit solution        = ",returnExplicit),
+  dprint(1,"---------- return only integrating factor  = ",returnIntFactor),
+  dprint(1,"---------- return only Darboux polynomials = ",returnDarboux),
+
   dprint(1,"------------------------------------------------------------"),
   dprint(1,""),
 
@@ -104,10 +130,12 @@ prellesingerODE(_ode1,_y,_x,[options]):=block(
     apply('gradef,[_u,_y,(_u^2+1)/2])
   ), 
   
+  /* get the Pfaffian coefficients */
   [_P,_Q] : ode1PfaffianForm(_ode,_y,_x),
   dprint(3,"P = ",_P), 
   dprint(3,"Q = ",_Q),
 
+  /* analyse P,Q: compute the degree=max(deg(P),deg(Q)))*/
 
     /* deal with user-defined substitution rules */
 /*
@@ -125,13 +153,8 @@ prellesingerODE(_ode1,_y,_x,[options]):=block(
     ),
 */
   
-  /* check heuristic methods to solve first order ode */
-  if (heuristics=true) then 
-    [method,_mu] : specialintfactor(_Q,_P,_y,_x),
-
-  /* if we do not have an integrating factor yet, try the prelle singer method */
-  if (method=false) then 
-    [method,DarbouxPolynomials,DarbouxMultiplicities,ExponentialFactors] : new_ps_1(_P,_Q,_y,_x,basisFunctions),
+  /* Call the Prelle Singer method (following the naming convention of Man (1993)) */
+  [method,DarbouxPolynomials,DarbouxMultiplicities,ExponentialFactors] : new_ps_1(_P,_Q,_y,_x,basisFunctions),
   if method=false then return(false), 
 
   /* back-substitution of temporary trig-substitution */ 
@@ -146,6 +169,7 @@ prellesingerODE(_ode1,_y,_x,[options]):=block(
     DarbouxPolynomials : makelist(DarbouxPolynomials[i],i,indices), 
     DarbouxMultiplicities : makelist(DarbouxMultiplicities[i],i,indices) 
   ),
+
   dprint(3,"P = ",_P), 
   dprint(3,"Q = ",_Q),
   dprint(3,"method = ",method),
@@ -153,26 +177,37 @@ prellesingerODE(_ode1,_y,_x,[options]):=block(
   dprint(3,"Darbouxpolynomials = ",grind(DarbouxPolynomials)),
   dprint(3,"DarbouxMultiplicities = ",grind(DarbouxMultiplicities)),
 
-  if (method="Darboux" or method="integratingFactor") then 
-    _mu : DarbouxIntegratingFactor(DarbouxPolynomials,DarbouxMultiplicities,ExponentialFactors),
+  if returnDarboux=true then return([DarbouxPolynomials,DarbouxMultiplicities,ExponentialFactors]),
 
+  if (method="Darboux" or method="integratingFactor") then (
+    _mu : DarbouxIntegratingFactor(DarbouxPolynomials,DarbouxMultiplicities,ExponentialFactors),
+    if returnIntFactor=true then return(_mu)
+  ),
 
   if method="firstIntegral" then ( 
-    dprint(3,"FIRST INTEGRAL FOUND"),
-    sol: rootscontract(_mu) - %c 
+    dprint(1,"FIRST INTEGRAL FOUND"),
+    w:1,
+    for i:1 thru length(DarbouxPolynomials) do 
+      w: w*DarbouxPolynomials[i][1]^DarbouxMultiplicities[1],
+    sol: w - %c 
   ) 
   else ( 
+    dprint(1,"INTEGRATING FACTOR FOUND, mu = ",_mu),
     sol : ode1Solve(_P,_Q,_y,_x,'integratingFactor=_mu) 
   ),
 
-  sol: cleanupODESolution(sol,_y,_x),
+  /* clean up and try to write in explicit form*/
+  if returnExplicit=true then sol: cleanupODESolution(sol,_y,_x),
 
-  dprint(3,"solution = ",grind(sol)),
+  dprint(1,"solution = ",grind(sol)),
   return(sol)
 )$
 /* ************************************************************************** */
 
 
+/* ************************************************************************** */
+/* *****  solve an ode using an integrating factor and simplify result  ***** */
+/* ************************************************************************** */
 ode1Solve(_P,_Q,_y,_x,[options]):=block([_check,_res,_mu:false,mu_P,mu_Q,exactode,_N,_M,res1,res2,sol],
 
   /* --- check all the optional arguments --- */
@@ -201,28 +236,32 @@ ode1Solve(_P,_Q,_y,_x,[options]):=block([_check,_res,_mu:false,mu_P,mu_Q,exactod
   /* we try to get rid of imaginary numbers */
   mu_P : num(_mu),
   mu_Q : denom(_mu),
-  if not freeof(%i,mu_P) and (convertImaginary=true) then (
+  /*if not freeof(%i,mu_P) and (convertImaginary=true) then (*/
+  if not freeof(%i,mu_P) then (
     mu_P : rootscontract(mu_P),
     mu_P : rectform(radcan(mu_P)), /* for simplification of e.g. -1^%i*/
     mu_P : trigreduce(trigsimp(demoivre(mu_P))) /* if mu=exp(sin(x)) then exponentialize(mu) has exploded this expression and introduced complex numbers */
   ),
-  if not freeof(%i,mu_Q) and (convertImaginary=true) then (
+  /*if not freeof(%i,mu_Q) and (convertImaginary=true) then (*/
+  if not freeof(%i,mu_Q) then (
     mu_Q : rootscontract(mu_Q),
     mu_Q : rectform(radcan(mu_Q)), /* for simplification of e.g. -1^%i*/
     mu_Q : trigreduce(trigsimp(demoivre(mu_Q))) /* if mu=exp(sin(x)) then exponentialize(mu) has exploded this expression and introduced complex numbers */
   ),
 
-  _mu : ratsimp(trigsimp(mu_P / mu_Q)),
+  _mu : radcan(mu_P / mu_Q),
 
 /*
     if not freeof(%e,_mu) then 
       _mu: radcan(exponentialize(_mu)), /* will simplify e.g. exp(log(a*x+b)) */
 */
-  _mu : radcan(_mu), /* radcan will get rid of (x^a)^b*/
+
   dprint(3,"MU = ",grind(_mu),_y,_x),
 
-  exactode : radcan(trigsimp(ratsimp (diff(_mu*_P,_x) + diff(_mu*_Q,_y)))), 
-  dprint(3,"Does integrating factor make ODE exact?  ",grind(exactode), " ",is(exactode=0)),
+  /*exactode : radcan(trigsimp(ratsimp (diff(_mu*_P,_x) + diff(_mu*_Q,_y)))), */
+  exactode : radcan(trigsimp( (diff(_mu*_P,_x) + diff(_mu*_Q,_y)))), 
+  dprint(1,"Does integrating factor make ODE exact?  ",grind(exactode), " ",is(exactode=0)),
+  
 
   /* we integrate the exact equation. note that we can do that in two ways and we need to choose the easiest one */
   /* NB: trigsimp helps in simplifying e.g. kamke1.6, speedup from 20s to 1s !!! */
@@ -230,65 +269,52 @@ ode1Solve(_P,_Q,_y,_x,[options]):=block([_check,_res,_mu:false,mu_P,mu_Q,exactod
   _M : trigsimp(ratsimp(_mu*_Q)),
   dprint(3,"N = ",grind(_N)),
   dprint(3,"M = ",grind(_M)),
-  res1: trigreduce(trigsimp(ratsimp(integrate(_M,_x)))),
-  /*dprint(3,"res1 = ",res1),*/
-  res1a: radcan(res1),
-  /*dprint(3,"res1 = ",res1),*/
-  if freeof(%i,res1) and freeof(%i,res1a) then res1:res1a,
 
-  /*dprint(3,"res1 = ",res1),*/
-  res2: trigreduce(trigsimp(ratsimp(integrate(_N,_y)))),
-  res2a: radcan(res2),
-  if freeof(%i,res2) and freeof(%i,res2a) then res2:res2a,
 
-  /*dprint(3,"res2 = ",res2),*/
-  sol: res1 + integrate(_N - diff(res1,_y),_y) +%c,
+/* *************************** */
+  halfangles : false,
+/* *************************** */
+  dprint(5,properties(a)),
+  dprint(5,properties(b)),
+  dprint(5,properties(c)),
+  res1: integrate(_M,_x),
+  dprint(3,"res1 = ",grind(res1)),
+
+  /* is this really necessary? */
+  if freeof(%i,res1) then (
+    res1a: radcan(res1),
+    if freeof(%i,res1a) then res1:res1a
+  ),
+
+  res2: integrate(_N,_y),
+  dprint(3,"res2 = ",grind(res2)),
+
+  if freeof(%i,res2) then (
+    res2a: radcan(res2),
+    if freeof(%i,res2a) then res2:res2a
+  ),
+
+
+  res3: diff(res1,_y),     
+  
+  /* radcan: simplifies kamke1.41, we should only use radcan when we do not have %i terms (messes up results) */
+  if freeof(%i,res3) then (
+    res3a: radcan(res3),
+    if freeof(%i,res3a) then res3:res3a
+  ),
+
+  dprint(3,"res3 = ",grind(res3)),
+  res3: integrate(res3,_y),
+  dprint(3,"res3 = ",grind(res3)),
+ 
+  sol: res1 + res2 - res3 + %c,
   dprint(3,"sol = ",sol), 
+ 
+/* *************************** */
+   halfangles : true,
+/* *************************** */
 
   return(sol)
-)$
-/* ************************************************************************** */
-
-
-
-/* ************************************************************************** */ 
-/* ************************************************************************** */ 
-ode1CheckDarboux(Sfg,varlist,niList,Sum_nigi):=block(
-[_allcoef, %rnum_list:[], %rnum:1, ni, nrOfNum],
-
-  dprint(3,"ode1CheckDarboux: start"),
-  dprint(3,"sum nigi = ",grind(Sum_nigi)),
-  dprint(3,"varlist = ",varlist),
-  _allcoef : allcoeffsNew(Sum_nigi,varlist),
-  dprint(3,"_allcoef = ",_allcoef),
-  dprint(3,"niList = ",niList),
-  ni : flatten([solve(_allcoef,niList)]), 
- 
-  nrOfrnum : length(%rnum_list),
-  dprint(3,"ni = ",ni),
-  ni : subst(0,all,ni), /* if ni can be anything, set it to 0 (maybe we can set it to 1?)*/
-  for r in %rnum_list do 
-    ni:subst(0,r,ni), /* replace all free variables with 0 (cannot be another value)*/
- 
-/* step 3
-  if length(ni)>0 and listp(ni[1]) then  
-    ni : map(rhs,flatten(ni[1])), 
-*/
-
-/* step 4 */
-  if (length(ni)>0) then  
-    ni : map(rhs,flatten(ni)), 
-
-/*
-  if length(delete(0,ni)) # 0 then (
-    EXIT : true, method: "firstIntegral",
-    print(" ***** FIRST INTEGRAL FOUND ***** "), 
-    return(method)
-  )
-*/
-
-  dprint(3,"ode1CheckDarboux: end, ni=",ni),
-  return(ni)
 )$
 /* ************************************************************************** */
 
@@ -318,7 +344,7 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
     varlist : BasisFunctions(_P,_Q,_y,_x)
   else
     varlist : _userDefinedBasisFunctions,
-  dprint(1,"basis functions = ",varlist), 
+  dprint(2,"basis functions = ",varlist), 
   /* ******************************* */
 
   /* get a list of all variables in P and Q, remove the variables in varlist and make the remaining variables a constant */
@@ -360,9 +386,7 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
 */
 
   denom_lcm : lcm([ddx,ddy]), /* compute the denominator of the least common multiple */
-  /* note: sometimes we first need ratexpand to get rid of some complicated fractions, before doing ratsimp */
-  /*dPdx_plus_dQdy : -trigexpand(trigsimp((diff(_P,_x) + diff(_Q,_y)))) * denom_lcm, */ /* needed in step 4 */
-  dPdx_plus_dQdy : -trigexpand(trigsimp((diff(_P,_x) + diff(_Q,_y)))), /* needed in step 4 */
+  dPdx_plus_dQdy : -ratsimp(trigsimp((diff(_P,_x) + diff(_Q,_y)))), /* needed in step 4 */
 
 /*  if convertTrig=true then  dPdx_plus_dQdy : Trig2Tan(dPdx_plus_dQdy,_y,_x),*/
 
@@ -379,7 +403,8 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
   dprint(3,"dy = ",dy), 
 
 
-  /* ***** rational approach, not completely implemented yet ***** */
+  /* ***** rational approach, not implemented yet ***** */
+  /*
   if (searchRational=true) then (
     W : ratexpand(ratsimp(_x*_Q - _y*_P)),
     dprint(3,"W = ",W),
@@ -394,10 +419,8 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
     dprint(3,"W_nplus1 = ",W_nplus1),
     factorW : sublist(args(ratexpand(W_nplus1)),lambda([__x],not(integerp(__x)))),      
     dprint(3,"rational factors are : ",factorW)
-    /* now construct all possible leading homogeneous terms of Darboux polynomials of degree k 
-       and collect them in Sk */
-    /* add lower-order terms */
   ),
+  */
   /* factorW contains the leading terms of the test polynomials. */
   /* we can remove from fList all polynomials with leading terms that are not in factorW */
   /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
@@ -410,7 +433,6 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
     apply('gradef,[v,_y,first(dy)]),
     dx:rest(dx),dy:rest(dy)
   ),
-
 
   /* replace dx and dy with the new variables */
   _P  : lratsubst(map("=",reverse(original_variables),reverse(varlist)),_P),  
@@ -431,9 +453,9 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
   dprint(3,"dP/dx + dQ/dy = ",dPdx_plus_dQdy), 
 
  
-  _P : _P * denom_lcm,
-  _Q : _Q * denom_lcm,
-  dPdx_plus_dQdy : dPdx_plus_dQdy * denom_lcm,
+  _P : ratsimp(_P * denom_lcm),
+  _Q : ratsimp(_Q * denom_lcm),
+  dPdx_plus_dQdy : ratsimp(dPdx_plus_dQdy * denom_lcm),
   _degree_ode : max(degree_l_t(_P,varlist),degree_l_t(_Q,varlist)),
   /* ******************************* */
   dprint(3,"P = ",_P), 
@@ -456,7 +478,7 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
   /* fList contains a monomial basis (we need this for computation of the extactic and algebraic multiplicity) */
   dprint(3,"fList = ",fListofTerms),
   fListofTerms:rest(reverse(fListofTerms)), /* strip the constant (last element) because we don't want to start with that (or do we?)*/
-  apply(declare,[''%Ci,constant]),
+  /*apply(declare,[''%Ci,constant]),*/ 
   dprint(3,"%Ci = ",%Ci),
   fi_backup : %Ci[1],   
 
@@ -485,15 +507,16 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
     fi:first(fList), fList:rest(fList), /* we do it in this way because we can then add new fi to the list*/
     gi:0,
     degree_f : degree_l_t(fi,varlist), 
-    dprint(3,"********************************"), 
-    dprint(3,"fi = ",fi), 
-    dprint(3,"degree(fi) = ",degree_f),
-    dprint(3,"********************************"), 
+    dprint(1,"********************************"), 
+    dprint(1,"fi = ",fi), 
+    dprint(1,"degree(fi) = ",degree_f),
+    dprint(1,"********************************"), 
     dprint(3,"P = ",_P),
     dprint(3,"Q = ",_Q),
     dprint(3,"x = ",_x),
     dprint(3,"y = ",_y),
-    Dfi : ratexpand(_P*diff(fi,_x) + _Q*diff(fi,_y)),
+    /*Dfi : ratexpand(_P*diff(fi,_x) + _Q*diff(fi,_y)),*/
+    Dfi : _P*diff(fi,_x) + _Q*diff(fi,_y),
     dprint(3,"Dfi = ",Dfi), 
 
 
@@ -502,22 +525,15 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
     /* maybe: first switch back to original variables, simplify, then go back to internal variables */
     /* only do this if we have more than two variables in varlist */
 
-
     /* TODO: ratsimp is usually enough but is there a benefit in using radcan as well? */
 
-
-    /* when is this beneficial? it makes 1.62,1.63 fail, but makes 1.112 run! */
-
-
-    Dfi : ratsimp(lratsubst(map("=",varlist,original_variables),Dfi)),
-     Dfi : lratsubst(map("=",reverse(original_variables),reverse(varlist)),Dfi),  
-
-
-    dprint(3,"Dfi = ",Dfi), 
-
-    /* !!!!!!!!!!!!!!! */
-    dprint(3,"Dfi lexicographically ordered = ",lexicographicallyOrderedPolynomial(Dfi,varlist)),
-
+    /* when is this beneficial? it makes 1.62,1.63 fail, but with makes 1.112 run!  without: 192 runs*/
+    if (convertVariables=true) then (
+      Dfi : fullratsimp(lratsubst(map("=",varlist,original_variables),Dfi)), 
+      dprint(5,"Dfi = ",Dfi), 
+      Dfi : lratsubst(map("=",reverse(original_variables),reverse(varlist)),Dfi),
+      dprint(5,"Dfi = ",Dfi) 
+    ), 
 
     indivisible : false,
     feqns : [],
@@ -533,49 +549,64 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
       /*fi : poly_primitive_part(fi,varlist),*/
 
 
-      print("Dfi = ",Dfi),
+      dprint(3,"Dfi = ",Dfi),
       /* leading term of fi divides leading term of Dfi ? */
       lt_fi : l_t(fi,varlist),
       dprint(3,"lt_fi = ",lt_fi),
-
-      dprint(3,"WE ARE GOING TO COMPUTE lt_DFI ",Dfi," ",varlist),
+/*
+      if freeof(%x3,lt_fi) and freeof(%x4,lt_fi) and freeof(lt_fi,Dfi) then (
+        dprint(1,"trying to convert auxiliary variables to primary variables..."), 
+        Dfi : fullratsimp(lratsubst(map("=",varlist,original_variables),Dfi)), 
+        dprint(1,"Dfi = ",Dfi), 
+        Dfi : lratsubst(map("=",reverse(original_variables),reverse(varlist)),Dfi),  
+        dprint(1,"Dfi = ",Dfi) 
+      ),
+*/
+      dprint(5,"WE ARE GOING TO COMPUTE lt_DFI ",Dfi," ",varlist),
  
       lt_Dfi : l_t(Dfi,varlist), /* TODO: it seems that computing the leading term is computationally expensive: precompute? */        
-      dprint(3,"lt_Dfi = ",lt_Dfi), 
+      dprint(5,"lt_Dfi = ",lt_Dfi), 
       /* leading coefficients */
-      lc_Dfi : l_c(lt_Dfi,varlist), /* leading coeff can be 2*a, 3.0*%e, etc.    */
-      /*print("varlist = ",varlist),  */
-      dprint(3,"lc_Dfi = ",lc_Dfi, "constant = ",constantp(lc_Dfi)), 
+      /*lc_Dfi : l_c(lt_Dfi,varlist),*/ /* leading coeff can be 2*a, 3.0*%e, etc.    */
+      lc_Dfi : constant_factors(lt_Dfi,varlist), /* call directly for speedup*/
+     /*print("varlist = ",varlist),  */
+      dprint(5,"lc_Dfi = ",lc_Dfi, "constant = ",constantp(lc_Dfi)), 
       counter: length(fi_in(lc_Dfi,%Ci)), 
 
-      dprint(3,"*******************     F|DF ???               ***********************"),
+      dprint(5,"*******************     F|DF ???               ***********************"),
       Dfi_fi : monomialdivide(lt_Dfi,lt_fi,varlist), /* divide lt(Dfi) by lt(fi) */
 
-      dprint(3,"lt(Dfi)/lt(fi) = ",Dfi_fi),
-      dprint(3,"number of fi's in Dfi_fi = ",counter),
+      dprint(5,"lt(Dfi)/lt(fi) = ",Dfi_fi),
+      dprint(5,"number of fi's in Dfi_fi = ",counter),
       if Dfi_fi#false then (
-        dprint(3,"lt(fi) divides lt(Dfi)"),
+        dprint(5,"lt(fi) divides lt(Dfi)"),
         /* lt(f) divides lt(Df) */
-        gi : ratexpand(ratsimp(gi + Dfi_fi)),
-        dprint(3,"gi = ",gi), 
-        Dfi : ratexpand(ratsimp(Dfi - fi*Dfi_fi))
+        /*gi : ratexpand(ratsimp(gi + Dfi_fi)),*/
+        gi : ratsimp(gi + Dfi_fi),
+        dprint(5,"gi = ",gi), 
+        Dfi : ratsimp(Dfi - fi*Dfi_fi)
         ) 
       else if (constantp(lc_Dfi) and counter=0) then (dprint(3,"***** INDIVISIBLE *****"),indivisible:true)
       else if counter=1 then (
-        dprint(3,"there is exactly one unknown coefficient in lc_Dfi"),
+        dprint(3,"********************************"), 
+        dprint(5,"there is exactly one unknown coefficient in lc_Dfi"),
+        dprint(3,"********************************"), 
+        dprint(3,"feqns = ",feqns),
+        dprint(3,"********************************"), 
         _var:fi_in(lc_Dfi,%Ci)[1], /* get me the unknown coefficient */
-        dprint(3,"vars in lc_Dfi = ",grind(_var)), 
-        dprint(3,"lc_Dfi = ",grind(lc_Dfi)), 
+        dprint(5,"vars in lc_Dfi = ",grind(_var)), 
+        dprint(5,"lc_Dfi = ",grind(lc_Dfi)), 
         /* number of fi's in lc_Dfi = 1 */
+
+
+        /* step 1: solve for the list s */
         sList : solve(lc_Dfi,_var),
-        dprint(3,"sList = ",sList),  /* sList might be a rational expression that can be simplified (already done below) */
+        dprint(5,"solution s = ",sList),  /* sList might be a rational expression that can be simplified (already done below) */
 
         /* RATIONAL APPROACH : check if the solution is rational */
-
-
-        sList : ratsimp(radcan(sList)), 
-
-        dprint(3,"sList = ",sList),  /* sList might be a rational expression that can be simplified (already done below) */
+        /* why simplify slist at this point? */
+        /*sList : radcan(sList), */
+        dprint(5,"solution sList = ",sList),  /* sList might be a rational expression that can be simplified (already done below) */
 
         /* throw away all non-integers (rational approach!) */
         /*sList : sublist(map(lambda([__x],rhs(__x)),sList),integerp),   This command gives a list with only the right hand side */
@@ -587,7 +618,6 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
         /* so at this point we need to split into numerator and denominator and multiply the test polynomial with the denominator */
         /* to get rid of fractions (we have poly_primitive_part command for this )*/ 
          
-
         /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
         /*if freeof(%i,sList) then sList : sublist(sList,lambda([__x],integerp(rhs(__x)))),*/
         /*print("sList, keeping %i = ",sList),*/
@@ -613,19 +643,28 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
 
           /* TODO: radcan is very slow. Do we really need this? there was a benefit using it in Dfi to simplify kamke1.39 */ 
           for s in sList do (
-            Dfi   : first(DfiList),   Dfi   : ratexpand(ratsimp(radcan(subst(s,Dfi)))),            DfiList   : endcons(Dfi,rest(DfiList)),
+            dprint(5,"    * s=",s),
+            /*Dfi   : first(DfiList),   Dfi   : ratexpand(ratsimp(radcan(subst(s,Dfi)))),            DfiList   : endcons(Dfi,rest(DfiList)),*/
+            Dfi   : first(DfiList),   Dfi   : ((radcan(subst(s,Dfi)))),            DfiList   : endcons(Dfi,rest(DfiList)),
             /* if Dfi=0 then all fi are solved, we can keep all fi in the list fi */ 
 
-            fi    : first(fiList),    fi    : ratexpand(ratsimp(radcan(subst(s,fi)))),             fiList    : endcons(fi,rest(fiList)),
-            feqns : first(feqnsList), feqns : ratexpand(ratsimp(radcan(subst(s,feqns)))),          feqnsList : endcons(feqns,rest(feqnsList)),
-            gi    : first(giList),    gi    : ratexpand(ratsimp(radcan(subst(s,gi)))),             giList    : endcons(gi,rest(giList)),
+            fi    : first(fiList),    fi    : (ratsimp((subst(s,fi)))),             fiList    : endcons(fi,rest(fiList)),
+            gi    : first(giList),    gi    : (ratsimp((subst(s,gi)))),             giList    : endcons(gi,rest(giList)),
+            feqns : first(feqnsList), feqns : (ratsimp((subst(s,feqns)))),          feqnsList : endcons(feqns,rest(feqnsList)),
             /* maybe the previous command reduced a term in feqn to zero (there was a term f1*f2 and we did a subst(f2=0))*/
             /* actually, if this happens, then it might be that other terms also simplify, but we can catch that with grobner */
          
             /* we should remove duplicates and zeros from feqns (NIJSO: can we also have this for fi,gi,Dfi?????)*/
             feqns:delete(0,feqns),  
             feqns:unique(feqns),
-            dprint(3,"feqns = ",feqns)        
+            dprint(3,"feqns = ",feqns),
+            dprint(3,"fiList = ",fiList), 
+            dprint(3,"giList = ",giList)
+
+            /* if there are equations in feqns, then check if they can now be solved */
+            /* if they can be solved, then substitute the solved %fi coefficients and add f into the filist */
+
+      
           ),
           fList : append(rest(reverse(fiList)),fList), /* we skip the last one and keep this value in fi*/ 
 
@@ -645,7 +684,8 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
         dprint(3,"********************************"), 
         dprint(3,"feqns = ",feqns),
         dprint(3,"********************************"), 
-        Dfi : expand(Dfi - lt_Dfi), /* nijso: ratexpand -> expand because it also simplifies expressions */
+        /*Dfi : expand(Dfi - lt_Dfi),*/ /* nijso: ratexpand -> expand because it also simplifies expressions */
+        Dfi : fullratsimp(Dfi - lt_Dfi), /* nijso: ratexpand -> expand because it also simplifies expressions */
         dprint(3,"Dfi-lt_Dfi = ",grind(Dfi)) 
       )
     ), /* end while loop */
@@ -655,13 +695,13 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
     dprint(3,"Dfi = ",Dfi), /* this must be 0*/
     dprint(3,"feqns:",grind(feqns)), 
     if not(indivisible) and (length(feqns)#0) then (
-      dprint(0,"Warning: we need to compute a groebner base (This is computationally expensive)!"),
+      dprint(1,"Warning: we need to compute a groebner base (This is computationally expensive)!"),
       /* 1/2 compute groebner base */
       /* 2/2 if system is consistent then all unknown coefficients in fi and gi can be determined */
       /*     else jump the next step and try the next fi */
       _var : fi_in(feqns,%Ci),
       dprint(3,"unknown variables: ",_var), 
-      feqns_grobner : poly_reduced_grobner(feqns,_var),
+      feqns_grobner : poly_reduced_grobner(feqns,_var), /* todo? why poly_reduced_groebner? */
       dprint(3,"reduced grobner basis of feqns = ",feqns_grobner),
 /*
       if (length(feqns_grobner)=1) then if (feqns_grobner[1]=1) then 
@@ -670,7 +710,7 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
 */
       /* all coefficients can be computed */ 
       %rnum_list:[], 
-      sList : algsys(feqns_grobner,_var),
+      sList : algsys(feqns_grobner,_var), /* TODO: why algsys? */
       dprint(3,"sList = ",sList),
       for r in %rnum_list do sList:subst(0,r,sList), %rnum_list:[], /* replace all free variables with a value (here: 0)*/
       dprint(3,"sList = ",sList),
@@ -735,12 +775,6 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
         if lfreeof(%Ci,f) and freeof(f,fi) then (fi : endcons(f,fi),fiList:delete(f,fiList),gi:endcons(g,gi),giList:delete(g,giList))
       ),
 
-/*
-/* TODO: remove? */
-         for g in giList do (
-          if lfreeof(%Ci,g) and freeof(g,gi) then (gi : endcons(g,gi),giList:delete(g,giList))
-         ),
-*/  
  
       dprint(3,"fi = ",fi),
       dprint(3,"gi = ",gi),
@@ -762,7 +796,7 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
             f : fReal,
             g : gReal
           ) else (
-            dprint(0,"Warning: invariant algebraic curves were not simplified to real, keeping them complex!")
+            dprint(1,"Warning: invariant algebraic curves were not simplified to real, keeping them complex!")
           )
         ),
 
@@ -784,21 +818,20 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
       dprint(3,"gi = ",gi),
 
 
-
-
       /* at this point, check if the fi are trivial by converting back to normal variables and simplifying*/
-
       fi_originalVariables : lratsubst(map("=",varlist,original_variables),fi),
-      fi_originalVariables : ratsimp(fi_originalVariables), 
+      fi_originalVariables : trigreduce(trigsimp(ratsimp(fi_originalVariables))), 
+      dprint(3,"fi = ",fi),
+
+      /* check if fi is a multiple of an existing fi */
+      
+     
       fi : lratsubst(map("=",reverse(original_variables),reverse(varlist)),fi_originalVariables),
 
       /* also try to simplify the  cofactors (e.g. kamke1.112 needs this) */
-
       gi_originalVariables : lratsubst(map("=",varlist,original_variables),gi),
       gi_originalVariables : ratsimp(gi_originalVariables), 
       gi : lratsubst(map("=",reverse(original_variables),reverse(varlist)),gi_originalVariables),
-
-
 
 
       dprint(3,"fi = ",fi),
@@ -846,16 +879,22 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
       /* ********************************************************************************** */
       /* step 3, decide if there are constants ni, not all zero, such that sum(n_i*g_i) = 0 */
       /* ********************************************************************************** */
-      dprint(1,"***** STEP 3 ***** "),
+      dprint(3,"***** STEP 3 ***** "),
       Sum_nigi : apply("+",niList*map(rest,Sfg))[1],
+      dprint(3,"sum_nigi = ",Sum_nigi),
 
       Sum_nigi_originalVariables : lratsubst(map("=",varlist,original_variables),Sum_nigi),
+      dprint(3,"sum_nigi = ",Sum_nigi_originalVariables),
       Sfg_originalVariables : lratsubst(map("=",varlist,original_variables),Sfg),
 
       /* we need the transformed variables for this because we cannot have e.g. sin(x) as a variable*/
       Sum_nigi : lratsubst(map("=",reverse(original_variables),reverse(varlist)),Sum_nigi_originalVariables),
+      dprint(3,"sum_nigi = ",Sum_nigi),
       Sfg : lratsubst(map("=",reverse(original_variables),reverse(varlist)),Sfg_originalVariables),
       ni : ode1CheckDarboux(Sfg,varlist,niList,Sum_nigi),
+      Sum_nigi : ratsimp(Sum_nigi), 
+      dprint(3,"sum_nigi = ",Sum_nigi),
+      Sfg : ratsimp(Sfg),
 
       dprint(3,"sum_nigi = ",Sum_nigi),
       dprint(3,"Sfg = ",Sfg),
@@ -874,10 +913,11 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
       /* step 4: step 3 failed, now we construct a nonzero right hand side -(dP/dx + dQ/dy) and add to Sum_nigi */
       /* note we assume that varlist[1] is the dependent variable and varlist[2] is the dependent variable, this is prone to error! */
       /* ********************************************************************************** */
-      dprint(1,"***** STEP 4 ***** "),
+      dprint(3,"***** STEP 4 ***** "),
 
-      Sum_nigi : Sum_nigi - dPdx_plus_dQdy,
-      dprint(3,"dPdx = ",dPdx_plus_dQdy),
+      Sum_nigi : ratsimp(Sum_nigi - dPdx_plus_dQdy),
+      dprint(3,"dPdx+dQdy = ",dPdx_plus_dQdy),
+      dprint(3,"dPdx+dQdy = ",grind(dPdx_plus_dQdy)),
       dprint(3,"sum_nigi = ",Sum_nigi),
 
       Sum_nigi_originalVariables : lratsubst(map("=",varlist,original_variables),Sum_nigi),
@@ -886,6 +926,9 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
       Sum_nigi : lratsubst(map("=",reverse(original_variables),reverse(varlist)),Sum_nigi_originalVariables),
       Sfg : lratsubst(map("=",reverse(original_variables),reverse(varlist)),Sfg_originalVariables),
       ni : ode1CheckDarboux(Sfg,varlist,niList,Sum_nigi),
+
+      Sum_nigi : ratsimp(Sum_nigi), 
+      Sfg : ratsimp(Sfg),
 
       dprint(3,"sum_nigi = ",Sum_nigi),
       dprint(3,"Sfg = ",Sfg),
@@ -903,11 +946,11 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
       /* step 5: step 4 failed, now we try to find an exponential factor and determine the multiplicity */
       /* ********************************************************************************** */
       if (searchExponentialFactors = true) then (
-        dprint(1,"***** STEP 5 ***** "),
+        dprint(3,"***** STEP 5 ***** "),
         Sfg : delete([0,0],Sfg), /* delete darboux polynomials zero */
 
         /* note that we have as exponential factors exp(P/Q) and that Q can only be an invariant algebraic curve */
-        /* when doe we need to search for exponential factors? only when we have already found Darboux polynomials, so length(Sfg)#0 ? */ 
+        /* when do we need to search for exponential factors? only when we have already found Darboux polynomials, so length(Sfg)#0 ? */ 
         /* we can also construct Pdh/dx + Qdh/dy = h*k + f*k_g , with f and k the invariant algebraic curves and the cofactors*/
         /* note that Q = f1^m1 * f2^m2 * ... * fn^mn with fi the invariant algebraic curves */
 
@@ -960,7 +1003,8 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
                 for i:1 thru length(m) do (
                   eq13c : eq13c + m[i]*Sfg[i][2] 
                 ),
-                eq13 : ratexpand(eq13 - polyP * eq13c), 
+                /*eq13 : ratexpand(eq13 - polyP * eq13c), */
+                eq13 : ratsimp(eq13 - polyP * eq13c), 
 
                 dprint(3,"eq13d = ",grind(eq13)),
                 dprint(3,"varlist = ",grind(varlist)),
@@ -1026,12 +1070,12 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
   dprint(3,"Sfg = ",grind(Sfg)),
   /* substitute into Darboux polynomials and cofactors */
   if method#false then (
-
     ni : lratsubst(map("=",varlist,original_variables),ni), 
     exponentialFactor : lratsubst(map("=",varlist,original_variables),exponentialFactor), 
     /*denom_lcm : lratsubst(map("=",varlist,original_variables),denom_lcm),*/
 
-    if not(freeof(%i,Sfg)) and (convertImaginary=true) then Sfg:radcan(exponentialize(Sfg)), /* try to simplify some imaginary numbers */
+    /*if not(freeof(%i,Sfg)) and (convertImaginary=true) then Sfg:radcan(exponentialize(Sfg)), *//* try to simplify some imaginary numbers */
+    if not(freeof(%i,Sfg)) then Sfg:radcan(exponentialize(Sfg)), /* try to simplify some imaginary numbers */
 
     dprint(3,"Sfg = ",grind(Sfg)),
     dprint(3,"ni = ",grind(ni))
@@ -1066,6 +1110,60 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
 /* ************************************************************************** */
 
 
+
+
+
+/* ************************************************************************** */
+/* *****                                                                ***** */
+/* ************************************************************************** */
+ode1CheckDarboux(Sfg,varlist,niList,Sum_nigi):=block(
+[_allcoef, %rnum_list:[], %rnum:1, ni, nrOfNum],
+
+  dprint(3,"ode1CheckDarboux: start"),
+  dprint(3,"     Sum nigi-(dP/dx+dQ/dy) = ",grind(Sum_nigi)),
+  dprint(3,"     varlist = ",varlist),
+  _allcoef : allcoeffsNew(Sum_nigi,varlist),
+  dprint(3,"     _allcoef = ",grind(_allcoef)),
+  dprint(3,"     niList = ",niList),
+
+
+  /*allcoeff : ratsimp(ratexpand(_allcoeff)),*/
+  /*_allcoeff : ratsimp(_allcoeff),*/                 /* TODO nijso: do we need ratsimp here? */
+                                                  /* if it is not needed for solve, we can skip this ratsimp */ 
+  dprint(3,"     _allcoef = ",_allcoef),
+
+  ni : flatten([solve(_allcoef,niList)]), 
+
+  nrOfrnum : length(%rnum_list),
+  dprint(3,"     ni = ",ni),
+  /*ni : subst(0,all,ni),*/ /* if ni can be anything, set it to 0 (maybe we can set it to 1?)*/
+  for r in %rnum_list do 
+    ni:subst(0,r,ni), /* replace all free variables with 0 (cannot be another value, why not?)*/
+ 
+/* step 3
+  if length(ni)>0 and listp(ni[1]) then  
+    ni : map(rhs,flatten(ni[1])), 
+*/
+
+/* step 4 */
+  if (length(ni)>0) then  
+    ni : map(rhs,flatten(ni)), 
+
+/*
+  if length(delete(0,ni)) # 0 then (
+    EXIT : true, method: "firstIntegral",
+    print(" ***** FIRST INTEGRAL FOUND ***** "), 
+    return(method)
+  )
+*/
+
+  dprint(3,"ode1CheckDarboux: end, ni = ",ni),
+  return(ni)
+)$
+/* ************************************************************************** */
+
+
+
 /* ************************************************************************** */
 /* returns an integrating factor given the Darboux polynomials with cofactors,*/
 /* the multiplicities ni and the exponential factors                    ***** */
@@ -1088,7 +1186,7 @@ DarbouxIntegratingFactor(Sfg,ni,exponentialFactors):=block([integratingFactor,ex
 
 
 /* ************************************************************************** */
-/* returns a list of all terms in the list Ci that occur in expr        ***** */
+/* returns the sublist of all terms in Ci that occur in expr            ***** */
 /* ************************************************************************** */
 fi_in(_expr,_Ci):=block([_coeflist:[],_c],
   for _c in _Ci do (
@@ -1247,182 +1345,32 @@ BasisFunctions(_M,_N,_y,_x):=block([_LBasisFunctions,_TrimmedList:[],_a,sol1,pre
 /* ************************************************************************** */
 
 
-/* ************************************************************************** */
-/* check if pde is a first order PDE,   transform to system of 1st order odes */
-/* ************************************************************************** */
-PDE1toODE1(pde,U,indepvars):=block([z,s],
-
-  dprint(3,"PDE = ",pde),
-
-  if freeof('diff,pde) then (dprint(0,"Error: no differential operator (diff) found!"), return(false)),
-
-  for x in indepvars do 
-    if derivdegree(pde,U,x) # 1 then (dprint(0,"Error: no first order PDE found!"), return (false)), 
-
-
-  if not freeof("=",pde) then pde : lhs(pde) - rhs(pde),
-
-  /* ?check if U is the only dependent variable */
-  /* ... */
-  /*                                                */
-
-  /* ? check if there are other independent variables */
-  /* ... */
-  /*                                                  */
-
-
-  /* the PDE is of first order. Now get all the coefficients. First substitute local variables dU/dx = dx1, dU/dy=dx2, etc */
-  j:1,
-  odeSystem:[],
-
-  /* compute the characteristic strip */
-  for i in [x,y,z] do (
-    dprint(3,"pde=",pde),
-    terms:bothcoeff(pde,'diff(U,i)),
-    odeSystem:endcons('diff(i,s)=terms[1],odeSystem),
-    pde:ratsimp(terms[2]),
-    dprint(3,"ode system = ",odeSystem),
-    dprint(3,"pde=",pde),
-    j:j+1
-  ),
-  odeSystem:endcons('diff(%s,s)=pde,odeSystem),
-
-
-
-  /* method of characteristic equations: each of the independent variables introduces a first order ODE */
-  /* we need to find the coefficients of the differential operators belonging to the independent variables */
-
-  /* so each term a(x1,x2,...,xn) * diff(U,xi)  leads to an ode diff(xi,s) = a(x1,x2,...,xn)  */
-
-  return(true)
-)$
-/* ************************************************************************** */
-
-
 
 
 /* ************************************************************************** */
-/* solve a first order PDE                                                    */
-/* ************************************************************************** */ 
-PDE1Solve(pde,U,indepvars,[boundaryconditions]):=block([],
-
-  /* step 0: check input (is an equation, is a PDE, is first order, is linear/quasilinear/semilinear/nonlinear)*/ 
-
-  /* step 1: rewrite to first order system (method of characteristics) */
- 
-  /* step 2: solve, first solve the decoupled equations, then substitute and try to decouple the other equations */
-  /*         using grobner basis might also help here */
-
-  return(true)
-)$
+/* write ode1 to canonical form:                                              */
+/* -write sin,cos,tan,cot, etc as sin,cos                                     */
+/* -expand square roots                                                       */
 /* ************************************************************************** */
-
-
-
-/* ************************************************************************** */
-/* check ode input and rewrite right-hand side                                */
-/* ************************************************************************** */ 
-checkPSInput(_ode,_y,_x,ODEtype):=block([_rhs,_df,_df_x,_df_y,_P,_Q],
-
-  if freeof('diff,_ode) then (dprint(0,"Error: no differential operator (diff) found!"), return(false)),
-  if derivdegree(_ode,_y,_x) # 1 then (dprint(0,"Error: No first order ODE found!"), return (false)), 
-
-  dprint(3,"ode = ",_ode), 
-  dprint(3,"y,x = ",_y,_x), 
-
+ode1CanonicalForm(_ode,_y,_x):=block([],
   /* try to solve explicitly in the derivative */
   _ode:solve(_ode,'diff(_y,_x)),
- 
-  if not listp(_ode) then (dprint(0,"Error: could not write ODE explicitly in the form dy/dx = f(x,y) ",_ode), return(false)),
-  if length(_ode) > 1 then dprint(0,"Warning: writing the ODE in the explicit form dy/dx=f(x,y) leads to multiple ODEs (only solving the first!): ",_ode),
-
   _ode : _ode[1],
-  if lhs(_ode)#('diff(_y,_x)) then (dprint(0,"Error: could not write ODE explicitly in the form dy/dx = f(x,y) ",_ode), return(false)),
- 
-  _rhs : rhs(_ode),
 
+  _rhs:ratsimp(trigexpand(trigsimp(rhs(_ode)))),   /* trigsimp writes sec(x) as 1/cos(x) and tan(2*x) as sin(2*x)/cos(2*x), and trigexpand writes sin(2*x) as 2*sin(x)*cos(x) */
 
-  if (convertTrig=false) then  
-  _rhs:ratsimp(trigexpand(trigsimp(rhs(_ode)))),   /* trigsimp writes sec(x) as 1/cos(x) and tan(2*x) as sin(2*x)/cos(2*x), and trigexpand writes sin(2*x) as 2*sin(x)*cos(x), this will solve kamke1.81  */
-                                                   /* note that in general, we want a true transcendence base, so convertTrig=true and there should not be any sin,cos left here */   
-
-  /* we have to check if the ode contains general functions */
-  dprint(3,"gradefs = ",gradefs),
-
-  if (heuristics=false) then (
-    varlist : showratvars(_rhs), /* all free variables */
-    /*varlist : sublist(varlist,lambda([_i],lfreeof(gradefs,_i))),*/ /* remove variables that have gradients defined (we define gradefs when convertTrig=true) */ 
-    varlist : sublist(varlist,lambda([_i],not(lfreeof(map(op,dependencies),_i)) or not(lfreeof(dependencies,_i)) or not(freeof('diff,diff(_i,_y))) or not(freeof('diff,diff(_i,_x))))),
-    if varlist # [] then (
-      dprint(0,"Error: Prelle-Singer method cannot handle general functions."),
-      dprint(0,"try again with option 'heuristics=true"),
-      return(false)
-    )
-  ),
-
-  dprint(3,"rhs = ",_rhs),
- 
   /* splits square roots sqrt(a*b) into sqrt(a)*sqrt(b) and sqrt(a/b) into sqrt(a)/sqrt(b) */
   _rhs : rootsexpand(_rhs),
-  _Q : num(_rhs),
-  _P : denom(_rhs),
-  dprint(3,"P = ",_P),
-  dprint(3,"Q = ",_Q),
+  /* TODO: what about general fractional powers? */
+  /* ... */
 
-  /* The P-S assumes the variables y,x to be independent */
-  /* so we remove the possible dependency                */ 
-  /* we have y(x) or x(y) and we want y,x */
-/*
-  if (radcan(diff(_y,_x)) # 0) or (radcan(diff(_x,_y))#0) then (
-    print("removing x-y dependency"),
-    Y_X_DEPEND:true, 
-    _ode:subst(%x%,_x,subst(%y%,_y,_ode)), 
-    LISTOFTERMS:subst(%x%,_x,subst(%y%,_y,LISTOFTERMS)),
+  /* what about log functions? */
+  /* what about sinh functions?*/
+  /* etc... */
 
-    /* Pick all atoms for which gradient with respect to x,y was defined */ 
-    /* so if we have f, then we can define df=diff(f,x) to deal with these functions */
-    if ODEFI_GRAD_LIST # nil then (
-      ODEFI_GRAD_LIST:subst(%x%,_x,subst(%y%,_y,ODEFI_GRAD_LIST)), 
-      for _dfs in ODEFI_GRAD_LIST do (
-        _df:lhs(_dfs),
-        _df_x:diff(_df,_x),
-        _df_y:diff(_df,_y), 
-        if _df_x#0 or _df_y#0 then (
-          apply('gradef,[_df,%x%,subst(%x%,_x,subst(%y%,_y,_df_x))]), 
-          apply('gradef,[_df,%y%,subst(%x%,_x,subst(%y%,_y,_df_y))]) 
-        ) 
-      )
-    )
-  ) 
-  else (%y%:_y,%x%:_x),
-*/
-  dprint(3,"ODE:",_ode),
-  dprint(3,"x (independent variable) : ",_x),
-  dprint(3,"y (dependent variable) : ",_y),
-
-  /* dy/dx = M/N =Q/P*/ 
-  /*_P:  ratcoeff(_ode,'diff(_y,_x),1),   */
-  /*_Q: -ratsimp(_ode - _P*'diff(_y,_x)), */
-
-  /* we have to make sure that P and Q do not contain fractions, because then grobner will multiply the input polynomials with all denominators */
-  dprint(3,"P = ",_P),
-  dprint(3,"Q = ",_Q),
-
-  /* dy/dx = M/N = Q/P */
-  return([_ode,_y,_x,[_P,_Q]])
+  return('diff(_y,_x)=_rhs)
 )$
 /* ************************************************************************** */
-
-
-/* this stuff below is for simplifying constants of integration appearing in exponentials, like exp(%c+a*x) */
-/* this can be simplified to %c*exp(a*x) */
-matchdeclare (_a, lambda ([_e], _e#0 and freeof(_x, _e)), _b, freeof(_x));
-defmatch (linearp, _a*_x + _b, _x);
-
-/* detect p1*sqrt(p2/q2) and split into sqrt(p2) and sqrt(q2) */
-matchdeclare(_p1,lambda([_e1],_e1#0),_p2,lambda([_e3],_e3#0),_q2,lambda([_e4],_e4#1));
-defmatch(sqrtOfFraction,_p1*sqrt(_p2/_q2));
-
 
 
 /* ************************************************************************** */
@@ -1432,7 +1380,7 @@ defmatch(sqrtOfFraction,_p1*sqrt(_p2/_q2));
 /*   = sqrt(p1)*sqrt(p2)*...sqrt(pn)/(sqrt(q1)*sqrt(q2)*..sqrt(qm))           */
 /* this is the inverse of rootsexpand                                         */
 /* ************************************************************************** */
-rootsexpand(expr) :=block([splitExpr:expr],
+rootsexpand(expr) :=block([splitExpr:expr,sqrtList,insideSqrtList,factorsInsideSqrtList,splitSqrtList:[],_X],
   if not(freeof(sqrt,dispform(expr,all))) then (
     dprint(3,"trying to split square root terms"),
     /* get a list with all the sqrt terms */
@@ -1441,7 +1389,6 @@ rootsexpand(expr) :=block([splitExpr:expr],
     factorsInsideSqrtList:map(factor_list,insideSqrtList), 
     factorsInsideSqrtList:map(sqrt,factorsInsideSqrtList),
 
-    splitSqrtList:[],
     for _L in factorsInsideSqrtList do (  
      _X : 1,
      for _i in _L do _X:_X*_i,
@@ -1461,9 +1408,9 @@ rootsexpand(expr) :=block([splitExpr:expr],
 /* ************************************************************************** */
 factor_list(ex):=
   if mapatom(ex) then [ex] else            /* don't factor numbers */
-    block([fex: factor(ex),inflag:true],
+    block([fex: gfactor(ex),inflag:true],  /* gfactor: also factor if complex numbers */
           if mapatom(fex) or op(fex)#"*" then [fex]
-	  else args(fex)
+	  else (fex:args(fex), if mapatom(fex[1]) then (fex[2]:ratsimp(fex[2]*fex[1]), rest(fex)) else fex)
 )$
 /* ************************************************************************** */
 
@@ -1498,13 +1445,13 @@ cleanupODESolution(expr,_y,_x):=block([res1:[],expr1,realexpr:false,expressionBe
   /*dprint(3,"clean up ",grind(expr)),*/
   /* first, evaluate all unevaluated noun forms */
   expr: ev(expr,nouns),
-  dprint(3,expr),
+  dprint(5,expr),
   
   if freeof(%i,expr) then realexpr:true,
-  /*dprint(3,"is expression real: ",realexpr),*/
+  dprint(5,"is expression real: ",realexpr),
 
   expr : ratsimp(trigreduce(trigsimp(expr))),
-  /*dprint(3,"1: ",expr),*/
+  dprint(5,"1: ",expr),
 
   /* simplify some logarithms */
   if not(freeof(log,expr)) then (
@@ -1513,11 +1460,12 @@ cleanupODESolution(expr,_y,_x):=block([res1:[],expr1,realexpr:false,expressionBe
     if not(freeof(log(-1),expr1)) then logmin1:true,
     if expressionBecameComplex=false and logmin1=false then expr:expr1
   ),
-  /*dprint(3,"2: ",expr),*/
+  dprint(5,"2: ",expr),
 
   /* simplify some complex expressions */
-  if not(freeof(%i,expr)) and (convertImaginary=true) then expr: rectform(expr), /* to convert for instance (-1)^%i */
-  /*dprint(3,"3: ",expr),*/
+  /*if not(freeof(%i,expr)) and (convertImaginary=true) then expr: rectform(expr), */ /* to convert for instance (-1)^%i */
+  if not(freeof(%i,expr)) then expr: rectform(expr), /* to convert for instance (-1)^%i */
+  dprint(5,"3: ",expr),
 
   if not freeof(_y,expr) then (
     /* then, try to solve explicitly in terms of the dependent variable. If the solution contains integrals, */
@@ -1533,7 +1481,7 @@ cleanupODESolution(expr,_y,_x):=block([res1:[],expr1,realexpr:false,expressionBe
     )
 
   ),
-  /*dprint(3,"4 : ",expr,_y,_x),*/
+  dprint(5,"4 : ",expr,_y,_x),
 
   if(lhs(expr[1])=_y) then (
     linearconstants:linearp(ratexpand(rhs(expr[1])),%c),
@@ -1548,7 +1496,7 @@ cleanupODESolution(expr,_y,_x):=block([res1:[],expr1,realexpr:false,expressionBe
     )  
   ),
   /* for some reason we need to do ev,nouns  again */ 
-  /*dprint(3,"6 : ",expr),*/
+  dprint(5,"6 : ",expr),
   expr:ev(expr,nouns),
   expr:SimpConstInExp(expr,_y,_x),
   /*res:MakeConstPos(res),*/
@@ -1560,7 +1508,7 @@ cleanupODESolution(expr,_y,_x):=block([res1:[],expr1,realexpr:false,expressionBe
 
 /* ************************************************************************** */
 /* simplify constant appearing in exponential term                            */
-/* we could have y= f(x) + exp(%c)                                            */
+/* e.g. y = f(x) + exp(%c)  ==>  y = f(x) + 5%c                               */
 /* ************************************************************************** */ 
 SimpConstInExp(expr,depvar,indepvar):=block([_Expterms,_coef:0,_newExpr,_subst],
   /* temporary substitution */
@@ -1593,7 +1541,8 @@ SimpConstInExp(expr,depvar,indepvar):=block([_Expterms,_coef:0,_newExpr,_subst],
 /* ************************************************************************** */
 /* ************************************************************************** */
 MakeConstPos(expr):=block([newexpr],
-  newexpr: ratsimp((ratexpand(rhs(expr)-lhs(expr)+%c))),
+  /*newexpr: ratsimp((ratexpand(rhs(expr)-lhs(expr)+%c))),*/
+  newexpr: ratsimp(((rhs(expr)-lhs(expr)+%c))),
   if freeof(%c,newexpr) then return(ratsimp(expr+2*%c))
 )$
 /* ************************************************************************** */
@@ -1633,84 +1582,33 @@ allOpsPriv(expression, opList) := block ( [_x, _args, _constcoef,
 
 
 /* ************************************************************************** */
-/* specialintfactor: Procedure finding integrating                            */
-/* factor belonging to some of the classes discussed                          */
-/* in the book by Davis. Introduction to non linear                           */
-/* differential and integral equations.                                       */
-/* Dover Pub. 1962                                                            */
-/*                                                                            */
-/* we should test here if the equation is :                                   */
-/* 0. simple symmetries of the form y'=f(x) (linear) and y' = f(y) (separable)*/
-/* 1. linear */
-/* 2. exact  */
-/* 3. separable */
+/* ----- calculates the number of operators in the expression ----- */
+/* ----- this is a simple measure of complexity               ----- */
 /* ************************************************************************** */
-specialintfactor(_M,_N,_y,_x):= 
-  /* input : p,q are such that the equation is p*dx+q*dy=0 */ 
-  /* output: f, the integrating factor */ 
-  /* INTFACTOR_FI is set to f, METHOD_FI describes the method used */ 
-  /* */ 
-block([MU,_rhs,_xi,_eta,linearconstants],
-  /* dy/dx = M/N   ==>   Mdx = Ndy      Mdx - Ndy = 0*/ 
-  _rhs:ratsimp(_M/_N), 
+nrOps(_expression):=
+ block( [ ],
+        length(nrOpsPriv (_expression, []))
+       )$
 
-  /* check if RHS is of the form f(x) + g(x)*y */
-  linearconstants:linearp(ratexpand(_rhs),_y),
-  dprint(3,"rhs = ",_rhs, " ",_y),
-  dprint(3,"linearconstants = ",linearconstants),
+nrOpsPriv(_expression, _opList) :=
+ block ( [_x, _args, _newList],
+        /* if expression is an atom, then we return opList */
+        if atom(_expression)
+           then _opList
+           else (
+              _x:    op(_expression),
+              _args: args(_expression),
+              /* add the operators to the opList */
+              _newList: cons(_x, _opList),
+              for _arg in _args do
+                /* also expand all the subexpressions and count the operators */
+                _newList: nrOpsPriv(_arg, _newList),
+              _newList
+             )
+        )$
 
 
-  /* ----- y' = f(y) ----- */
-  if freeof(_x,_rhs) then (
-     dprint(3,"y' = F(y)"),  
-     method: "F(y)",
-     _xi:1,
-     _eta:0
-  ) 
-  else 
-  /* ----- y' = f(x) ----- */
-  if freeof(_y,_rhs) then (
-     dprint(3,"y' = F(x)"),  
-     method: "F(x)",
-     _xi:0,
-     _eta:1
-  ) else 
-  if linearconstants # false then (
-    _f: rhs(linearconstants[1]), 
-    _g: rhs(linearconstants[2]), 
 
-    /* ----- y' = f(x)*y ----- */
-    if _f=0 then (
-     dprint(3,"y' = g(x)*y"),  
-     method: "g(x)*y",
-     _xi:0,
-     _eta:_y 
-    ) else ( 
-    /* ----- y' = f(x) + g(x)*y (general linear ode) ----- */
-     dprint(3,"y' = f(x)+g(x)*y"),  
-     method: "f(x)+g(x)*y",
-      /* symmetry generators for linear eq */
-      _xi : 0,
-      _eta: exp(integrate(_g,_x))
-    )
-  ) else
-  /* ----- EXACT ODE ----- */
-  if (ratsimp(diff(_N,_x)+diff(_M,_y))=0) then (
-    dprint(3,"equation is exact"),
-    /*INTFACTOR_FI:1,*/
-    method:"exact",
-    _xi:1/_M, _eta:0
-  ),
-
- if method # false then (
-   MU:ratsimp(1/(_xi*_M-_eta*_N)), /* this is the integrating factor*/
-   dprint(3,"_xi = ",_xi,", M =  ",_M,", _eta =  ",eta,", N =  ",_N),
-   return([method,MU])
- ),
-
-  return([false,false])
-)$ 
-/* ************************************************************************** */
 
 
 /* ************************************************************************** */
@@ -1741,7 +1639,7 @@ d_t(_expr,_varlist,_n):=block([PList,DList,localdegree],
 /*
 ode1_singularpoints(ode,y,x) :=block([],
   /* check the expression and split it into a numerater and a denominator */
-  _check: checkPSInput(expr,_y,_x,'firstorder),
+  /*_check: checkPSInput(expr,_y,_x,'firstorder),*/
   if _check # false then 
     [res,_y,_x,[_P,_Q]] : _check
   else return(false),
@@ -1818,32 +1716,30 @@ lexval(_expr,_varlist):=block([bit:0,count:1,var,P,value:0,Base],
 )$
 /* ************************************************************************** */
 
+
 /* ************************************************************************** */ 
 /* order a polynomial based on lexicographic order of the terms in varlist.   */ 
 /* varlist=[x,y,z,...], x>y>z>...                                             */
 /* ************************************************************************** */ 
-lexicographicallyOrderedPolynomial(_expr,_varlist):=block([_argsList,_valList:[],_counter:1,_sL,_sortedList:[],_currentNr:-1,_NR:0],
-
-
-dprint(3,"expression = ",grind(_expr)),
-
+lexicographicallyOrderedPolynomial(_expr,_varlist,[options]):=block([_argsList,_valList:[],_counter:1,_sL,_sortedList:[],_currentNr:-1,_NR:0],
 
   /* first, order based on degree and put terms of equal degree in a sublist */
   if atom(_expr) or op(_expr)#"+" then 
     return([_expr]) 
   else 
     _argsList:args(expand(_expr)),
-/*    _argsList:args(expandwrt(_expr,_varlist)),*/
 
   for i in _argsList do (
     _valList:endcons([lexval(i,_varlist),_counter],_valList),
     _counter:_counter+1
   ),
 
+
   _sL : sort(_valList,lambda([_a,_b],_a[1]>_b[1])),
 
+
   for i in _sL do (
-     _NR:i[1], 
+     _NR:first(i), 
      if(_NR # _currentNr) then (
         _sortedList:endcons(_argsList[i[2]],_sortedList)
      ) 
@@ -1863,15 +1759,14 @@ dprint(3,"expression = ",grind(_expr)),
 /* order a polynomial based on lexicographic order of the terms in varlist.   */ 
 /*   varlist=[x,y,z,...], x>y>z>...                                           */
 /* ************************************************************************** */
+/*
 oldlexicographicallyOrderedPolynomial(_expr,_varlist):=block([_lexList,_index,_mergedLexList,_current],
 
-  /* first, order based on degree and put terms of equal degree in a sublist */
   if atom(_expr) or op(_expr)#"+" then 
     return([_expr]) 
   else 
     _lexList: (sort(args(ratexpand(_expr)),lambda([z1,z2],is(lexval(z1,_varlist)>lexval(z2,_varlist))))),
 
-  /* merge entries with the same lexvalue */
   _index : 1,
   _mergedLexList : [first(_lexList)],
   _lexList : rest(_lexList),  
@@ -1888,6 +1783,37 @@ oldlexicographicallyOrderedPolynomial(_expr,_varlist):=block([_lexList,_index,_m
   ),
 
   return(_mergedLexList)
+*/
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* compute leading term of a polynomial using total degree ordering in varlist*/
+/* note that var : [x1,x2,x3,...,xn] and x1 > x2 > x3 > .. > xn               */
+/* ************************************************************************** */
+newl_t(_expr,_varlist) :=block([_lt,_deg_lt,_loc_order,_terms,_deg_x,_order,_lexpoly],
+
+  dprint(5,"input=",_expr),
+  dprint(5,"varlist=",_varlist),
+  _expr : ratexpand(_expr), 
+
+  _lexpoly : lexicographicallyOrderedPolynomial(_expr,_varlist),
+  dprint(5,"lexpoly = ",_lexpoly),
+
+  _lt : _lexpoly[1],
+
+/*
+  for _term in _lexpoly do (
+    _lt : fullratsimp(_term),
+    if (_lt#0) then (
+      return(_lt)
+    )
+  ),
+*/
+
+  dprint(5,"leading term = ",_lt),
+  return(_lt)
 )$
 /* ************************************************************************** */
 
@@ -1896,11 +1822,26 @@ oldlexicographicallyOrderedPolynomial(_expr,_varlist):=block([_lexList,_index,_m
 /* compute leading term of a polynomial using total degree ordering in varlist*/ 
 /* note that var : [x1,x2,x3,...,xn] and x1 > x2 > x3 > .. > xn               */
 /* ************************************************************************** */
-l_t(_expr,_varlist) :=block([_lt,_deg_lt,_loc_order,_terms,_deg_x,_order],
-  _expr : ratexpand(_expr),
+l_t(_expr,_varlist) :=block([_argsList,_lt:0,_deg_lt,_loc_order,_terms,_deg_x,_order,_lexpoly,_ltval:0,_value:0],
+  _expr : ratexpand(_expr), 
 
-  /* NB: use ratsimp to write a*x + b*x as (a+b)*x */
-  return(ratsimp(lexicographicallyOrderedPolynomial(_expr,_varlist)[1]))
+  if atom(_expr) or op(_expr)#"+" then 
+    return(_expr) /* only term is leading term */
+  else 
+    _argsList:args(expand(_expr)),
+
+  for i in _argsList do (
+    _value : lexval(i,_varlist),
+    if (_value > _ltval) then (
+        _ltval : _value, 
+        _lt : i
+    ) 
+    else 
+    if (_value=_ltval) then _lt : _lt+i
+
+  ),
+
+  return(ratsimp(_lt))  /* important to ratsimp here */
 )$
 /* ************************************************************************** */
 
@@ -1910,7 +1851,7 @@ l_t(_expr,_varlist) :=block([_lt,_deg_lt,_loc_order,_terms,_deg_x,_order],
 /* in varlist                                                                 */   
 /* ************************************************************************** */
 l_c(_expr,_varlist):=block([],
-  _expr : ratexpand(_expr), /* constant_factors can deal with a*x+b*x*/
+  /*_expr : ratexpand(_expr),*/ /* done in l_t*/
 
   return(constant_factors(l_t(_expr,_varlist),_varlist))
 )$
@@ -1923,7 +1864,7 @@ l_c(_expr,_varlist):=block([],
 /* ************************************************************************** */
 degree_l_t(_expr,_varlist) :=block([_lt,_deg_lt],
 
-  _expr : ratexpand(_expr),
+  /*_expr : ratexpand(_expr),*/ /* done in l_t */
   _lt : l_t(_expr,_varlist),
 
   _deg_lt : 0,
@@ -1933,9 +1874,6 @@ degree_l_t(_expr,_varlist) :=block([_lt,_deg_lt],
   return(_deg_lt)
 )$
 /* ************************************************************************** */
-
-
-
 
 
 /* ************************************************************************** */
@@ -1972,7 +1910,7 @@ Ecstatic(_P,_Q,_varlist,_n):=block([_l],
   ),
 
 
-  print("M = ",_M ),
+  dprint(3,"M = ",_M ),
 
   /* take the determinant */
   _extactic : determinant(_M), 
@@ -1996,7 +1934,7 @@ return(_extactic)
 /* ************************************************************************** */
 Lagutinskii_Pereira(_P,_Q,_varlist,_n):=block([EcstaticCurve,EcstaticFactors,DarbouxPolynomials:[]],
 
-  EcstaticCurve : Ecstatic(_P,_Q,_varlist,_n), print("curve = ",EcstaticCurve),
+  EcstaticCurve : Ecstatic(_P,_Q,_varlist,_n), dprint(3,"curve = ",EcstaticCurve),
   EcstaticFactors: gfactor(EcstaticCurve), 
   if op(EcstaticFactors)="-" then EcstaticFactors:-EcstaticFactors, 
   for _f in args(EcstaticFactors) do (
@@ -2006,9 +1944,9 @@ Lagutinskii_Pereira(_P,_Q,_varlist,_n):=block([EcstaticCurve,EcstaticFactors,Dar
     if (ratsimp(gcd(_f,_Df)-_f)=0) then (
       _g : divide(_Df,_f),
        
-      print("g = ",_g), 
+      dprint(3,"g = ",_g), 
       if (_g[2]=0) then DarbouxPolynomials : append([[_f,_g[1]]],DarbouxPolynomials), 
-      print("Darboux=",DarbouxPolynomials) 
+      dprint(3,"Darboux=",DarbouxPolynomials) 
     )
   ),
 /* note that we also need to compute the multiplicity, this will tell us if we have exponential factors or not */
@@ -2026,7 +1964,7 @@ return(DarbouxPolynomials)
 ode1Darboux(_P,_Q,_varlist,_n):=block([niList,Sfg],
 
 
-      Sfg : Lagutinskii_Pereira(_P,_Q,_varlist,_n), print("Sfg = ",Sfg),
+      Sfg : Lagutinskii_Pereira(_P,_Q,_varlist,_n), dprint(3,"Sfg = ",Sfg),
 
 
      /* get the cofactors g from Sfg and multiply with the variable ni, i=1..length(Sfg) */
@@ -2036,9 +1974,8 @@ ode1Darboux(_P,_Q,_varlist,_n):=block([niList,Sfg],
       /* ********************************************************************************** */
       /* step 3, decide if there are constants ni, not all zero, such that sum(n_i*g_i) = 0 */
       /* ********************************************************************************** */
-      dprint(1,"***** STEP 3 ***** "),
+      dprint(3,"***** STEP 3 ***** "),
       Sum_nigi : apply("+",niList*map(rest,Sfg))[1],
-
 
 /*
       Sum_nigi_originalVariables : lratsubst(map("=",varlist,original_variables),Sum_nigi),
@@ -2066,7 +2003,7 @@ ode1Darboux(_P,_Q,_varlist,_n):=block([niList,Sfg],
       /* step 4: step 3 failed, now we construct a nonzero right hand side -(dP/dx + dQ/dy) and add to Sum_nigi */
       /* note we assume that varlist[1] is the dependent variable and varlist[2] is the dependent variable, this is prone to error! */
       /* ********************************************************************************** */
-      dprint(1,"***** STEP 4 ***** "),
+      dprint(3,"***** STEP 4 ***** "),
       dPdx_plus_dQdy : diff(_P,x) + diff(_Q,y),
       Sum_nigi : Sum_nigi - dPdx_plus_dQdy,
       dprint(3,"dPdx = ",dPdx_plus_dQdy),
@@ -2162,35 +2099,6 @@ T2Trig(_expr,_x,_y,_varx,_vary) :=block([],
 
 
 /* ************************************************************************** */
-/* write ode1 to canonical form:                                              */
-/* -write sin,cos,tan,cot, etc as sin,cos                                     */
-/* -expand square roots                                                       */
-/* ************************************************************************** */
-ode1CanonicalForm(_ode,_y,_x):=block([],
-  dprint(3,"start canonical form: _ode = ",_ode),
-  /* try to solve explicitly in the derivative */
-  _ode:solve(_ode,'diff(_y,_x)),
-  _ode : _ode[1],
-
-  dprint(3,"rhs = ",_ode), 
-  _rhs:ratsimp(trigexpand(trigsimp(rhs(_ode)))),   /* trigsimp writes sec(x) as 1/cos(x) and tan(2*x) as sin(2*x)/cos(2*x), and trigexpand writes sin(2*x) as 2*sin(x)*cos(x) */
-  dprint(3,"rhs = ",_rhs), 
-
-  /* splits square roots sqrt(a*b) into sqrt(a)*sqrt(b) and sqrt(a/b) into sqrt(a)/sqrt(b) */
-  _rhs : rootsexpand(_rhs),
-  dprint(3,"rhs = ",_rhs), 
-  /* TODO: what about general fractional powers? */
-  /* ... */
-
-  /* what about log functions? */
-  /* what about sinh functions?*/
-  /* etc... */
-
-  return('diff(_y,_x)=_rhs)
-)$
-/* ************************************************************************** */
-
-/* ************************************************************************** */
 /* get the pfaffian form of the ode, i.e. if dx/dt=P, dy/dt=Q, then           */
 /* dy/dx = Q/P   =>   Pdy = Qdx and we return P,Q                             */
 /* ************************************************************************** */
@@ -2215,24 +2123,21 @@ odeType(_ode,_y,_x,ODEtype):=block([_rhs,_df,_df_x,_df_y,_P,_Q],
 
   _ode:solve(_ode,'diff(_y,_x)),
  
-  if not listp(_ode) then (dprint(0,"Error: could not write ODE explicitly in the form dy/dx = f(x,y) ",_ode), return(false)),
-  if length(_ode) > 1 then dprint(0,"warning: writing the ODE in the explicit form dy/dx=f(x,y) leads to multiple ODEs: ",_ode),
+  if not listp(_ode) then (dprint(1,"Error: could not write ODE explicitly in the form dy/dx = f(x,y) ",_ode), return(false)),
+  if length(_ode) > 1 then dprint(1,"warning: writing the ODE in the explicit form dy/dx=f(x,y) leads to multiple ODEs: ",_ode),
 
   _ode : _ode[1],
   if lhs(_ode)#('diff(_y,_x)) then (dprint(0,"could not write ODE explicitly in the form dy/dx = f(x,y) ",_ode), return(false)),
 
-  /* we have to check if the ode contains general functions */
-  if (heuristics=false) then (
-    varlist : showratvars(rhs(_ode)), /* all free variables */
-    varlist : sublist(varlist,lambda([_i],not(lfreeof(map(op,dependencies),_i)) or not(lfreeof(dependencies,_i)) or not(freeof('diff,diff(_i,_y))) or not(freeof('diff,diff(_i,_x))))),
-    if varlist # [] then (
-      dprint(0,"Error: Prelle-Singer method cannot handle general functions."),
-      dprint(0,"try again with option 'heuristics=true"),
-      return(false)
-    )
+  /* for the PS method, we have to check if the ode contains general functions */
+  varlist : showratvars(rhs(_ode)), /* all free variables */
+  varlist : sublist(varlist,lambda([_i],not(lfreeof(map(op,dependencies),_i)) or not(lfreeof(dependencies,_i)) or not(freeof('diff,diff(_i,_y))) or not(freeof('diff,diff(_i,_x))))),
+  if varlist # [] then (
+    dprint(0,"Error: Prelle-Singer method cannot handle general functions."),
+    /*dprint(0,"try again with option 'heuristics=true"),*/
+    return(false)
   ),
 
-  dprint(3,"rhs = ",_rhs),
  
   /* The P-S assumes the variables y,x to be independent */
   /* so we remove the possible dependency                */ 
@@ -2274,19 +2179,38 @@ odeType(_ode,_y,_x,ODEtype):=block([_rhs,_df,_df_x,_df_y,_P,_Q],
 /* ************************************************************************** */
 
 
-/* ************************************************************************* */
-/* ***** check if f is an invariant algebraic curve of the ode         ***** */
-/* ************************************************************************* */
+/* ************************************************************************** */
+/* ***** check if f is an invariant algebraic curve of the ode          ***** */
+/* ************************************************************************** */
 isIAC(_f,_ode,_y,_x):=block([_P,_Q],
-_ode : ode1CanonicalForm(_ode,_y,_x),
-[_P,_Q] : ode1PfaffianForm(_ode,_y,_x),
-return(Dop(_P,_Q,_f))
+
+  _ode : ode1CanonicalForm(_ode,_y,_x),
+  [_P,_Q] : ode1PfaffianForm(_ode,_y,_x),
+  return(Dop(_P,_Q,_f)/_f)
 )$
 /* ************************************************************************** */
 
 
-/* ************************************************************************* */
-/* ***** print expr only when flag<DEBUGFLAG                           ***** */
-/* ************************************************************************* */
+/* ************************************************************************** */
+/* *****     Check if input mu is an integrating factor of ode          ***** */
+/* ************************************************************************** */
+isIntegratingFactor(_mu,_ode,_y,_x) :=(block[_P,_Q,_isIntegratingFactor:false],
+
+  _ode: ode1CanonicalForm(_ode,_y,_x),
+
+  [_P,_Q] : ode1PfaffianForm(_ode,_y,_x),
+  
+  if (ratsimp(diff(_mu*_P,_x) + diff(_mu*_Q,_y))=0) then(
+    dprint(3,_mu, " is an integrating factor of the ode ",_ode),
+    true
+  ) else 
+    false
+
+)$
+
+
+/* ************************************************************************** */
+/* ***** print expr only when flag<DEBUGFLAG                            ***** */
+/* ************************************************************************** */
 dprint(flag,[expr])::= if flag <= DEBUGFLAG then buildq ([expr], print (splice (expr)));
-/* ************************************************************************* */
+/* ************************************************************************** */
