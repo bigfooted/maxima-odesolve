@@ -35,8 +35,8 @@ load(grobner)$                                    /* for computing Groebner the 
 load(functs)$                                     /* for the least common multiple command lcm */
 
 define_variable(degreeboundf, 2, fixnum)$         /* max degree of trial polynomials for the invariant algebraic curves (realistic is 1-4) */
-define_variable(degreeboundP, 2, fixnum)$         /* max degree of trial polynomials for exponential factors(realistic is 1-4) */
-define_variable(degreeboundQ, 2, fixnum)$         /* max degree of trial polynomials for exponential factors(realistic is 1-4) */
+define_variable(degreeboundP, 4, fixnum)$         /* max degree of trial polynomials for exponential factors(realistic is 1-4) */
+define_variable(degreeboundQ, 4, fixnum)$         /* max degree of trial polynomials for exponential factors(realistic is 1-4) */
 define_variable(ODEFI_GRAD_LIST    ,[]    ,any)$  /* not used (yet), This idea was introduced in Shtokhamer's paper */
 
 define_variable(convertImaginary ,false, boolean)$  /* true = try to convert complex Invariant Algebraic Curves to real */
@@ -81,16 +81,16 @@ prellesingerODE(_ode1,_y,_x,[options]):=block(
   dprint(1,""),
 
   /* --- check all the optional arguments --- */
-  searchExponentialFactors : assoc('searchExponentialFactors,options,true), /* if true, then also search for exponential factors (takes longer but you can solve more equations) */
-  convertImaginary         : assoc('convertImaginary,options,true),         /* if true, convert imaginary numbers to real to simplify integrating factor. true if input ODE does not contain %i */
-  searchRational           : assoc('searchRational,options,false),          /* if true, only search for rational solutions */
-  convertTrig		   : assoc('convertTrig,options,true),              /* if true, convert (sin,cos,csc,sec,cot) functions to tan to create a true transcendence base */
-  basisFunctions           : assoc('basisFunctions,options,[]),             /* user-defined lexicographically ordered list of basis functions */
-  returnExplicit           : assoc('returnExplicit,options,true),           /* if true, tries to return an explicit solution in _y, else returns an implicit solution  */
-  returnIntFactor          : assoc('returnIntFactor,options,false),         /* if true, returns only the integrating factor instead of the solution of the ode */ 
-  returnDarboux            : assoc('returnDarboux,options,false),           /* if true, returns only the Darboux polynomials instead of the solution of the ode */ 
-  use_to_poly_solve        : assoc('use_to_poly_solve,options,false),       /* if true, use the to_poly_solve solver (in case you encounter "quotient" errors) */ 
-  convertVariables        : assoc('convertVariables,options,true),          /* if true, try to convert auxiliary variables v(x,y) in the basis functions to x,y in intermediate steps (rarely needs to be set to false)  */ 
+  searchExponentialFactors : assoc('searchExponentialFactors,options,false), /* if true, then also search for exponential factors (takes longer but you can solve more equations) */
+  convertImaginary         : assoc('convertImaginary,options,true),          /* if true, convert imaginary numbers to real to simplify integrating factor. true if input ODE does not contain %i */
+  searchRational           : assoc('searchRational,options,false),           /* if true, only search for rational solutions */
+  convertTrig		   : assoc('convertTrig,options,true),               /* if true, convert (sin,cos,csc,sec,cot) functions to tan to create a true transcendence base */
+  basisFunctions           : assoc('basisFunctions,options,[]),              /* user-defined lexicographically ordered list of basis functions */
+  returnExplicit           : assoc('returnExplicit,options,true),            /* if true, tries to return an explicit solution in _y, else returns an implicit solution  */
+  returnIntFactor          : assoc('returnIntFactor,options,false),          /* if true, returns only the integrating factor instead of the solution of the ode */ 
+  returnDarboux            : assoc('returnDarboux,options,false),            /* if true, returns only the Darboux polynomials instead of the solution of the ode */ 
+  use_to_poly_solve        : assoc('use_to_poly_solve,options,false),        /* if true, use the to_poly_solve solver (in case you encounter "quotient" errors) */ 
+  convertVariables        : assoc('convertVariables,options,true),           /* if true, try to convert auxiliary variables v(x,y) in the basis functions to x,y in intermediate steps (rarely needs to be set to false)  */ 
 
   dprint(1,""),
   dprint(1,"---------- optional arguments : -----------------------------"),
@@ -197,7 +197,7 @@ prellesingerODE(_ode1,_y,_x,[options]):=block(
   ),
 
   /* clean up and try to write in explicit form*/
-  if returnExplicit=true then sol: cleanupODESolution(sol,_y,_x),
+  if (returnExplicit=true) then sol: cleanupODESolution(sol,_y,_x),
 
   dprint(1,"solution = ",grind(sol)),
   return(sol)
@@ -232,6 +232,7 @@ ode1Solve(_P,_Q,_y,_x,[options]):=block([_check,_res,_mu:false,mu_P,mu_Q,exactod
   /* rootscontract converts products of roots into roots of products, simplifies an expression like 1/(sqrt(x-%i)sqrt(x+%i)) = 1/(sqrt(x^2+1)) */
   /* note that abs(x) can also be put into the root when x is real*/
   _mu: rootscontract(_mu),
+  dprint(3,"MU = ",grind(_mu)),
 
   /* we try to get rid of imaginary numbers */
   mu_P : num(_mu),
@@ -247,7 +248,9 @@ ode1Solve(_P,_Q,_y,_x,[options]):=block([_check,_res,_mu:false,mu_P,mu_Q,exactod
     mu_Q : rootscontract(mu_Q),
     mu_Q : rectform(radcan(mu_Q)), /* for simplification of e.g. -1^%i*/
     mu_Q : trigreduce(trigsimp(demoivre(mu_Q))) /* if mu=exp(sin(x)) then exponentialize(mu) has exploded this expression and introduced complex numbers */
+   
   ),
+  dprint(3,"MU = ",mu_P,"/ ",mu_Q),
 
   _mu : radcan(mu_P / mu_Q),
 
@@ -258,8 +261,7 @@ ode1Solve(_P,_Q,_y,_x,[options]):=block([_check,_res,_mu:false,mu_P,mu_Q,exactod
 
   dprint(3,"MU = ",grind(_mu),_y,_x),
 
-  /*exactode : radcan(trigsimp(ratsimp (diff(_mu*_P,_x) + diff(_mu*_Q,_y)))), */
-  exactode : radcan(trigsimp( (diff(_mu*_P,_x) + diff(_mu*_Q,_y)))), 
+  exactode : radcan(trigsimp( ratsimp(diff(_mu*_P,_x) + diff(_mu*_Q,_y)))), /* extra ratsimp for 1.350*/
   dprint(1,"Does integrating factor make ODE exact?  ",grind(exactode), " ",is(exactode=0)),
   
 
@@ -274,42 +276,50 @@ ode1Solve(_P,_Q,_y,_x,[options]):=block([_check,_res,_mu:false,mu_P,mu_Q,exactod
 /* *************************** */
   halfangles : false,
 /* *************************** */
-  dprint(5,properties(a)),
-  dprint(5,properties(b)),
-  dprint(5,properties(c)),
   res1: integrate(_M,_x),
   dprint(3,"res1 = ",grind(res1)),
 
   /* is this really necessary? */
-  if freeof(%i,res1) then (
-    res1a: radcan(res1),
-    if freeof(%i,res1a) then res1:res1a
-  ),
+  /*if freeof(%i,res1) then (*/
+    res1: radcan(res1),                          /* kamke 364*/
+  /*  if freeof(%i,res1a) then res1:res1a*/
+  /*),*/
+  dprint(3,"res1 = ",grind(res1)),
 
   res2: integrate(_N,_y),
   dprint(3,"res2 = ",grind(res2)),
 
-  if freeof(%i,res2) then (
-    res2a: radcan(res2),
-    if freeof(%i,res2a) then res2:res2a
-  ),
+  /*if freeof(%i,res2) then (*/
+    res2: radcan(res2),
+  /*  if freeof(%i,res2a) then res2:res2a*/
+  /*),*/
 
 
   res3: diff(res1,_y),     
+  dprint(3,"res3 = ",grind(res3)),
   
   /* radcan: simplifies kamke1.41, we should only use radcan when we do not have %i terms (messes up results) */
-  if freeof(%i,res3) then (
-    res3a: radcan(res3),
-    if freeof(%i,res3a) then res3:res3a
-  ),
+  /*if freeof(%i,res3) then (*/
+    res3: radcan(res3),
+  /*  if freeof(%i,res3a) then res3:res3a*/
+  /*),*/
 
   dprint(3,"res3 = ",grind(res3)),
   res3: integrate(res3,_y),
   dprint(3,"res3 = ",grind(res3)),
  
-  sol: res1 + res2 - res3 + %c,
+  sol: res1 + res2 - res3 = %c,
   dprint(3,"sol = ",sol), 
- 
+  sol : ratsimp(sol),
+  dprint(3,"(ratsimp)sol = ",sol), 
+  if trigonometricp(sol) then (
+    sol : trigexpand(sol),  /* kamke 358 */ 
+    dprint(3,"(trigexpand)sol = ",sol), 
+    sol : trigsimp(sol),    /* kamke 364 */
+    dprint(3,"(trigsimp)sol = ",sol), 
+    sol : trigreduce(sol),
+    dprint(3,"(trigreduce)sol = ",sol) 
+  ),
 /* *************************** */
    halfangles : true,
 /* *************************** */
@@ -562,9 +572,9 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
         dprint(1,"Dfi = ",Dfi) 
       ),
 */
-      dprint(5,"WE ARE GOING TO COMPUTE lt_DFI ",Dfi," ",varlist),
+      /*dprint(5,"WE ARE GOING TO COMPUTE lt_DFI ",Dfi," ",varlist),*/
  
-      lt_Dfi : l_t(Dfi,varlist), /* TODO: it seems that computing the leading term is computationally expensive: precompute? */        
+      lt_Dfi : l_t(Dfi,varlist), 
       dprint(5,"lt_Dfi = ",lt_Dfi), 
       /* leading coefficients */
       /*lc_Dfi : l_c(lt_Dfi,varlist),*/ /* leading coeff can be 2*a, 3.0*%e, etc.    */
@@ -868,7 +878,7 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
     ),
 
     dprint(3,"wrapping up, preparing for the next f! "),
-
+    dprint(3,"Sfg = ",Sfg),
     /* if in the previous step we had an indivisible result or the result was irreducible, there is no need to go through the steps below because there was no new information added */
     if not(indivisible) and Sfg#[] then (
 
@@ -971,10 +981,7 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
               /* >>>> loop from degree of P is 1 to maxdeg_P */
               /* construct polynomial for P */
               [%ai,pListofTerms] : PolyList(varlist,deg_P,%a),
-              dprint(3,"coefficients of P : ",pListofTerms),  
-              dprint(3,"%ai : ",%ai),  
               polyP :  apply("+",apply("*",[reverse(%ai),pListofTerms])),
-              dprint(3,"polynomial P = ",grind(polyP)),
               /* construct eq. 13 */
               /* eq13 is given by: D[P] -P sum_i(mi* lambda_qi) = -prod_i(v_qi^mi)*(sum_j (c_j*lambda_sj + dy(M) + dx(N))) */
 
@@ -999,49 +1006,24 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
                 eq13b :  _Q*diff(polyP,_y) + _P*diff(polyP,_x), /* also note that we use x and y here! */
                 eq13 : eq13 + eq13b,
                 eq13c:0,
-
                 for i:1 thru length(m) do (
                   eq13c : eq13c + m[i]*Sfg[i][2] 
                 ),
-                /*eq13 : ratexpand(eq13 - polyP * eq13c), */
                 eq13 : ratsimp(eq13 - polyP * eq13c), 
 
-                dprint(3,"eq13d = ",grind(eq13)),
-                dprint(3,"varlist = ",grind(varlist)),
-
                 niList : append(niList,%ai),
-                /*apply(declare,[''niList,constant]),*/
-                dprint(3,"niList = ",grind(niList)),
                 _allcoef : allcoeffsNew(eq13,varlist),
 
-                dprint(3,"all coefficients are : ",grind(_allcoef)),
                 ni : flatten(errcatch(solve(_allcoef,niList))), /* we have to use errcatch because sometimes solve returns an error for certain trivial systems with free variables*/
                 dprint(3,"ni = ",ni),
                 if ni # [] then (
                   for r in %rnum_list do ni:subst(0,r,ni), %rnum_list:[], /* replace all free variables with a value*/
-                  dprint(3,"exponential factor found!"),
+                  dprint(3,"*** exponential factor found! *** "),
                   polyP : subst(ni,polyP),
                   dprint(3,"P = ",grind(polyP)),
                   dprint(3,"Q = ",grind(polyQ)),
                   /* TODO: at this point, we can take the complex conjugate of p and q to make the exponential factor real */
 
-/*
-                  if realSystem=true and not(freeof(%i,[polyP,polyQ])) then (
-                    polyPReal : ratsimp(polyP*conjugate(polyP)), 
-                    polyQReal : ratsimp(polyQ*conjugate(polyQ)),
-                    if (freeof(%i,[polyPReal,polyQReal])) and (freeof(conjugate,[polyPReal,polyQReal])) then (
-                      polyP:polyPReal,
-                      polyQ:polyQReal
-                    ) else(
-                      print("Warning: exponential factor was not simplified to real, keeping it complex!")
-                    )
-                  ),
-*/
-                  /*exponentialFactor : exp(ratsimp(polyP/polyQ)),*/ /* ratsimp is not necessary because polyP and polyQ are coprime! */
-                  /* note that we are looking for a single exponential factor here!!! we can also have 2 or more exponential factors! */
-                  /* even if we find an exponential factor, it does not mean that we can solve the equation */
-                  /* we need at least a certain amount of exponential factors. How many? depends on degree, NrexponentialFactorsNeeded, NrCofactorsNeeded, */
- 
                   exponentialFactor : endcons(exp(polyP/polyQ),exponentialFactor), 
                   /* the multiplicities of the Darboux polynomials fi are ni */ 
                   /* we have now exp(P/Q) * f1^n1 * f2n2 * f3^n3 * ... fp^np  */
@@ -1072,23 +1054,10 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
   if method#false then (
     ni : lratsubst(map("=",varlist,original_variables),ni), 
     exponentialFactor : lratsubst(map("=",varlist,original_variables),exponentialFactor), 
-    /*denom_lcm : lratsubst(map("=",varlist,original_variables),denom_lcm),*/
-
-    /*if not(freeof(%i,Sfg)) and (convertImaginary=true) then Sfg:radcan(exponentialize(Sfg)), *//* try to simplify some imaginary numbers */
-    if not(freeof(%i,Sfg)) then Sfg:radcan(exponentialize(Sfg)), /* try to simplify some imaginary numbers */
-
+    if not(freeof(%i,Sfg)) then Sfg:demoivre(radcan(exponentialize(Sfg))), /* try to simplify some imaginary numbers */
+    if trigonometricp(Sfg) then Sfg : trigreduce(trigsimp(trigexpand(Sfg))), /* simplify when Darboux polynomials contain trig functions */
     dprint(3,"Sfg = ",grind(Sfg)),
     dprint(3,"ni = ",grind(ni))
-    /*if sol#false then integratingFactor : lratsubst(map("=",varlist,original_variables),integratingFactor), */
-/*
-    integratingFactor:1,
-    for figi in Sfg do (
-      print("g = ",figi[1], ",   n = ",first(ni)),
-      integratingFactor:integratingFactor*figi[1]^(first(ni)),
-      ni:rest(ni) 
-    ),
-    integratingFactor : integratingFactor * exponentialFactor
-*/
   ),
 
   dprint(3,"integrating factor = ",grind(integratingFactor)),
@@ -1228,7 +1197,7 @@ irreducible(_f,_S,_varlist):=block([_Sf,_f_Sf,_irred:true],
     _f_Sf:poly_gcd(_f,_Sf,_varlist),
     dprint(3,"          *** _f_Sf = ",_f_Sf),
 
-    if (_f_Sf#1) and (_f_Sf#-1) then _irred:false /* if it can be divided, then it is not irreducible*/
+    if (_f_Sf#1) and (_f_Sf#-1) then _irred:false 
   ),
 
 return(_irred)
@@ -1442,7 +1411,7 @@ inargs(z):=substinpart("[",z,0)$
 /* simplify it and also try to create a clean integration constant            */
 /* ************************************************************************** */
 cleanupODESolution(expr,_y,_x):=block([res1:[],expr1,realexpr:false,expressionBecameComplex:false,logmin1:false,linearconstants,_A,_B,_X],
-  /*dprint(3,"clean up ",grind(expr)),*/
+  dprint(5,"clean up ",grind(expr)),
   /* first, evaluate all unevaluated noun forms */
   expr: ev(expr,nouns),
   dprint(5,expr),
@@ -1450,7 +1419,7 @@ cleanupODESolution(expr,_y,_x):=block([res1:[],expr1,realexpr:false,expressionBe
   if freeof(%i,expr) then realexpr:true,
   dprint(5,"is expression real: ",realexpr),
 
-  expr : ratsimp(trigreduce(trigsimp(expr))),
+  expr : ratsimp(trigreduce(trigsimp(trigexpand(expr)))),
   dprint(5,"1: ",expr),
 
   /* simplify some logarithms */
@@ -1783,8 +1752,9 @@ oldlexicographicallyOrderedPolynomial(_expr,_varlist):=block([_lexList,_index,_m
   ),
 
   return(_mergedLexList)
-*/
+
 )$
+*/
 /* ************************************************************************** */
 
 
