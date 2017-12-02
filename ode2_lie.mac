@@ -1,0 +1,860 @@
+/* ************************************************************************** */
+/* *****     ode2_lie                                                   ***** */
+/* *****                                                                ***** */
+/* *****     Author: Nijso Beishuizen                                   ***** */
+/* *****                                                                ***** */
+/* *****     INTEGRATING METHOD FOR SOLVING SECOND ORDER ODES           ***** */
+/* *****     Based on the paper                                         ***** */
+/* *****     [1] E. S. Cheb-Terrab, A. D. Roche,                        ***** */
+/* *****     Integrating factors for second order ODEs,                 ***** */  
+/* *****     J. Symbolic Computation 27, 501-519 (1999)                 ***** */
+/* *****     [2] C. Muriel and J.L. Romero                              ***** */
+/* *****     First integrals, integrating factors and lambda-symmetries ***** */
+/* *****     of second order differential equations                     ***** */
+/* *****     J. Phys. A: Math. Theor. 42 (2009)                         ***** */
+/* ************************************************************************** */
+/* ************************************************************************** */
+
+/* needed to construct the integral of a function containing y(x), dy(x)/dx.. */
+load(antid)$
+
+/* ************************************************************************** */
+put('ode2_lie,001,'version)$
+/* ************************************************************************** */
+
+
+/* ***** print all statements with flag <= DEBUGFLAG                    ***** */
+/* default : 3 for debugging, 1 to include warnings, 0 are errors       ***** */
+DEBUGFLAG:3$ 
+
+matchdeclare (_la, freeof(_y), _lb, freeof(_y,dy),_lc,freeof(_y,dy))$
+defmatch (linearode, _la*dy + _lb*_y + _lc, _y)$
+
+
+/* ************************************************************************** */
+/* *****    MAIN ROUTINE                                                ***** */
+/* *****    INPUT: ode of the form y''= f(x,y,y')                       ***** */
+/* *****           y = dependent variable, x = independent variable     ***** */
+/* *****    OUTPUT: integrating factor, reduced ode, or false           ***** */
+/* ************************************************************************** */
+ode2_lie(_expr,_y,_x) := block(
+  [_mu,_r,_s,_ode,_ode1],
+
+  dprint(3,""),
+  dprint(3,"----------------------------------------------------------------------------"),
+  dprint(3,"--- Lie symmetry method for second order ordinary differential equations ---"),
+  dprint(3,"----------------------------------------------------------------------------"),
+  dprint(3,""),
+
+  /* ***** sanity check: check if input is indeed an explicit second order ode ***** */
+  _ode : odeType(_expr,_y,_x),
+  if (_ode=false) then return(false),
+  /* ode is now also explicit */
+  dprint(3,"explicit ode = ",_ode),
+
+
+  /* ***************************************************** */
+  /* ***** 1. check if ode is exact                  ***** */
+  /* ***************************************************** */
+  if (isExact(_expr,_y,_x)) then (
+    dprint(3,"ode is exact"),
+    _mu : diff(_expr,'diff(_y,_x,2)),
+    dprint(3,"mu=",_mu),
+    if (_mu # false) then return(_mu/constant_factors(_mu,[_x,_y]))
+  ), 
+  dprint(3, "ode is not exact..."),
+
+
+  /* ***************************************************** */
+  /* ***** 2. check if missing y                     ***** */
+  /* ***************************************************** */
+  dprint(3,"*** check if ode is of type 'ode2, missing y' "),
+  if freeof(_y,rhs(_ode)) then (
+    dprint(2,"ode is of type: missing y"),
+    /*_xi : 0, _eta : 1,*/
+    _sol : subst(['diff(_x,_x,2)='diff(w,_x,1),'diff(_y,_x)=w],_ode),
+    dprint(3,"returning the transformed ode with y\"=w\' and y\'=w "),
+    return(_sol) 
+  ),
+  dprint(3,"ode is not of type: missing y"),
+
+  /* ***************************************************** */
+  /* ***** 3. check if missing x                     ***** */
+  /* ***************************************************** */
+  dprint(3,"*** check if ode is of type 'ode2, missing x' "),
+  if freeof(_x,rhs(_ode)) then (
+    dprint(2,"ode is of type: missing x"),
+    /*_xi : 1, _eta : 0,*/
+    _sol : subst(['diff(_y,_x,2)='diff(w,_y,1)*w,'diff(_y,_x)=w],_ode),
+    _sol : solve(_sol,'diff(w,_y,1))[1], 
+    dprint(3,"returning the transformed ode with y\"=w*w\' and y\'=w "),
+    return(_sol)
+  ),
+  dprint(3,"ode is not of type: missing x"),
+
+  /* ***************************************************** */
+  /* ***** 4. check for integrating factor           ***** */
+  /* ***************************************************** */
+  _mu : integratingFactor(_ode,_y,_x),
+
+  if (_mu = false) then ( 
+    dprint(3,"ode does not have an integrating factor of the form mu(x,y) or mu(x,dy/dx)"),
+    /* ********************************************* */
+    /* III. integrating factors of the form mu(y,y') */
+    /* ********************************************* */
+    dprint(3,"*** check if ode is of type 'ode2, mu=mu(y,y\')' "),
+
+    /* change variables x->y and y->x */
+    dprint(5,"ode = ",_ode),
+    _ode1 : solve(ratsimp(ode_changevar(_ode,_y,_x)),'diff(_y,_x,2))[1], 
+    dprint(5,"ode1 = ",_ode1),
+    
+    _mu : integratingFactor(_ode1,_y,_x),
+    if (_mu = false) then (
+      dprint(5,"no integrating factor found")
+    ) else (
+      /* this is the integrating factor of the transformed ode. now change back */
+      _mu : _mu * 'diff(_y,_x)^2,
+      dprint(3,"2. integrating factor = ",_mu),
+      _mu : subst('diff(_y,_x)=_dy,_mu),
+      _mu : subst(_x=_y,_mu),
+      _mu : subst(_dy=1/'diff(_y,_x),_mu),
+      dprint(3,"3. integrating factor = ",_mu)
+    )
+  ) else (
+    dprint(3,"integrating factor = ",_mu),
+    return(_mu/constant_factors(_mu,[_x,_y])) 
+  ),
+
+  return(false)
+)$
+
+
+/* ************************************************************************** */
+/* ***** input: dep. var. y, indep. var x, transform for y, and x       ***** */
+/* ************************************************************************** */
+/*ode_changevar(_ode,_y,_x,_ynew,_xnew):=block([_ode1],*/
+ode_changevar(_ode,_y,_x):=block([_ode1],
+  /* transform to ode of form mu(x,y') by changing variables */
+  /* x -> y and y->x*/
+  /* we use x -> r and y -> s */
+  /* and try case I. */ 
+
+  /* replace the second derivative */
+  _ode1 : subst('diff(_y,_x,2)=-'diff(_s,_r,2)/('diff(_s,_r))^3,_ode),
+  /* replace the first derivative, dy/dx = 1/(ds/dr)*/
+  _ode1 : subst('diff(_y,_x,1)=1/'diff(_s,_r),_ode1),
+  /* replace the dep/indep variable */
+  _ode1 : sublis([_x=_s,_y=_r],_ode1),
+  /* write explicitly */
+  /*_ode1 : solve(_ode1,'diff(_s,_r,2))[1],*/
+
+  _ode1:(sublis([_s=_y,_r=_x],_ode1)),
+  _ode1:(sublis([_dy='diff(_y,_x),_ddy='diff(_y,_x,2)],_ode1)),
+
+  return(_ode1)
+)$
+/* ***** ***** */
+
+
+/* ************************************************************************** */
+/* *****    MAIN ROUTINE FOR COMPUTING INTEGRATING FACTOR               ***** */
+/* *****    INPUT: ode of the form y''= f(x,y,y')                       ***** */
+/* *****           y = dependent variable, x = independent variable     ***** */
+/* *****    OUTPUT: integrating factor, or false                        ***** */
+/* ************************************************************************** */
+integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_mu_tilde,_w,
+        _a,_b,_c,_Y,_ax,_by,_phi1,_nu,_gamma,_expr,_gamma_y,_F,_p_prime,_H,_W,_beta,_gam,_dp,_ddp,_dddp],
+
+  /* transform ode*/
+  _ode : subst(['diff(_y,_x)=_dy,'diff(_y,_x,2)=_ddy],_ode), 
+  _phi : subst(['diff(_y,_x)=_dy],rhs(_ode)), 
+
+  /* ***************************************************** */
+  /* I. check if integrating factor is of the form mu(x,y) */
+  /* ***************************************************** */
+
+  dprint(3,"*** check if ode is of type 'ode2, mu=mu(x,y)' "),
+  _phi : rhs(_ode),
+  dprint(5,"phi = ",_phi),
+  /* rhs needs to be of the form a(x,y)*y'^2 + b(x,y)*y' + c(x,y) */
+  _coeffs : linearode(ratexpand(_phi),_y),
+  dprint(5,"coeffs=",_coeffs),
+  if (_coeffs#false) then (
+    [_a,_b,_c,_Y] : map(rhs,_coeffs),
+    dprint(5,"coeffs=",a,b,c),
+    /* case A*/
+    dprint(4,"***    case A "), 
+    _ax : diff(_a,_x),
+    dprint(5,"ax=",_ax),
+    _by : diff(_b,_y),
+    dprint(5,"by=",_by),
+
+    if (2*_ax-_by #0) then (
+      dprint(5,"2a_x-b_y #0"),
+      _phi1 : diff(_c,_y) - _a*_c - diff(_b,_x),
+      dprint(5,"phi = ",_phi1),
+      _gamma : diff(_ax,_x) + _ax*_b + diff(_phi1,_y),
+      dprint(5,"gamma = ",_gamma),
+      if ((ratsimp(diff(_gamma,_y) - _ax) =0) and (ratsimp(diff(_gamma,_x)+_phi1 + _b*_gamma - _gamma*_gamma) =0)) then (
+        _mu : exp(integrate((-_gamma+diff(integrate(_a,_y),_x)),_x) - integrate(_a,_y)),
+        return(_mu) 
+      ) 
+      else (
+        dprint(4,"no integrating factor of form mu(x,y)")
+        /*return(false)*/
+      )
+    )
+
+    /* case B*/
+    else (
+      dprint(4,"***    case B "), 
+      dprint(5,"2a_x-b_y = 0"),
+      _phi1 : diff(_c,_y) - _a*_c,
+      dprint(5,"phi = ",_phi1),
+      if (ratsimp(diff(_ax,_x) - _ax*_b - diff(_phi1,_y))=0) then (
+        _nu: ["solution of A(x)*nu' + B(x)*nu"], /* TODO */
+        _mu : _nu*exp(-integrate(_a,_y)),
+        return(_mu)
+      ) else (
+        dprint(4,"no integrating factor of form mu(x,y)")
+        /*return(false)*/
+      )
+    )
+  ),
+
+
+  /* *************************************************** */
+  /* II. check if integrating factor is of the form mu(x,y') */
+  /* *************************************************** */
+
+  dprint(3,"*** check if ode is of type 'ode2, mu=mu(x,y\')' "),
+
+  /* case A: linear ode y */
+  dprint(5,"phi = ",_phi),
+  _c : ratsimp(diff(_phi,_dy)),
+  _b : ratsimp(diff(ratsimp(_phi-_c*_dy),_y)),
+  _a : ratsimp(_phi - _b*_y - _c*_dy),
+  dprint(5,"_a = ",_a),
+  dprint(5,"_b = ",_b),
+  dprint(5,"_c = ",_c),
+  
+  /* can _a also be a constant? or a function of x? */
+  if freeof(_y,_c) and freeof(_y,_b) and (_a=0) then (
+    _mu : 'diff(_y,_x)/_b,
+    return(_mu) 
+  ) else (
+    dprint(4,"ode is not a linear second order ode with symmetries of the form mu(x,y')")
+  ), 
+
+  /* case B: standard search for integrating factors of the form mu(x) as the solution of the adjoint of the original linear ode*/
+  /* implement standard search for mu=mu(x), solve adjoint of linear ode */
+
+
+  /* *** case A, nonlinear ode, Gxy/Gyy depends on y *** */
+  dprint(4,"***    case A "), 
+
+  /* kamke odes: 37(exp(int(f(x)))),97(1/x),123(1/y, this cannot be?!?),226(y')*/ 
+  _gamma : diff(_phi,_y),                    /* eq. 2.35 */
+  _gamma : ratsimp(_gamma),
+  dprint(5,"gamma = ",_gamma),
+  /* case A: Gxy/Gyy depends on y */
+  _gamma_y : diff(_gamma,_y),                /*  */
+  _gamma_y : ratsimp(_gamma_y),
+  dprint(5,"gamma_y = ",_gamma_y),
+   
+  _expr : ratsimp(diff(_gamma_y/_gamma,_dy)),
+  dprint(5,"expr = ",_expr),
+  _expr : ratsimp(factor(num(_expr))/factor(denom(_expr))),
+  dprint(5,"expr = ",_expr),
+  if (_expr#0) then (
+    
+    dprint(4,"we need the factors of gamma depending on y' but not on y itself"),
+    dprint(4,"factors = ",factor_list(_gamma)),
+    /* keep the factors that contain y' but not y*/
+    _F:sublist(factor_list(_gamma),lambda([_xx],not(freeof(_dy,_xx)) and freeof(_y,_xx) )),
+    dprint(4,"F = ",_F), 
+    /*if (_F#[]) then (*/  /* todo only when not empty ???*/
+    if (true) then ( 
+      /* todo only when not empty, F=1 for 6.37 */
+      /* F is the integrating factor, up to a factor depending on x,
+         F(x,y') = mu(x,y') / mu_tilde(x)
+       */
+      _F : 1/apply("*",_F), /* reciprocal of the factors of Gamma */
+      dprint(4,"F = ",_F),
+      _mu_tilde : mu_tilde(_phi,_F,_x,_y,_dy),
+      dprint(4,"mu_tilde=",_mu_tilde),
+      if (_mu_tilde # false) then (
+        _mu : ratsimp(subst(_dy='diff(_y,_x),_F*_mu_tilde)),
+        dprint(4,"integrating factor mu(x,y') = ",_mu),
+        return(_mu)
+      ) else (
+        dprint(4,"no integrating factor of this form, mu_tilde(x) depends on y or dy")
+      )
+    ) 
+  )
+  else (  
+    /* expr = 0 */ 
+    /* *** case B *** */
+    /* assume G_xy = 0 or G_yy=0*/
+    /* */
+    dprint(5,"do nothing")
+  ),
+  /* ... */
+
+
+  /* *** case C: Gxy/Gyy # 0 */ /* TODO *** */
+  dprint(4,"***    case C "), 
+  _gamma : diff(_phi,_y),                    /* eq. 2.35 */
+  dprint(5,"gamma = ",_gamma),
+  /* case A: Gxy/Gyy depends on y */
+  _gamma_y : diff(_gamma,_y),                /*  */
+  dprint(5,"gamma_y = ",_gamma_y),
+   
+  _expr : ratsimp(diff(_gamma_y/_gamma,_dy)), /* eq. 2.36 */
+  dprint(5,"expr = ",_expr),
+  if (_expr=0) and (_gamma_y #0) then (
+    
+    dprint(4,"we need the factors of gamma depending on y but not on y' itself"),
+    dprint(5,"factors = ",factor_list(_gamma)),
+    /* keep the factors that contain y but not y' */
+    _W:sublist(factor_list(_gamma),lambda([_xx],(freeof(_dy,_xx)) and not(freeof(_y,_xx)) )),
+    dprint(5,"W = ",_W),
+ 
+    _W : apply("*",_W), /* factors of Gamma */
+    dprint(5,"W = ",_W),
+
+    if (ratsimp(diff(diff(log(_W),_y),_x) * diff(diff(log(_W),_y),_y))=0) then (
+      /* too strict for kamke 6.51 */
+      dprint(1,"Warning: criterion for w not met in case C")
+    ) 
+    else (
+
+      _H : diff(log(_W),_y),
+      dprint(5,"H = ",_H),
+
+      /* */
+      if (ratsimp(diff(_H,_y))#0) then (
+      /*  if not freeof(_y,_H) then (*/
+        _p_prime : ratsimp(diff(_H,_x) / diff(_H,_y)),
+        dprint(5,"p_prime = ",_p_prime), 
+        _F : (_p_prime + _dy)*_W / _gamma,
+        _F : ratsimp(_F),
+        dprint(5,"F = ",_F),
+        _mu_tilde : mu_tilde(_phi,_F,_x,_y,_dy),
+        dprint(5,"mu_tilde=",_mu_tilde),
+
+        if (_mu_tilde # false) then (
+          _mu : ratsimp(subst(_dy='diff(_y,_x),_F*_mu_tilde)),
+          dprint(4,"integrating factor mu(x,y') = ",_mu),
+          return(_mu)
+        ) else (
+          dprint(4,"no integrating factor of this form, mu_tilde(x) depends on y or dy")
+        )
+      )
+    )
+  ),  
+
+
+  /* case D: H=0 */  /* TODO */
+  dprint(4,"***    case D "), 
+  _gamma : ratsimp(diff(_phi,_y)),                    /* eq. 2.35 */
+
+  dprint(5,"gamma = ",_gamma),
+  if (ratsimp(diff(_gamma,_y))=0) then (
+    _Psi : ratsimp(ratexpand(_phi / _gamma - _y)),
+
+    /* keep the factors that contain y but not y' */
+    _W:sublist(factor_list(_gamma),lambda([_xx],(freeof(_dy,_xx)) and not(freeof(_y,_xx)) )),
+
+    /* if W is empty, then applying multiplication will result in W=1, this will solve 2 kamke odes */
+    /*    if _W # [] then (*/
+    _W : apply("*",_W), /* factors of Gamma */
+    _H : diff(log(_W),_y),
+    /*    )
+    else */
+    _H : 0,
+
+    if (_H = 0) then (
+      _Lambda : 1/_gamma,
+      _Lambda_yp : ratsimp(ratexpand(diff(_Lambda,_dy))),
+      _Lambda_x : ratsimp(ratexpand(diff(_Lambda,_x))),
+      _Psi_x : ratsimp(ratexpand(diff(_Psi,_x))),
+      _Psi_dy : ratsimp(ratexpand(diff(_Psi,_dy))),
+
+      if (_Lambda_yp # 0 ) then (
+        /* eq. 2.63 */
+        _ddp : -(2*_Psi_dy + _Lambda_x + ( diff(_Lambda_yp,_x) + diff(_Psi_dy,_dy))*(_dy+_dp))/_Lambda_yp,
+        _ddp: ratsimp(ratexpand(_ddp)),
+        if not freeof(_dy,_ddp) then (
+          dprint(4,"not free of dY"),
+          _ddp_dY : ratsimp(ratexpand(diff(_ddp,_dy))),
+          _dp : solve(ddp_dY,_dp),
+          _dp : rhs(dp[1])
+        ) else (
+     
+          _dddp : diff(_ddp,_x),
+          /* eq 2.64 */
+          _eq1: ratexpand(_Lambda * _dddp),
+          _eq1: _eq1 + ratexpand( (diff(_Lambda_x,_x) + diff(_Psi_dy,_x))*(_dy + _dp)), 
+          _eq1: _eq1 + ratexpand((_Lambda_x + _Psi_dy)*_ddp),
+          _eq1: _eq1 + ratexpand(_Psi_x),
+          _eq1: _eq1 = _dp,
+          _sol : solve(_eq1,_dp),
+          _dp : rhs(_sol[1])
+        ),
+
+        _F : ((_dp + _dy)*_W)/_gamma,
+
+        _mu_tilde : mu_tilde(_phi,_F,_x,_y,_dy),
+        if (_mu_tilde # false) then (
+          _mu : subst(_dy='diff(_y,_x),_F*_mu_tilde),
+          _mu : ratsimp(_mu),
+          dprint(4,"integrating factor mu(x,y') = ",_mu),
+          return(_mu)
+        ) else (
+          dprint(4,"no integrating factor of this form, mu_tilde(x) depends on y or dy")
+        )
+        /* --- */    
+      ) else (
+        dprint(1," error, not implemented, lambda_yp is 0, implement this small extension! ")
+      )
+    )
+  ) else (
+    dprint(4,"H # 0, case does not apply")
+  ),
+
+
+  /* case E: H'=0 and H#0 */ /* TODO */
+  dprint(4,"***    case E "), 
+  /* Gamma_y = constant # 0 */
+  _gamma : ratsimp(diff(_phi,_y)),                    /* eq. 2.35 */
+  _gamma_y : ratsimp(diff(_gamma,_y)),
+  _gamma_yy : ratsimp(diff(_gamma,_y,2)),
+  _C1 : ratsimp(_gamma_y / _gamma),
+
+  /* keep the factors that contain y but not y' */
+  _W:sublist(factor_list(_gamma),lambda([_xx],(freeof(_dy,_xx)) and not(freeof(_y,_xx)) )),
+  _W : apply("*",_W), /* factors of Gamma */
+  _H : diff(log(_W),_y),
+  dprint(5,"_W = ",_W),
+  dprint(5,"_H = ",_H),
+
+  if (_H # 0) and (diff(_H,_y)=0) then (
+    dprint(5,"H#0 and H_y=0"), 
+    _Lambda : _C1^2*exp(_y*_C1)/_gamma, /* eq. 2.60*/
+    _Lambda_x : diff(_Lambda,_x),
+    _Lambda_dy : diff(_Lambda,_dy),
+    _Lambda_xdy : diff(_Lambda_dy,_x),
+
+    _Psi : ratsimp(_phi * _Lambda - _C1*exp(_y*_C1)) , /* eq. 2.61*/
+    print("psi = ",_Psi),
+    _Psi_dy : diff(_Psi,_dy),
+    _Psi_dydy : diff(_Psi_dy,_dy),
+
+    _C1_Lambda : 2*_Psi_dydy,
+    _C1_Lambda_dy : diff(_C1_Lambda,_dy),
+
+    _eq_283 : (_ddp + _dp^2*_C1)*_Lambda_dy + _dp*(_dy*_Lambda_dy*_C1 + _Lambda*_C1 + _Lambda_xdy + _Psi_dydy) + 
+         2*_Psi_dy + _Lambda_x + _dy*_Lambda_xdy +_dy*_Psi_dydy=0, /* eq. 2.83 */
+    _eq_283 : ratsimp(_eq_283),
+    print("eq : ",_eq_283),
+
+    /* case lambda_dy = 0*/
+    if (_Lambda_dy=0) then (
+      dprint(1,"warning, never found a test case for this routine! Check your results"),
+      _dp : solve(_eq_283,_dp)
+    ) else (
+      _eq : ratsimp(_eq_283/_Lambda_dy),
+      if not freeof(_dy,_eq) then (
+        _deq : diff(_eq,_dy),
+        _sol : solve(_deq,_dp)
+      ) else (
+        dprint(4,"case F: equation is free of y' "),
+        /* note that we do not have a validation test case for this one, so no way of testing it */
+        /* build a linear algebraic equation for dp */
+        /* eq 2.83 / labda_dy is now beta, eq. 2.83 can be written as _Lambda_dy*beta = 0 */
+        _beta : _eq,
+        _gam : _ddp*_Lambda + _dp*_Lambda_x + (_dy+_dp)*_dp*_lambda*_C1 + (1+_dp*_Psi_dy),
+        _eq_294 : diff(_gam,_x) + _C_1*_dp*_gam,
+        _sol : solve(_eq_294,_dp)[1],
+        _dp : solve(subst(_sol,_eq_283),_dp)
+      )
+    ),
+ 
+    _dp : rhs(_sol[1]),
+    _F : ((_dp + _dy)*_W)/_gamma,
+     
+    _mu_tilde : mu_tilde(_phi,_F,_x,_y,_dy),
+    dprint(5,"mu_tilde=",_mu_tilde),
+    if (_mu_tilde # false) then (
+      _mu : ratsimp(subst(_dy='diff(_y,_x),_F*_mu_tilde)),
+      dprint(4,"integrating factor mu(x,y') = ",_mu),
+      return(_mu)
+    ) else (
+      dprint(4,"no integrating factor of this form, mu_tilde(x) depends on y or dy")
+    )
+
+  ), 
+  
+  dprint(5,"no integrating factor found"),
+  return(false)
+)$
+
+
+/* ************************************************************************** */
+/* ***** ***** */
+/* ************************************************************************** */
+mu_tilde(_phi,_F,_x,_y,_dy) := block([_mu_tilde,_phi_y,_phi_1,_phi_2],
+
+  /* now determine mu_tilde to construct mu = F(x,y')*mu_tilde(x)*/
+  _phi_y : diff(_phi,_y),
+  _phi_1 : ratsimp(_phi_y * _F - _dy*diff(_phi_y*_F,_dy)),
+  _phi_2 : ratsimp(diff(_phi_y*_F,_dy)),
+  _mu_tilde : exp(
+                 integrate(ratsimp(((diff(_phi_1,_y)-diff(_phi_2,_x))/_phi_2)),_x)
+                ),   
+  if freeof(_y,_mu_tilde) and freeof(_dy,_mu_tilde) then return(_mu_tilde),
+       
+  return(false)
+)$
+
+
+/* ************************************************************************** */
+/* returns factors as lists (Stavros Macrakis) */
+/* ************************************************************************** */
+factor_list(ex):=
+  if mapatom(ex) then [ex] else            /* don't factor numbers */
+    block([fex: factor(ex),inflag:true],
+          if mapatom(fex) or op(fex)#"*" then [fex]
+          else args(fex)
+)$
+
+
+/* ************************************************************************** */
+/* ***** print expr only when flag<DEBUGFLAG                            ***** */
+/* ************************************************************************** */
+dprint(flag,[expr])::= if flag <= DEBUGFLAG then buildq ([expr], print (splice (expr)));
+
+
+/* ************************************************************************** */
+/* ----- simple method of finding the constant factor in front of an equation */
+/* step 1: construct a set of args(expr)                                      */
+/* step 2: determine the subset containing only constants                     */
+/* ************************************************************************** */
+constant_factors(_expr,_varlist) := block([inflag:true,_constantfactors:1,_oldratvars],
+
+  if not(listp(_varlist)) then _varlist : [_varlist],
+
+  _oldratvars : ratvars,
+  ratvars : _varlist, /* this was done globally elsewhere, should we do it only locally? */
+  _expr : ratsimp(_expr),
+
+  if lfreeof(_varlist,_expr) then
+    _constantfactors:_expr
+  else if not mapatom(_expr) and op(_expr)="*"
+  /* we know that the internal dependent variable is _x,and we want expr to be free of x */
+  /* constantp doesn't knowthat abs(a) is constant */
+  then
+    _constantfactors : xreduce("*",listify(subset(setify(args(_expr)),lambda([_u],lfreeof(_varlist,_u))))),
+
+  ratvars : _oldratvars,
+
+  return(_constantfactors)
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* check ode input for a second order ode                                     */
+/* returns a second order ode in the form y'' = phi(x,y)                      */
+/* or false when the input was not a second order ode                         */
+/* ************************************************************************** */
+odeType(_expr,_y,_x):=block([_rhs,_df,_df_x,_df_y,_ode],
+  dprint(4,"odetype: ode = ",_expr),
+  /* 1. check if the expression contains a differential operator */
+  if freeof('diff,_expr) then (dprint(0,"Error: no differential operator (diff) found"), return(false)),
+
+  /* 2. check if we have an equal sign */
+  if freeof("=",_expr) then ( 
+    _ode : _expr=0,
+    dprint(1,"Warning: no equal sign found! Assuming the input equals zero: ",_ode)
+   ) else (
+    _ode : lhs(_expr) - rhs(_expr)
+   ), 
+
+  /* 3. check that there is only one independent variable and one dependent variable */
+  /*
+  if not(freeof('diff,subst(['diff(_y,_x)=1,'diff(_y,_x,2)=1],_ode))) then (dprint(0,"Error: partial differential equation found"),return(false)),
+  */
+ 
+  /* 4. check if ode is explicit second order */
+  if derivdegree(_ode,_y,_x) # 2 then (dprint(0,"No second order ODE found!"), return (false)), 
+
+  /* 5. try to write as an explicit second order ode */
+  _ode:solve(_ode,'diff(_y,_x,2)),
+
+  if not listp(_ode) then (dprint(0,"Error: could not write ODE explicitly in the form dy/dx = f(x,y) ",_ode), return(false)),
+  if length(_ode) > 1 then dprint(1,"warning: writing the ODE in the explicit form dy/dx=f(x,y) leads to multiple ODEs, keeping the first of the list: ",_ode),
+
+  _ode : _ode[1],
+  if lhs(_ode)#('diff(_y,_x,2)) then (dprint(0,"could not write ODE explicitly in the form dy/dx = f(x,y) ",_ode), return(false)),
+
+  dprint(3,"ODE:",_ode),
+  dprint(3,"x (independent variable) : ",_x),
+  dprint(3,"y (dependent variable) : ",_y),
+
+  return(_ode)
+)$
+
+
+/* ************************************************************************** */
+/* ***** total derivative A ***** */
+/* ************************************************************************** */
+Dt_A(_expr,_phi,_x,_y,_dy):=block([_fx,_fy,_fdy,_A],
+ /* note, the input need to have diff(y,x) replaced by dy*/
+ /* also note that we need to define depends(y,x) and depends(dy,x) */
+  _fx : ratsimp(diff(_expr,_x)),
+  _fy : ratsimp(diff(_expr,_y)),
+  _fdy : ratsimp(diff(_expr,_dy)),
+  _A : _fx + _dy*_fy + _phi*_fdy,
+  _A : ratsimp(_A),
+  return(_A)
+)$
+
+
+
+/* ************************************************************************** */
+/* ***** compute a lambda symmetry from an integrating factor ***** */
+/* ***** usign lambda = A(mu)/mu + phi_dy                     ***** */
+/* ***** A = dx + dy*du +phi*d(du)                            ***** */
+/* ************************************************************************** */
+lambdaSymmetry(_phi,_mu,_x,_y,_dy):=block([_lambda],
+
+ /* note, the input need to have diff(y,x) replaced by dy*/
+ /* also note that we need to define depends(y,x) and depends(dy,x) */
+
+  _phi_dy : diff(_phi,_dy),
+
+  _lambda : (Dt_A(_mu,_phi,_x,_y,_dy)/_mu + _phi_dy),
+  _lambda : ratsimp(_lambda),
+
+return(_lambda)
+)$
+
+
+/* ************************************************************************** */
+/* ***** determine if mu is an integrating factor of the ode            ***** */
+/* ***** by applying Euler's operator to the total derivative           ***** */
+/* ************************************************************************** */
+isIntegratingFactor(_mu,_expr,_y,_x):=block([_ode,_mu,_phi,_A,_B],
+  _ode : odeType(_expr,_y,_x),
+  _phi : subst(['diff(_y,_x)=_dy],rhs(_ode)), 
+
+  /* determine if mu is an integrating factor of the second order ode */
+  _isMu : diff(_mu,_y) + diff( Dt_A(_mu,_phi,_x,_y,_dy) + _mu*diff(_phi,_dy),_dy),
+  _isMu : ratsimp(_isMu), 
+
+  return(is(_isMu)) 
+)$
+
+/* ************************************************************************** */
+/* ***** determine if a second order ode is exact                       ***** */
+/* ***** using the Euler operator on the total derivative               ***** */
+/* ***** e.g. Murphy, p. 164, Cheb-terrab&Roche(1999), eq. (2.3)        ***** */
+/* ***** returns true if exact, false if not exact                      ***** */
+/* ************************************************************************** */
+isExact(_expr,_y,_x):=block([_dy,_ddy,_dddy,_ode,_phi,_phi_y,_phi_dy,_phi_ddy],
+
+  depends(_y,_x),
+  depends(_dy,_x),
+  depends(_ddy,_x),
+  depends(_dddy,_x),
+  depends(_ddddy,_x),
+
+  /*
+  _ode : odeType(_expr,_y,_x),
+  if _ode=false then (dprint(0,"error, input not an ode"),return(false)),
+  */
+
+  /* note that phi = phi(x,y,dy,ddy) = 0 is the complete nonlinear ode */
+  _phi : subst(['diff(_y,_x)=_dy,'diff(_y,_x,2)=_ddy],lhs(_expr)-rhs(_expr)), 
+  dprint(5,"testing exactness for ",_phi),
+  _phi_y: diff(_phi,_y),
+  _phi_dy:diff(_phi,_dy),
+  _phi_ddy:diff(_phi,_ddy),
+
+  /* test for exactness (e.g. Murphy, p. 164, 'exact nonlinear equation')*/
+  _expr: _phi_y - diff(_phi_dy,_x) + diff(_phi_ddy,_x,2),
+
+   _expr:subst(['diff(_y,_x)=_dy,'diff(_y,_x,2)=_ddy,'diff(_y,_x,3)=_dddy,
+                'diff(_dy,_x)=_ddy,'diff(_dy,_x,2)=_dddy,'diff(_ddy,_x)=_dddy],_expr),
+  _expr:ratexpand(_expr),
+  _expr:ratsimp(_expr),
+   /*_expr:subst(_dddy=0,_expr),*/
+   /* note that we can still have functions d/dy(j(y)) == d/dx(j(y)) * dx/dy   */
+   /* these are not simplified to zero */
+   /* exactness not detected: eq. 6.235 */
+
+  apply('remove,[_y,'dependency]),
+  apply('remove,[_dy,'dependency]),
+  apply('remove,[_ddy,'dependency]),
+  apply('remove,[_dddy,'dependency]),
+  apply('remove,[_ddddy,'dependency]),
+ 
+  return(is(_expr=0))
+);
+
+
+
+/* ************************************************************************** */
+/* is first integral for exact odes */
+/* not expr needs to be mu*(y'' - phi) */
+/* ************************************************************************** */
+isFirstIntegral(_I,_expr,_y,_x):=block([_phi,_DI,_FI],
+  /*_ode : odeType(_expr,_y,_x),*/
+  _ode : subst(['diff(_y,_x)=_dy,'diff(_y,_x,2)=_ddy],lhs(_expr)-rhs(_expr)), 
+  dprint(5,"ode = ",_ode),
+
+  _FI :   subst(['diff(_y,_x)=_dy,'diff(_y,_x,2)=_ddy],_I), 
+  dprint(5,"I = ",_FI),
+
+  _DI : ratsimp(diff(_FI,_x) + _dy*diff(_FI,_y) + _ddy*diff(_FI,_dy)),
+  dprint(5,"DI = ",_DI),
+  dprint(3,"is first integral: DI-ode = ",ratsimp(_DI-_ode)),
+
+  return(is(ratsimp(_DI-_ode)=0))
+)$
+
+/* ************************************************************************** */
+/* ***** *********************************************** ***** */
+/* ***** check if lambda is a lambda symmetry of the ode ***** */
+/* ***** by substituting into the determining equation   ***** */
+/* ***** phi_y + lambda*phi_dy = A(lambda) + lambda^2    ***** */
+/* ***** *********************************************** ***** */
+/* ************************************************************************** */
+isLambdaSymmetry(_lambda,_expr,_y,_x):=block([],
+
+  _ode : odeType(_expr,_y,_x),
+  _phi : subst(['diff(_y,_x)=_dy],rhs(_ode)), 
+  dprint(5,"phi = ",_phi),
+  _phi_y : ratsimp(diff(_phi,_y)),
+  dprint(5,"phi_y = ",_phi_y),
+  _phi_dy : ratsimp(diff(_phi,_dy)),
+  dprint(5,"phi_dy = ",_phi_dy),
+  _lambda : ratsimp(subst(['diff(_y,_x)=_dy],_lambda)), 
+  dprint(5,"lambda = ",_lambda),
+
+  _A : Dt_A(_lambda,_phi,_x,_y,_dy),
+  dprint(5,"A = ",_A),
+  _det_eq : _phi_y + _lambda*_phi_dy - _A - _lambda^2,
+  dprint(5,"determining equation = ",_det_eq),
+  _det_eq : ratsimp(_det_eq),
+  dprint(5,"determining equation = ",_det_eq),
+  _det_eq : subst(['diff(_y,_x)=_dy,'diff(_dy,_x)=_ddy,'diff(_y,_x,2)=_ddy],_det_eq), 
+  dprint(5,"determining equation = ",_det_eq),
+  _det_eq : ratsimp(_det_eq),
+  dprint(3,"determining equation = ",_det_eq),
+
+  return(is(_det_eq=0))
+)$
+
+
+/* ************************************************************************** */
+/* ***** compute a first integral for an exact second order ode ***** */
+/* ************************************************************************** */
+FirstIntegral(_expr,_y,_x):=block([_ode,_lambda,_mu,_isMu,_phi,_dI1,I1,_dI2,_I2,_dI3,_I3,_I,_lI,_DI,_ode1],
+
+  if not freeof("=", _expr) then (_expr:lhs(_expr)-rhs(_expr)),
+
+  /* do the sanity check first to generalize the function */
+  _ode : odeType(_expr,_y,_x),
+  _phi : subst(['diff(_y,_x)=_dy],rhs(_ode)), 
+  dprint(5,"phi = ",_phi),
+
+  /* try to determine an integrating factor */
+  _mu : ode2_lie(_expr,_y,_x),
+  if (_mu=false) then (
+    dprint(3,"no integrating factor was found"),
+    return(false)
+  ),
+  dprint(5,"phi = ",_phi),
+  dprint(5,"integrating factor = ",_mu),
+  _mu : subst(['diff(_y,_x)=_dy],_mu), 
+  dprint(3,"integrating factor = ",_mu),
+  /* check the integrating factor */
+  _isMu : diff(_mu,_y) + diff( Dt_A(_mu,_phi,_x,_y,_dy) + _mu*diff(_phi,_dy),_dy),
+  _isMu : ratsimp(_isMu),
+  dprint(3,"is mu: ",_isMu),
+  dprint(3,"is mu an integrating factor: ",is(_isMu=0)),
+  /* determine a lambda-symmetry */
+  _lambda : lambdaSymmetry(_phi,_mu,_x,_y,_dy),
+  dprint(5,"lambda symmetry = ",_lambda),
+  _lambda : subst(['diff(_y,_x)=_dy,'diff(_dy,_x)=_ddy,'diff(_y,_x,2)=_ddy],_lambda), 
+  dprint(3,"lambda symmetry = ",_lambda),
+  dprint(3,"lambda symmetry = ",grind(_lambda)),
+  /* check the lambda-symmetry */
+  dprint(3,"is lambda symmetry:",isLambdaSymmetry(_lambda,_ode,_y,_x)),
+
+  /* try to determine an integrating factor */
+  /* I_dy = mu */
+  /* exact: I_dy = 1*/
+  _dI1 : _mu,
+  dprint(5,"dI1 = ",_dI1),
+  _I1 : integrate(_dI1,_dy),
+  dprint(5,"I1 = ",_I1),
+  /* I_y = -lambda * mu */
+  /* exact : I_y = -lambda */
+  _dI2 : ratsimp(-_lambda*_mu),
+  dprint(5,"dI2 = ",_dI2),
+  _I2 : integrate(_dI2,_y),
+  dprint(5,"I2 = ",_I2),
+ 
+  /* I_dy = mu*(lambda*dy - phi) */
+  /* exact: I_dy = lambda*dy - phi */
+  _dI3 : ratsimp(_mu*(_lambda*_dy - _phi)),
+  dprint(5,"dI3 = ",_dI3),
+  _I3 : integrate(_dI3,_x),
+  dprint(5,"I3 = ",_I3),
+ 
+  _lI : [
+       if atom(_I1) then _I1 else if op(_I1)="+" then args(_I1) else _I1,
+       if atom(_I2) then _I2 else if op(_I2)="+" then args(_I2) else _I2,
+       if atom(_I3) then _I3 else if op(_I3)="+" then args(_I3) else _I3
+       ],
+
+  _lI : unique(flatten(_lI)),
+
+  _I : apply("+",_lI),
+  _I : ratsimp(_I),
+  dprint(3,"I1+I2+I3 = ",_I),
+  dprint(3,"I1+I2+I3 = ",grind(_I)),
+  
+  _DI : subst('diff(_y,_x)=_dy,diff(_I,_x) + _dy*diff(_I,_y) + _ddy*diff(_I,_dy)),
+  dprint(5,"DI = ",_DI),
+  _DI : diff(_I,_x),
+  dprint(5,"DIx = ",_DI),
+  _DI : _dy*diff(_I,_y),
+  dprint(5,"DIy = ",_DI),
+  _DI : _ddy*diff(_I,_dy),
+  dprint(5,"DIdy = ",_DI),
+  dprint(5,"mu = ",_mu),
+  dprint(5,"expr = ",_expr),
+
+  /* note that mu*ode = Dx(I) */
+  dprint(3,"is first integral:",isFirstIntegral(_I,ratexpand(_mu*(lhs(_ode)-rhs(_ode))),_y,_x)),
+
+  /* note: introduce integration constant here !!!*/
+  dprint(3,"I1+I2+I3 = ",_I),
+  _ode1 : solve(_I,_dy), /* we might lose information here, like the solution y=C from eq. 6.109*/
+  dprint(5,"reduced first order ode = ",_ode1),
+  _ode1 : subst(_dy='diff(_y,_x),_ode1),
+  dprint(3,"reduced first order ode = ",_ode1),
+  dprint(3,"mu = ",_mu),
+  dprint(5,"original expression = ",_expr),
+
+  dprint(3,"exact:",isExact(_mu*_expr,_y,_x)),
+  dprint(3,"exact:",isExact(_mu*('diff(_y,_x,2)-_phi),_y,_x)),
+
+  return(_ode1)
+)$
