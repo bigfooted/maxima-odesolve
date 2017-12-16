@@ -1,0 +1,551 @@
+/* ODE tests - Second order nonlinear equations 
+    E Kamke, Differentialgleichungen Losungsmethoden und Losungen, 
+    Vol 1, Geest & Portig, Leipzig, 1961
+*/
+
+/* Print ode number*/
+kamke6:[
+/* Kamke 6. 1  */ 
+'diff(y,x,2)-y^2,
+/* Kamke 6. 2  */ 
+'diff(y,x,2)-6*y^2,
+/* Kamke 6. 3  */ 
+'diff(y,x,2)-6*y^2-x,
+/* Kamke 6. 4  */ 
+'diff(y,x,2)-6*y^2+4*y,
+/* Kamke 6. 5  */ 
+'diff(y,x,2)+a*y^2+b*x+c,
+/* Kamke 6. 6  */ 
+'diff(y,x,2)-2*y^3-y*x+a,
+/* Kamke 6. 7  */ 
+'diff(y,x,2)-a*y^3,
+/* Kamke 6. 8  */ 
+'diff(y,x,2)-2*a^2*y^3+2*a*b*x*y-b,
+/* Kamke 6. 9  */ 
+'diff(y,x,2)+d+b*x*y+c*y+a*y^3,
+/* Kamke 6.10  */ 
+'diff(y,x,2)+d+b*y^2+c*y+a*y^3,
+/* */
+/* Kamke 6.11  */ 
+'diff(y,x,2)+a*x^r*y^n,
+/* Kamke 6.12  */ 
+'diff(y,x,2)+(n+1)*a^(2*n)*y^(2*n+1)-y,
+/* Kamke 6.13  */ 
+'diff(y,x,2)-(a*y^2+b*x*y+c*x^2+d*y+e*x+k)^(-3/2),
+/* Kamke 6.14  */ 
+'diff(y,x,2)-exp(y),
+/* Kamke 6.15  */ 
+'diff(y,x,2)+a*exp(x)*y^(1/2),
+/* Kamke 6.16  */ 
+'diff(y,x,2)+exp(x)*sin(y),
+/* Kamke 6.17  */ 
+'diff(y,x,2)+a*sin(y),
+/* Kamke 6.18  */ 
+'diff(y,x,2)+a^2*sin(y)-b*sin(x),
+/* Kamke 6.19  */ 
+'diff(y,x,2)+a^2*sin(y)-b*f(x),
+/* Kamke 6.20  */ 
+'diff(y,x,2)-x^(-3/2)*h(y*x^(-1/2)),
+/* */
+/* Kamke 6.21  */ 
+'diff(y,x,2)-3*'diff(y,x)-y^2-2*y,
+/* Kamke 6.22  */ 
+'diff(y,x,2)-7*'diff(y,x)-y^(3/2)+12*y,
+/* Kamke 6.23  */ 
+'diff(y,x,2)+5*a*'diff(y,x)-6*y^2+6*a^2*y,
+/* Kamke 6.24  */ 
+'diff(y,x,2)+3*a*'diff(y,x)-2*y^3+2*a^2*y,
+/* Kamke 6.25  */ 
+'diff(y,x,2)-((3*n+4)/n)*'diff(y,x)-(2*(n+1)*(n+2)/n^2)*y*(y^(n/(n+1))-1),
+/* Kamke 6.26  */ 
+'diff(y,x,2)+a*'diff(y,x)+b*y^n+(a^2-1)/4*y,
+/* Kamke 6.27  */ 
+'diff(y,x,2)+a*'diff(y,x)+b*x^r*y^n,
+/* Kamke 6.28  */ 
+'diff(y,x,2)+a*'diff(y,x)+b*exp(y)-2*a,
+/* Kamke 6.29  */ 
+'diff(y,x,2)+a*'diff(y,x)+f(x)*sin(y),
+/* Kamke 6.30  */ 
+'diff(y,x,2)+y*'diff(y,x)-y^3,
+/* */
+/* Kamke 6.31  */ 
+'diff(y,x,2)+y*'diff(y,x)-y^3+a*y,
+/* Kamke 6.32  */ 
+'diff(y,x,2)+(y+3*a)*'diff(y,x)-y^3+a*y^2+2*a^2*y,
+/* Kamke 6.33  */ 
+'diff(y,x,2)+(y+3*f(x))*'diff(y,x)-y^3+y^2*f(x)+y*('diff(f(x),x)+2*f(x)^2),
+/* Kamke 6.34  */ 
+'diff(y,x,2)+y*'diff(y,x)-y^3-('diff(f(x),x)/f(x)+f(x))*(3*'diff(y,x)+y^2)+(a*f(x)^2+3*'diff(f(x),x)+3*('diff(f(x),x)/f(x))^2-'diff(f(x),x,x)/f(x))*y+b*f(x)^3,
+/* Kamke 6.35  */ 
+'diff(y,x,2)+(y-3*'diff(f(x),x)/(2*f(x)))*'diff(y,x)-y^3-('diff(f(x),x)/(2*f(x)))*y^2+(f(x)+('diff(f(x),x)/f(x))^2-'diff(f(x),x,x))/(2*f(x))*y,
+/* Kamke 6.36  */ 
+'diff(y,x,2)+2*y*'diff(y,x)+f(x)*'diff(y,x)+'diff(f(x),x)*y,
+/* Kamke 6.37  */ 
+'diff(y,x,2)+2*y*'diff(y,x)+f(x)*('diff(y,x)+y^2)-g(x),
+/* Kamke 6.38  */ 
+'diff(y,x,2)+3*y*'diff(y,x)+y^3+f(x)*y-g(x),
+/* Kamke 6.39  */ 
+'diff(y,x,2)+(3*y+f(x))*'diff(y,x)+y^3+f(x)*y^2,
+/* Kamke 6.40  */ 
+'diff(y,x,2)-3*y*'diff(y,x)-(3*a*y^2+4*a^2*y+b),
+/* */
+/* Kamke 6.41  */ 
+'diff(y,x,2)-(3*y+f(x))*'diff(y,x)+y^3+f(x)*y^2,
+/* Kamke 6.42  */ 
+'diff(y,x,2)-2*a*y*'diff(y,x)-a,
+/* Kamke 6.43  */ 
+'diff(y,x,2)+a*y*'diff(y,x)+b*y^3,
+/* Kamke 6.44  */ 
+'diff(y,x,2)+h(x,y)*'diff(y,x)+j(x,y),
+/* Kamke 6.45  */ 
+'diff(y,x,2)+a*'diff(y,x)^2+b*y,
+/* Kamke 6.46  */ 
+'diff(y,x,2)+a*'diff(y,x)*abs('diff(y,x))+b*'diff(y,x)+c*y,
+/* Kamke 6.47  */ 
+'diff(y,x,2)+a*'diff(y,x)^2+b*'diff(y,x)+c*y,
+/* Kamke 6.48  */ 
+'diff(y,x,2)+a*'diff(y,x)^2+b*sin(y),
+/* Kamke 6.49  */ 
+'diff(y,x,2)+a*'diff(y,x)*abs('diff(y,x))+b*sin(y),
+/* Kamke 6.50  */ 
+'diff(y,x,2)+a*y*'diff(y,x)^2+b*y,
+/* */
+/* Kamke 6.51  */ 
+'diff(y,x,2)+h(y)*'diff(y,x)^2+g(x)*'diff(y,x),
+/* Kamke 6.52  */ 
+'diff(y,x,2)-'diff(h(y),x)/h(y)*'diff(y,x)^2+g(x)*'diff(y,x)+f(x)*h(y),
+/* Kamke 6.53  */ 
+'diff(y,x,2)+((1-'diff(h(y),x))/h(y))*'diff(y,x)^2+g(x)*'diff(y,x)+f(x)*h(y),
+/* Kamke 6.54  */ 
+'diff(y,x,2)+h(y)*'diff(y,x)^2+j(y)*'diff(y,x)+k(y),
+/* Kamke 6.55  */ 
+'diff(y,x,2)+('diff(y,x)^2+1)*(h(x,y)*'diff(y,x)+j(x,y)),
+/* Kamke 6.56  */ 
+'diff(y,x,2)+a*y*('diff(y,x)^2+1)^2,
+/* Kamke 6.57  */ 
+'diff(y,x,2)-a*(x*'diff(y,x)-y)^r,
+/* Kamke 6.58  */ 
+'diff(y,x,2)-k*x^a*y^b*'diff(y,x)^c,
+/* Kamke 6.59  */ 
+'diff(y,x,2)+('diff(y,x)-y/x)^a*h(x,y),
+/* Kamke 6.60  */ 
+'diff(y,x,2)-a*sqrt(1+'diff(y,x)^2),
+/* */
+/* Kamke 6.61  */ 
+'diff(y,x,2)-a*sqrt(1+'diff(y,x)^2)-b,
+/* Kamke 6.62  */ 
+'diff(y,x,2)-a*sqrt(b*y^2+'diff(y,x)^2),
+/* Kamke 6.63  */ 
+'diff(y,x,2)-a*(1+'diff(y,x)^2)^(3/2),
+/* Kamke 6.64  */ 
+'diff(y,x,2)-2*a*x*(1+'diff(y,x)^2)^(3/2),
+/* Kamke 6.65  */ 
+'diff(y,x,2)-a*y*(1+'diff(y,x)^2)^(3/2),
+/* Kamke 6.66  */ 
+'diff(y,x,2)-a*(c+b*x+y)*(1+'diff(y,x)^2)^(3/2),
+/* Kamke 6.67  */ 
+'diff(y,x,2)+y^3*'diff(y,x)-y*'diff(y,x)*sqrt(y^4+4*'diff(y,x)),
+/* Kamke 6.68  */ 
+'diff(y,x,2)-h('diff(y,x),a*x+b*y),
+/* Kamke 6.69  */ 
+'diff(y,x,2)-y*h(x,'diff(y,x)/y),
+/* Kamke 6.70  */ 
+'diff(y,x,2)-x^(n-2)*h(y/x^n,'diff(y,x)/x^(n-1)),
+/* */
+/* Kamke 6.71  */ 
+8*'diff(y,x,2)+9*'diff(y,x)^4,
+/* Kamke 6.72  */ 
+a*'diff(y,x,2)+h('diff(y,x))+c*y,
+/* Kamke 6.73  */ 
+x*'diff(y,x,2)+2*'diff(y,x)-x*y^n,
+/* Kamke 6.74  */ 
+x*'diff(y,x,2)+2*'diff(y,x)+a*x^m*y^n,
+/* Kamke 6.75  */ 
+x*'diff(y,x,2)+2*'diff(y,x)+x*exp(y),
+/* Kamke 6.76  */ 
+x*'diff(y,x,2)+a*'diff(y,x)+b*x*exp(y),
+/* Kamke 6.77  */ 
+x*'diff(y,x,2)+a*'diff(y,x)+b*x^(5-2*a)*exp(y),
+/* Kamke 6.78  */ 
+x*'diff(y,x,2)-(1-y)*'diff(y,x),
+/* Kamke 6.79  */ 
+x*'diff(y,x,2)-x^2*'diff(y,x)^2+2*'diff(y,x)+y^2,
+/* Kamke 6.80  */ 
+x*'diff(y,x,2)+a*(x*'diff(y,x)-y)^2-b,
+/* */
+/* Kamke 6.81  */ 
+2*x*'diff(y,x,2)+'diff(y,x)^3+'diff(y,x),
+/* Kamke 6.82  */ 
+x^2*'diff(y,x,2)-a*(y^n-y),
+/* Kamke 6.83  */ 
+x^2*'diff(y,x,2)+a*(exp(y)-1),
+/* Kamke 6.84  */ 
+x^2*'diff(y,x,2)-(2*a+b-1)*x*'diff(y,x)+(c^2*b^2*x^(2*b)+a*(a+b))*y,
+/* Kamke 6.85  */ 
+x^2*'diff(y,x,2)+(1+a)*x*'diff(y,x)-x^k*h(x^k*y,x*'diff(y,x)+k*y),
+/* Kamke 6.86  */ 
+x^2*'diff(y,x,2)+a*(x*'diff(y,x)-y)^2-b*x^2,
+/* Kamke 6.87  */ 
+x^2*'diff(y,x,2)+a*y*'diff(y,x)^2+b*x,
+/* Kamke 6.88  */ 
+x^2*'diff(y,x,2)-sqrt(a*x^2*'diff(y,x)^2+b*y^2),
+/* Kamke 6.89  */ 
+(1+x^2)*'diff(y,x,2)+'diff(y,x)^2+1,
+/* Kamke 6.90  */ 
+4*x^2*'diff(y,x,2)-x^4*'diff(y,x)^2+4*y,
+/* */
+/* Kamke 6.91  */ 
+9*x^2*'diff(y,x,2)+a*y^3+2*y,
+/* Kamke 6.92  */ 
+x^3*('diff(y,x,2)+y*'diff(y,x)-y^3)+12*x*y+24,
+/* Kamke 6.93  */ 
+x^3*'diff(y,x,2)-a*(x*'diff(y,x)-y)^2,
+/* Kamke 6.94  */ 
+2*x^3*'diff(y,x,2)+x^2*(9+2*x*y)*'diff(y,x)+b+x*y*(a+3*x*y-2*x^2*y^2),
+/* Kamke 6.95  */ 
+2*(-x^k+4*x^3)*('diff(y,x,2)+y*'diff(y,x)-y^3)-(k*x^(k-1)-12*x^2)*(3*'diff(y,x)+y^2)+a*x*y+b,
+/* Kamke 6.96  */ 
+x^4*'diff(y,x,2)+a^2*y^n,
+/* Kamke 6.97  */ 
+x^4*'diff(y,x,2)-x*(x^2+2*y)*'diff(y,x)+4*y^2,
+/* Kamke 6.98  */ 
+x^4*'diff(y,x,2)-x^2*(x+'diff(y,x))*'diff(y,x)+4*y^2,
+/* Kamke 6.99  */ 
+x^4*'diff(y,x,2)+(x*'diff(y,x)-y)^3,
+/* Kamke 6.100 */ 
+'diff(y,x,2)*x^(1/2)-y^(3/2),
+/* */
+/* Kamke 6.101 */ 
+(c+b*x+a*x^2)^(3/2)*'diff(y,x,2)-F(y/(c+b*x+a*x^2)^(1/2)),
+/* Kamke 6.102 */ 
+x^(n/(n+1))*'diff(y,x,2)-y^((2*n+1)/(n+1)),
+/* Kamke 6.103 */ 
+f(x)^2*'diff(y,x,2)+f(x)*'diff(f(x),x)*'diff(y,x)-h(y,f(x)*'diff(y,x)),
+/* Kamke 6.104 */ 
+'diff(y,x,2)*y-a,
+/* Kamke 6.105 */ 
+'diff(y,x,2)*y-a*x,
+/* Kamke 6.106 */ 
+'diff(y,x,2)*y-a*x^2,
+/* Kamke 6.107 */ 
+'diff(y,x,2)*y+'diff(y,x)^2-a,
+/* Kamke 6.108 */ 
+'diff(y,x,2)*y+y^2-a*x-b,
+/* Kamke 6.109 */ 
+'diff(y,x,2)*y+'diff(y,x)^2-'diff(y,x),
+/* Kamke 6.110 */ 
+'diff(y,x,2)*y-'diff(y,x)^2+1,
+/* */
+/* Kamke 6.111 */ 
+'diff(y,x,2)*y-'diff(y,x)^2-1,
+/* Kamke 6.112 */ 
+'diff(y,x,2)*y-'diff(y,x)^2+exp(x)*y*(c*y^2+d)+exp(2*x)*(b+a*y^4),
+/* Kamke 6.113 */ 
+'diff(y,x,2)*y-'diff(y,x)^2-y^2*ln(y),
+/* Kamke 6.114 */ 
+'diff(y,x,2)*y-'diff(y,x)^2-'diff(y,x)+f(x)*y^3+y^2*'diff(  'diff(f(x),x)/f(x),x),
+/* Kamke 6.115 */ 
+'diff(y,x,2)*y-'diff(y,x)^2+f(x)*'diff(y,x)-'diff(f(x),x)*y-y^3,
+/* Kamke 6.116 */ 
+'diff(y,x,2)*y-'diff(y,x)^2+'diff(f(x),x)*'diff(y,x)-'diff(f(x),x,x)*y+f(x)*y^3-y^4,
+/* Kamke 6.117 */ 
+'diff(y,x,2)*y-'diff(y,x)^2+a*y*'diff(y,x)+b*y^2,
+/* Kamke 6.118 */ 
+'diff(y,x,2)*y-'diff(y,x)^2+a*y*'diff(y,x)-2*a*y^2+b*y^3,
+/* Kamke 6.119 */ 
+'diff(y,x,2)*y-'diff(y,x)^2-(a*y-1)*'diff(y,x)+2*a^2*y^2-2*b^2*y^3+a*y,
+/* Kamke 6.120 */ 
+'diff(y,x,2)*y-'diff(y,x)^2+(a*y-1)*'diff(y,x)-y*(y+1)*(b^2*y^2-a^2),
+/* */
+/* Kamke 6.121 */ 
+'diff(y,x,2)*y-'diff(y,x)^2+(tan(x)+cot(x))*y*'diff(y,x)+(cos(x)^2-n^2*cot(x)^2)*y^2*ln(y),
+/* Kamke 6.122 */ 
+'diff(y,x,2)*y-'diff(y,x)^2-f(x)*y*'diff(y,x)-g(x)*y^2,
+/* Kamke 6.123 */ 
+'diff(y,x,2)*y-'diff(y,x)^2+(g(x)+f(x)*y^2)*'diff(y,x)-y*('diff(g(x),x)-'diff(f(x),x)*y^2),
+/* Kamke 6.124 */ 
+'diff(y,x,2)*y-3*'diff(y,x)^2+3*y*'diff(y,x)-y^2,
+/* Kamke 6.125 */ 
+'diff(y,x,2)*y-a*'diff(y,x)^2,
+/* Kamke 6.126 */ 
+'diff(y,x,2)*y+a*('diff(y,x)^2+1),
+/* Kamke 6.127 */ 
+'diff(y,x,2)*y+a*'diff(y,x)^2+b*y^3,
+/* Kamke 6.128 */ 
+'diff(y,x,2)*y+a*'diff(y,x)^2+b*y*'diff(y,x)+c*y^2+d*y^(-a+1),
+/* Kamke 6.129 */ 
+'diff(y,x,2)*y+a*'diff(y,x)^2+f(x)*y*'diff(y,x)+g(x)*y^2,
+/* Kamke 6.130 */ 
+'diff(y,x,2)*y+a*'diff(y,x)^2+b*y^2*'diff(y,x)+c*y^4,
+/* */
+/* Kamke 6.131 */ 
+'diff(y,x,2)*y-((a-1)/a)*'diff(y,x)^2-f(x)*y^2*'diff(y,x)+(a/(a+2)^2)*f(x)^2*y^4-(a/(a+2))*'diff(f(x),x)*y^3,
+/* Kamke 6.132 */ 
+'diff(y,x,2)*y-('diff(y,x)^2+1)-2*a*y*('diff(y,x)^2+1)^(3/2),
+/* Kamke 6.133 */ 
+'diff(y,x,2)*(x+y)+'diff(y,x)^2-'diff(y,x),
+/* Kamke 6.134 */ 
+'diff(y,x,2)*(x-y)+2*'diff(y,x)*(1+'diff(y,x)),
+/* Kamke 6.135 */ 
+'diff(y,x,2)*(x-y)-(1+'diff(y,x))*(1+'diff(y,x)^2),
+/* Kamke 6.136 */ 
+'diff(y,x,2)*(x-y)-h('diff(y,x)),
+/* Kamke 6.137 */ 
+2*y*'diff(y,x,2)+'diff(y,x)^2+1,
+/* Kamke 6.138 */ 
+2*y*'diff(y,x,2)-'diff(y,x)^2+a,
+/* Kamke 6.139 */ 
+2*y*'diff(y,x,2)-'diff(y,x)^2+f(x)*y^2+a,
+/* Kamke 6.140 */ 
+2*y*'diff(y,x,2)-'diff(y,x)^2-8*y^3,
+/* */
+/* Kamke 6.141 */ 
+2*y*'diff(y,x,2)-'diff(y,x)^2-8*y^3-4*y^2,
+/* Kamke 6.142 */ 
+2*y*'diff(y,x,2)-'diff(y,x)^2-4*(x+2*y)*y^2,
+/* Kamke 6.143 */ 
+2*y*'diff(y,x,2)-'diff(y,x)^2+(b+a*y)*y^2,
+/* Kamke 6.144 */ 
+2*y*'diff(y,x,2)-'diff(y,x)^2+1+2*x*y^2+a*y^3,
+/* Kamke 6.145 */ 
+2*y*'diff(y,x,2)-'diff(y,x)^2+(a*y+b*x)*y^2,
+/* Kamke 6.146 */ 
+2*y*'diff(y,x,2)-'diff(y,x)^2-3*y^4,
+/* Kamke 6.147 */ 
+2*y*'diff(y,x,2)-'diff(y,x)^2+b-4*(x^2+a)*y^2-8*x*y^3-3*y^4,
+/* Kamke 6.148 */ 
+2*y*'diff(y,x,2)-'diff(y,x)^2+3*f(x)*y*'diff(y,x)+2*('diff(f(x),x)+f(x)^2)*y^2-8*y^3,
+/* Kamke 6.149 */ 
+2*y*'diff(y,x,2)-'diff(y,x)^2+4*y^2*'diff(y,x)+1+f(x)*y^2+y^4,
+/* Kamke 6.150 */ 
+2*y*'diff(y,x,2)-3*'diff(y,x)^2,
+/* */
+/* Kamke 6.151 */ 
+2*y*'diff(y,x,2)-3*'diff(y,x)^2-4*y^2,
+/* Kamke 6.152 */ 
+2*y*'diff(y,x,2)-3*'diff(y,x)^2+f(x)*y^2,
+/* Kamke 6.153 */ 
+2*y*'diff(y,x,2)-6*'diff(y,x)^2+(1+a*y^3)*y^2,
+/* Kamke 6.154 */ 
+2*y*'diff(y,x,2)-'diff(y,x)^2*(1+'diff(y,x)^2),
+/* Kamke 6.155 */ 
+2*(y-a)*'diff(y,x,2)+(1+'diff(y,x)^2),
+/* Kamke 6.156 */ 
+3*y*'diff(y,x,2)-2*'diff(y,x)^2-a*x^2-b*x-c,
+/* Kamke 6.157 */ 
+3*y*'diff(y,x,2)-5*'diff(y,x)^2,
+/* Kamke 6.158 */ 
+4*y*'diff(y,x,2)-3*'diff(y,x)^2+4*y,
+/* Kamke 6.159 */ 
+4*y*'diff(y,x,2)-3*'diff(y,x)^2-12*y^3,
+/* Kamke 6.160 */ 
+4*y*'diff(y,x,2)-3*'diff(y,x)^2+a*y^3+b*y^2+c*y,
+/* */
+/* Kamke 6.161 */ 
+4*y*'diff(y,x,2)-3*'diff(y,x)^2+(6*y^2-2*('diff(f(x),x)/f(x))*y)*'diff(y,x)+y^4-2*('diff(y,x)/y)*y^3+g(x)*y^2+f(x)*y,
+/* Kamke 6.162 */ 
+4*y*'diff(y,x,2)-5*'diff(y,x)^2+a*y^2,
+/* Kamke 6.163 */ 
+12*y*'diff(y,x,2)-15*'diff(y,x)^2+8*y^3,
+/* Kamke 6.164 */ 
+n*y*'diff(y,x,2)-(n-1)*'diff(y,x)^2,
+/* Kamke 6.165 */ 
+a*y*'diff(y,x,2)+b*'diff(y,x)^2+c4*y^4+c3*y^3+c2*y^2+c1*y+c0,
+/* Kamke 6.166 */ 
+a*y*'diff(y,x,2)+b*'diff(y,x)^2-y*'diff(y,x)/sqrt(x^2+c^2),
+/* Kamke 6.167 */ 
+a*y*'diff(y,x,2)-(a-1)*'diff(y,x)^2+(a+2)*f(x)*y^2*'diff(y,x)+f(x)^2*y^4+a*'diff(f(x),x)*y^3,
+/* Kamke 6.168 */ 
+(a*y+b)*'diff(y,x,2)+c*'diff(y,x)^2,
+/* Kamke 6.169 */ 
+x*y*'diff(y,x,2)+x*'diff(y,x)^2-y*'diff(y,x),
+/* Kamke 6.170 */ 
+x*y*'diff(y,x,2)+x*'diff(y,x)^2+a*y*'diff(y,x)+f(x),
+/* */
+/* Kamke 6.171 */ 
+x*y*'diff(y,x,2)-x*'diff(y,x)^2+y*'diff(y,x)+x*(d+a*y^4)+y*(c+b*y^2),
+/* Kamke 6.172 */ 
+x*y*'diff(y,x,2)-x*'diff(y,x)^2+a*y*'diff(y,x)+b*x*y^3,
+/* Kamke 6.173 */ 
+x*y*'diff(y,x,2)+2*x*'diff(y,x)^2+a*y*'diff(y,x),
+/* Kamke 6.174 */ 
+x*y*'diff(y,x,2)-2*x*'diff(y,x)^2+(1+y)*'diff(y,x),
+/* Kamke 6.175 */ 
+x*y*'diff(y,x,2)-2*x*'diff(y,x)^2+a*y*'diff(y,x),
+/* Kamke 6.176 */ 
+x*y*'diff(y,x,2)-4*x*'diff(y,x)^2+4*y*'diff(y,x),
+/* Kamke 6.177 */ 
+x*y*'diff(y,x,2)+(a*x/sqrt(b^2-x^2)-x)*'diff(y,x)^2-y*'diff(y,x),
+/* Kamke 6.178 */ 
+x*(x+y)*'diff(y,x,2)+x*'diff(y,x)^2+(x-y)*'diff(y,x)-y,
+/* Kamke 6.179 */ 
+2*x*y*'diff(y,x,2)-x*'diff(y,x)^2+y*'diff(y,x), 
+/* Kamke 6.180 */ 
+x^2*(y-1)*'diff(y,x,2)-2*x^2*'diff(y,x)^2-2*x*(y-1)*'diff(y,x)-2*y*(y-1)^2,
+/* */
+/* Kamke 6.181 */ 
+x^2*(x+y)*'diff(y,x,2)-(x*'diff(y,x)-y)^2,
+/* Kamke 6.182 */ 
+x^2*(x-y)*'diff(y,x,2)+a*(x*'diff(y,x)-y)^2,
+/* Kamke 6.183 */ 
+2*x^2*y*'diff(y,x,2)-x^2*('diff(y,x)^2+1)+y^2,
+/* Kamke 6.184 */ 
+a*x^2*y*'diff(y,x,2)+b*x^2*'diff(y,x)^2+c*x*y*'diff(y,x)+d*y^2,
+/* Kamke 6.185 */ 
+x*(1+x)^2*y*'diff(y,x,2)-x*(1+x)^2*'diff(y,x)^2+2*(1+x)^2*y*'diff(y,x)-a*(2+x)*y^2,
+/* Kamke 6.186 */ 
+8*(1-x^3)*y*'diff(y,x,2)-4*(1-x^3)*'diff(y,x)^2-12*x^2*y*'diff(y,x)+3*x*y^2,
+/* Kamke 6.187 */ 
+f0(x)*y*'diff(y,x,2)+f1(x)*'diff(y,x)^2+f2(x)*y*'diff(y,x)+f3(x)*y^2,
+/* Kamke 6.188 */ 
+y^2*'diff(y,x,2)-a,
+/* Kamke 6.189 */ 
+y^2*'diff(y,x,2)+y*'diff(y,x)^2+a*x,
+/* Kamke 6.190 */ 
+y^2*'diff(y,x,2)+y*'diff(y,x)^2-a*x-b,
+/* */
+/* Kamke 6.191 */ 
+(1+y^2)*'diff(y,x,2)+(1-2*y)*'diff(y,x)^2,
+/* Kamke 6.192 */ 
+(1+y^2)*'diff(y,x,2)-3*y*'diff(y,x)^2,
+/* Kamke 6.193 */ 
+(x+y^2)*'diff(y,x,2)-2*(x-y^2)*'diff(y,x)^3+'diff(y,x)*(1+4*y*'diff(y,x)),
+/* Kamke 6.194 */ 
+(x^2+y^2)*'diff(y,x,2)-(1+'diff(y,x)^2)*(x*'diff(y,x)-y),
+/* Kamke 6.195 */ 
+(x^2+y^2)*'diff(y,x,2)-2*(1+'diff(y,x)^2)*(x*'diff(y,x)-y),
+/* Kamke 6.196 */ 
+2*y*(1-y)*'diff(y,x,2)-(1-2*y)*'diff(y,x)^2+y*(1-y)*'diff(y,x)*f(x),
+/* Kamke 6.197 */ 
+2*y*(1-y)*'diff(y,x,2)-(1-3*y)*'diff(y,x)^2+h(y),
+/* Kamke 6.198 */ 
+2*y*(y-1)*'diff(y,x,2)-(3*y-1)*'diff(y,x)^2+4*y*'diff(y,x)*(f(x)*y+g(x))+4*y^2*(y-1)*(g(x)^2-f(x)^2-'diff(g(x),x)-'diff(f(x),x)),
+/* Kamke 6.199 */ 
+-2*y*(1-y)*'diff(y,x,2)+(1-3*y)*'diff(y,x)^2-4*y*(f(x)*y+g(x))*'diff(y,x)+(1-y)^3*(f0(x)^2*y^2-f1(x)^2)+4*y^2*(1-y)*(f(x)^2-g(x)^2-'diff(g(x),x)-'diff(f(x),x)),
+/* Kamke 6.200 */ 
+3*y*(1-y)*'diff(y,x,2)-2*(1-2*y)*'diff(y,x)^2-h(y),
+/* */ 
+/* Kamke 6.201 */ 
+(1-y)*'diff(y,x,2)-3*(1-2*y)*'diff(y,x)^2-h(y),
+/* Kamke 6.202 */ 
+a*y*(y-1)*'diff(y,x,2)+(b*y+c)*'diff(y,x)^2+h(y),
+/* Kamke 6.203 */ 
+a*y*(y-1)*'diff(y,x,2)-(a-1)*(2*y-1)*'diff(y,x)^2+f(x)*y*(y-1)*'diff(y,x),
+/* Kamke 6.204 */ 
+a*b*y*(y-1)*'diff(y,x,2)-((2*a*b-a-b)*y+(1-a)*b)*'diff(y,x)^2+f(x)*y*(y-1)*'diff(y,x),
+/* Kamke 6.205 */ 
+x*y^2*'diff(y,x,2)-a,
+/* Kamke 6.206 */ 
+(a^2-x^2)*(a^2-y^2)*'diff(y,x,2)+(a^2-x^2)*y*'diff(y,x)^2-x*(a^2-y^2)*'diff(y,x),
+/* Kamke 6.207 */ 
+2*x^2*y*(y-1)*'diff(y,x,2)-x^2*(3*y-1)*'diff(y,x)^2+2*x*y*(y-1)*'diff(y,x)+(a*y^2+b)*(y-1)^3+c*x*y^2*(y-1)+d*x^2*y^2*(1+y),
+/* Kamke 6.208 */ 
+x^3*y^2*'diff(y,x,2)+(x+y)*(x*'diff(y,x)-y)^3,
+/* Kamke 6.209 */ 
+y^3*'diff(y,x,2)-a,
+/* Kamke 6.210 */ 
+y*(1+y^2)*'diff(y,x,2)+(1-3*y^2)*'diff(y,x)^2,
+/* */
+/* Kamke 6.211 */ 
+2*y^3*'diff(y,x,2)+y^4-a^2*x*y^2-1,
+/* Kamke 6.212 */ 
+2*y^3*'diff(y,x,2)+y^2*'diff(y,x)^2-a*x^2-b*x-c,
+/* Kamke 6.213 */ 
+2*(c-y)*(b-y)*(a-y)*'diff(y,x,2)+((a-y)*(b-y)+(c-y)*(a-y)+(b-y)*(c-y))*'diff(y,x)^2-(a0*(c-y)^2*(b-y)^2*(a-y)^2+a1*(b-y)^2*(c-y)^2+a2*(c-y)^2*(a-y)^2+a3*(b-y)^2*(a-y)^2),
+/* Kamke 6.214 */ 
+(4*y^3-a*y-b)*'diff(y,x,2)-(6*y^2-a/2)*'diff(y,x)^2,
+/* Kamke 6.215 */ 
+(4*y^3-a*y-b)*('diff(y,x,2)+f(x)*'diff(y,x))-(6*y^2-a/2)*'diff(y,x)^2,
+/* Kamke 6.216 */ 
+-2*x*y*(1-x)*(1-y)*(x-y)*'diff(y,x,2) + x*(1-x)*(x-2*x*y-2*y+3*y^2)*'diff(y,x)^2 + 2*y*(1-y)*(x^2+y-2*x*y)*'diff(y,x) - y^2*(1-y)^2 - f(x)(y*(y-1)*(y-x))^(3/2),
+/* Kamke 6.217 */ 
+2*x^2*y*(1-x)^2*(1-y)*(x-y)*'diff(y,x,2)-x^2*(1-x)^2*(x-2*x*y-2*y+3*y^2)*'diff(y,x)^2-2*x*y*(1-x)*(1-y)*(x^2+y-2*x*y)*'diff(y,x)+b*x*(1-y)^2*(x-y)^2-c*(1-x)*y^2*(x-y)^2-d*x*y^2*(1-x)*(1-y)^2+a*y^2*(x-y)^2*(1-y)^2,
+/* Kamke 6.218 */ 
+(y^2-1)*(a^2*y^2-1)*'diff(y,x,2)+b*sqrt((1-y^2)*(1-a^2*y^2))*'diff(y,x)^2+(1+a^2-2*a^2*y^2)*y*'diff(y,x)^2,
+/* Kamke 6.219 */ 
+(c+2*b*x+a*x^2+y^2)^2*'diff(y,x,2)+d*y,
+/* Kamke 6.220 */ 
+sqrt(y)*'diff(y,x,2)-a,
+/* */
+/* Kamke 6.221 */ 
+sqrt(y^2+x^2)*'diff(y,x,2)-a*('diff(y,x)^2+1)^(3/2),
+/* Kamke 6.222 */ 
+y*(1-ln(y))*'diff(y,x,2)+(1+ln(y))*'diff(y,x)^2,
+/* Kamke 6.223 */ 
+(b+a*sin(y)^2)*'diff(y,x,2)+a*'diff(y,x)^2*cos(y)*sin(y)+A*y*(c+a*sin(y)^2),
+/* Kamke 6.224 */ 
+h(y)*'diff(y,x,2)+a*(D(h)(y))*'diff(y,x)^2+j(y),
+/* Kamke 6.225 */ 
+h(y)*'diff(y,x,2)-(D(h)(y))*'diff(y,x)^2-h(y)^2*j(x,'diff(y,x)/h(y)),
+/* Kamke 6.226 */ 
+'diff(y,x)*'diff(y,x,2)-x^2*y*'diff(y,x)-x*y^2,
+/* Kamke 6.227 */ 
+(x*'diff(y,x)-y)*'diff(y,x,2)+4*'diff(y,x)^2,
+/* Kamke 6.228 */ 
+(x*'diff(y,x)-y)*'diff(y,x,2)-(1+'diff(y,x)^2)^2,
+/* Kamke 6.229 */ 
+a*x^3*'diff(y,x)*'diff(y,x,2)+b*y^2,
+/* Kamke 6.230 */ 
+(f1*'diff(y,x)+f2*y)*'diff(y,x,2)+f3*'diff(y,x)^2+f4(x)*y*'diff(y,x)+f5(x)*y^2,
+/* */
+/* Kamke 6.231 */ 
+(2*y^2*'diff(y,x)+x^2)*'diff(y,x,2)+2*y*'diff(y,x)^3+3*x*'diff(y,x)+y,
+/* Kamke 6.232 */ 
+(y^2+'diff(y,x)^2)*'diff(y,x,2)+y^3,
+/* Kamke 6.233 */ 
+('diff(y,x)^2+a*(x*'diff(y,x)-y))*'diff(y,x,2)-b,
+/* Kamke 6.234 */ 
+(a*sqrt(1+'diff(y,x)^2)-x*'diff(y,x))*'diff(y,x,2)-'diff(y,x)^2-1,
+/* Kamke 6.235 */ 
+h('diff(y,x))*'diff(y,x,2)+j(y)*'diff(y,x)+f(x),
+/* Kamke 6.236 */ 
+ 'diff(y,x,2)^2-a*y-b,
+/* Kamke 6.237 */ 
+a^2*'diff(y,x,2)^2-2*a*x*'diff(y,x,2)+'diff(y,x),
+/* Kamke 6.238 */ 
+2*(1+x^2)*'diff(y,x,2)^2-x*'diff(y,xi,2)*(x+4*'diff(y,x))+2*(x+'diff(y,x))*'diff(y,x)-2*y,
+/* Kamke 6.239 */ 
+3*x^2*'diff(y,x,2)^2-2*(3*x*'diff(y,x)+y)*'diff(y,x,2)+4*'diff(y,x)^2,
+/* Kamke 6.240 */ 
+x^2*(2-9*x)*'diff(y,x,2)^2-6*x*(1-6*x)*'diff(y,x)*'diff(y,x,2)+6*y*'diff(y,x,2)-36*x*'diff(y,x)^2,
+/* */
+/* Kamke 6.241 */ 
+0,
+/*F[1,1](x)*'diff(y,x)^2+((F[2,1](x)+F[1,2](x))*'diff(y,x,2) +y*(F[1,0](x)+F[0,1](x)))*'diff(y,x)+F[2,2](x)*'diff(y,x$2)^2+y*(F[2,0](x)+F[0,2](x))*'diff(y,x$2)+F[0,0](x)*y^2, */
+/* Kamke 6.242 */ 
+y*'diff(y,x,2)^2-a*exp(2*x),
+/* Kamke 6.243 */ 
+(a^2*y^2-b^2)*'diff(y,x,2)^2-2*a^2*y*'diff(y,x)^2*'diff(y,x,2)+(a^2*'diff(y,x)^2-1)*'diff(y,x)^2,
+/* Kamke 6.244 */ 
+(y^2-x^2*'diff(y,x)^2+x^2*y*'diff(y,x,2))^2-4*x*y*(x*'diff(y,x)-y)^3,
+/* Kamke 6.245 */ 
+(2*y*'diff(y,x,2)-'diff(y,x)^2)^3+32*'diff(y,x,2)*(x*'diff(y,x,2)-'diff(y,x))^3,
+/* Kamke 6.246 */ 
+sqrt(a*'diff(y,x,2)^2+b*'diff(y,x)^2)+c*y*'diff(y,x,2)+d*'diff(y,x)^2,
+/* 247*/
+0,
+/* 248*/
+0,
+/* 249*/
+0
+]$
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
