@@ -375,18 +375,23 @@ simplify(_S):=block([_N,_Nnew,_Snew],
 
   /*_Nnew : length(nrOps(_Snew)),*/
   _Nnew : slength(string(_Snew)),
-  if _Nnew < _N then _S : _Snew,
+  if _Nnew < 1.4*_N then _S : _Snew,
 
 
-  if not freeof(sin,cos,tan,_S) then _S : trigexpand(convert_to_diff(_S)),
-  if not freeof(sin,cos,tan,_S) then _S : trigsimp(convert_to_diff(_S)),
-  if not freeof(sin,cos,tan,_S) then _S : trigreduce(convert_to_diff(_S)),
+  if not freeof(sin,cos,tan,_S) then _Snew : trigexpand(convert_to_diff(_S)),
+  if not freeof(sin,cos,tan,_Snew) then _Snew : trigsimp(convert_to_diff(_Snew)),
+  if not freeof(sin,cos,tan,_Snew) then _Snew : trigreduce(convert_to_diff(_Snew)),
+  _Nnew : slength(string(_Snew)),
+  if _Nnew < 1.4*_N then _S : _Snew,
 /*
   if not freeof(sin,cos,tan,_S) then _S : trigexpand((_S)),
   if not freeof(sin,cos,tan,_S) then _S : trigsimp((_S)),
   if not freeof(sin,cos,tan,_S) then _S : trigreduce((_S)),
 */
-  if not freeof(%e,log,_S) then _S : radcan(_S),
+  if not freeof(%e,log,_S) then _Snew : radcan(_S),
+  _Nnew : slength(string(_Snew)),
+  if _Nnew < 1.4*_N then _S : _Snew,
+
 
   return(_S)
 )$
