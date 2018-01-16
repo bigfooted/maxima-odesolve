@@ -20,7 +20,7 @@ put('separable,002,'version)$
 /* ************************************************************************** */
 
 /* ***** print all statements with flag lower than DEBUGFLAG           ***** */
-DEBUGFLAG:5$
+DEBUGFLAG:1$
 /* ***** the maximum length of an expression(using the length of the string) that we will consider for separability ***** */
 /* ***** default: 2000 ***** */
 /* note that setting this to a higher value will increase the computational time (sometimes to infinite time), but might lead to a successfull solution in the end*/
