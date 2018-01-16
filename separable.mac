@@ -14,14 +14,22 @@
 /* in general we want pdiff, (the input can be pdiff) */
 /* but if you don't we can comment it and comment all instances of */
 /* convert_to_diff in this file */
-load(pdiff);
+/*load(pdiff);*/
 /* ************************************************************************** */
 put('separable,002,'version)$
 /* ************************************************************************** */
 
 /* ***** print all statements with flag lower than DEBUGFLAG           ***** */
-DEBUGFLAG:1$
+DEBUGFLAG:5$
+/* ***** the maximum length of an expression(using the length of the string) that we will consider for separability ***** */
+/* ***** default: 2000 ***** */
+/* note that setting this to a higher value will increase the computational time (sometimes to infinite time), but might lead to a successfull solution in the end*/
+/* setting this value to 100,000 led to extra solutions found, higher values not */
+MAX_LENGTH_FOR_SEPARABILITY:10000$
+MAX_LENGTH_FOR_SIMPLIFICATION:10000$
 
+ratfac:true$
+radsubstflag:true$
 
 /* ************************************************************************** */
 /* input: an expression F(x,y)                          */
@@ -29,7 +37,7 @@ DEBUGFLAG:1$
 /* or [f(x),g(y),C]                                     */
 /* or false when the expression is not separable        */
 /* ************************************************************************** */
-separable(_F,_x,_y,[options]) :=block([_dF,_S,_f,_g],
+separable(_F,_x,_y,[options]) :=block([_F1,_C,_dF,_S,_f,_g,_P,_Q,_ratvars,_L,_cfp,_cfq,_SP,_SQ,_Res],
 
   splitConstant       : assoc('splitConstant,options,false), /* if true, if F(x,y)=C*f(x),g(y), the output will be [f,g,C] */
                                                              /* if false, if F(x,y)=C*f(x)*g(y), the output will be [f,g]  */       
@@ -38,7 +46,9 @@ separable(_F,_x,_y,[options]) :=block([_dF,_S,_f,_g],
   /* we can do extensive simplification to make sure that this is the case, or just assume that     */
   /* this is true: the user has to make sure that the input _F is simplified enough                 */
   _F1 : ratsimp(_F), /* ratsimp is unavoidable here to construct a proper P/Q expression ... */
-  dprint(5,"expr = ",_F),
+  dprint(5,"expr F = ",grind(_F1)),
+
+
 
   /* preliminaries: check if freeof x or freeof y */
    /* ***** if the expression is independent of x,y then it is a constant and not separable  ***** */
@@ -51,7 +61,7 @@ separable(_F,_x,_y,[options]) :=block([_dF,_S,_f,_g],
   /* ***** check if the expression depends only on y ***** */
   if freeof(_x,_F1) then (
      dprint(5,"separable: expression is f(y)"),
-     _C : constant_factors(_F1,[y]),
+     _C : constant_factors(_F1,[_y]),
      dprint(5,"C = ",_C),
      if splitConstant then return([1,ratsimp(_F1/_C),_C]) else return([1,_F1])
   ),
@@ -59,13 +69,43 @@ separable(_F,_x,_y,[options]) :=block([_dF,_S,_f,_g],
   /* ***** check if the expression depends only on x ***** */
   if freeof(_y,_F1) then (
      dprint(5,"separable: expression is f(x)"),
-     _C : constant_factors(_F1,[x]),
+     _C : constant_factors(_F1,[_x]),
      dprint(5,"C = ",_C),
-    if(op(_F1)=op(-1)) then ( 
+    if(signum(_F1)=-1) then ( 
       if splitConstant then return([ratsimp(-_F1/_C),1,-_C]) else return([ratsimp(-_F1/_C),-_C]) 
     )
     else 
       if splitConstant then return([ratsimp(_F1/_C),1,_C]) else return([ratsimp(_F1/_C),_C])
+  ),
+
+
+  /* very quick preliminary test to see if it is immediately separable */
+  if op(_F1)="*" then (
+    dprint(5,"we have product terms"),
+    _L : args(_F1),
+    dprint(5,"L = ",_L),
+    _Res:sublist(_L,lambda([_i],not freeof(_y,_i) and not freeof(_x,_i))),
+    dprint(5,"res = ",_Res),
+    if _Res=[] then (
+      _g:apply("*",sublist(_L,lambda([_i],freeof(_x,_i) and not freeof(_y,_i)))),
+      _f:apply("*",sublist(_L,lambda([_i],freeof(_y,_i) and not freeof(_x,_i)))),
+      _C:apply("*",sublist(_L,lambda([_i],freeof(_y,_i) and freeof(_x,_i)))),
+      dprint(5,"separable, f=",_f),
+      dprint(5,"separable, g=",_g),
+      if splitConstant then return([_f,_g,_C])
+      else return ([_f,_g*_C])
+    )
+  ), 
+
+
+  /* ***** we have a maximum limit for the expression, long expressions take forever to separate ***** */
+  _lS : slength(string(_F1)),  
+  dprint(5,"   length S = ",_lS),  
+  if (_lS>MAX_LENGTH_FOR_SEPARABILITY) then (
+      dprint(1,"Warning: subexpression is too long to consider separability. Length = ",_lS),
+      dprint(1,"Putting separable=false. "),
+      dprint(1,"If you want to try anyway, put MAX_LENGTH_FOR_SEPARABILITY to a higher value. Current value: ",MAX_LENGTH_FOR_SEPARABILITY),
+      return(false)
   ),
 
   _P : num(_F1),
@@ -133,14 +173,17 @@ separable(_F,_x,_y,[options]) :=block([_dF,_S,_f,_g],
     )
     else (
       /*P=P(x,y)*/
+       dprint(5,"separable: expression is P(x,y)/Q(y)"),
       _SP : separable(_P,_x,_y,'splitConstant=splitConstant),
+      dprint(5,"sP = ",_SP),
       if (_SP=false) then return(false),
       _SQ : separable(_Q,_x,_y,'splitConstant=splitConstant),
+      dprint(5,"sQ = ",_SQ),
       if (_SQ=false) then return(false),
       if splitConstant then
-        return([ratsimp(_SP[1]*_SQ[1]),ratsimp(_SP[2]*_SQ[2]),_SP[3]*_SQ[3]])
+        return([ratsimp(_SP[1]/_SQ[1]),ratsimp(_SP[2]/_SQ[2]),_SP[3]/_SQ[3]])
       else
-        return([ratsimp(_SP[1]*_SQ[1]),ratsimp(_SP[2]*_SQ[2])])
+        return([ratsimp(_SP[1]/_SQ[1]),ratsimp(_SP[2]/_SQ[2])])
     )
   ),
   /* if we end up here, then Q is free of x and y, so we basically have P(x,y)/C */  
@@ -155,7 +198,7 @@ separable(_F,_x,_y,[options]) :=block([_dF,_S,_f,_g],
   _S : _dF/_F,
   dprint(5,"divided: S = ",_S),
 
-  _S : simplify(_S),
+  if not freeof(_y,_S) then _S : simplify(_S),
   dprint(5,"S = ",_S),
 
   if freeof(_y,_S) then (
@@ -163,12 +206,14 @@ separable(_F,_x,_y,[options]) :=block([_dF,_S,_f,_g],
     dprint(5,"f is separable"),
     _f : exp(integrate(_S,_x)),
     _f : simplify(_f),
+    dprint(5,"f:",grind(_f)),
     _dF : diff(_F,_y),
     _S : _dF/_F,
-    _S : simplify(_S),
+    if not freeof(_x,_S) then _S : simplify(_S),
     if freeof(_x,_S) then (
       dprint(5,"g was successfully found"),
       _g : exp(integrate(_S,_y)),
+      dprint(5,"g:",grind(_g)),
       _g : simplify(_g)
     ) else (
       dprint(0,"FATAL ERROR! WAS NOT ABLE TO SEPARATE Y FROM THE SEPARABLE FUNCTION ",_F),
@@ -178,16 +223,29 @@ separable(_F,_x,_y,[options]) :=block([_dF,_S,_f,_g],
 
   /* note that the residue can be a non-unity constant */
   _Res : simplify(_F/(_f*_g)),
-  dprint(5,"residue = ",_Res),
+  dprint(5,"residue = ",grind(_Res)),
   if (freeof(_x,_Res) and freeof(_y,_Res)) then (
     dprint(5,"separability verified"),
     /* add the constant factor only when we do not want to split the constant */
     if not(splitConstant) then _g : _g*_Res
   )
   else (
-    dprint(0,"error: could not validate separable function! F=f(x)*g(y), F,f,g = ",simplify(_F),", ",simplify(_f),", ",simplify(_g)),
-    dprint(0,"error: could not validate separable function! F=f(x)*g(y), F,f,g = ",_F,", ",_f,", ",_g),
-    return(false)
+    dprint(1,"Warning: could not validate separable function! F=f(x)*g(y), F,f,g = ",simplify(_F),", ",simplify(_f),", ",simplify(_g)),
+    dprint(1,"Warning: could not validate separable function! F=f(x)*g(y), F,f,g = ",_F,", ",_f,", ",_g),
+    dprint(1,"Trying division procedure..."),
+    _g : simplify(_F/_f),    
+    if freeof(_x,_g) then (
+      dprint(1,"Separation was successful using division procedure"),
+      if (splitConstant) then(
+        _Res : constant_factors(_g,[_y]),
+        _g:ratsimp(_g/_Res),
+        dprint(0,"Constant factor = ",_Res)
+      )
+    ) else (    
+      dprint(0,"Error: validation of separability failed")
+    ),
+    /* add the constant factor only when we do not want to split the constant */
+    if not(splitConstant) then _g : _g*_Res
   ),
  
 
@@ -209,7 +267,7 @@ separable(_F,_x,_y,[options]) :=block([_dF,_S,_f,_g],
 /* output: true if input expression is separable        */
 /* or false when the expression is not separable        */
 /* ************************************************************************** */
-isSeparable(_F,_x,_y) :=block([_dF,_S,_f,_g],
+isSeparable(_F,_x,_y) :=block([_F1,_P,_Q,_L,_SP,_SQ,_dF,_S,_f,_g],
 
 
   /* we need to make sure that P,Q are coprime, so we should check if they have shared factors.     */
@@ -318,7 +376,8 @@ isSeparable(_F,_x,_y) :=block([_dF,_S,_f,_g],
 /* step 1: construct a set of args(expr)                                      */
 /* step 2: determine the subset containing only constants                     */
 /* ************************************************************************** */
-constant_factors(_expr,_varlist) := block([inflag:true,_constantfactors:1,_oldratvars,_C1:1],
+constant_factors(_expr,_varlist) := block([inflag:true,_constantfactors:1,_oldratvars,_C1:1,_G,_oldratvars_arglist,_L,_W],
+/* note: make function G local*/
 
   if lfreeof(_varlist,_expr) then return(_expr),
   if mapatom(_expr) then return(1),
@@ -366,32 +425,68 @@ constant_factors(_expr,_varlist) := block([inflag:true,_constantfactors:1,_oldra
 
 /* ************************************************************************** */
 /* ************************************************************************** */
-simplify(_S):=block([_N,_Nnew,_Snew],
-  
-  /*_N : length(nrOps(_S)),*/
+simplify(_S):=block([_N,_Nnew,_Snew,_ratvars,_lS],
+
+  /* simplify unfactored subexpressions like sqrt(f+g)/(fg+g^2) -> 1/sqrt(f+g) that are not factored */
+
+  /* ***** we have a maximum limit for the expression, long expressions take forever to separate ***** */
+  _lS : slength(string(_S)),  
+  dprint(5,"   length S = ",_lS),  
+  if (_lS>MAX_LENGTH_FOR_SIMPLIFICATION) then (
+      dprint(1,"Warning: subexpression is too long to consider separability. Length = ",_lS),
+      dprint(1,"Returning original expression..."),
+      dprint(1,"If you want to try anyway, put MAX_LENGTH_FOR_SIMPLIFICATION to a higher value. Current value: ",MAX_LENGTH_FOR_SIMPLIFICATION),
+      return(_S)
+  ),
+
+
+  _ratvars : showratvars(_S),
+  dprint(5,"ratvars = ",_ratvars),
+  /* we use length of expression as a simple measure for complexity to check for expression swell*/
   _N : slength(string(_S)),
-
-  _Snew : ratsimp(_S),
-
-  /*_Nnew : length(nrOps(_Snew)),*/
-  _Nnew : slength(string(_Snew)),
-  if _Nnew < 1.4*_N then _S : _Snew,
-
-
-  if not freeof(sin,cos,tan,_S) then _Snew : trigexpand(convert_to_diff(_S)),
-  if not freeof(sin,cos,tan,_Snew) then _Snew : trigsimp(convert_to_diff(_Snew)),
-  if not freeof(sin,cos,tan,_Snew) then _Snew : trigreduce(convert_to_diff(_Snew)),
-  _Nnew : slength(string(_Snew)),
-  if _Nnew < 1.4*_N then _S : _Snew,
 /*
-  if not freeof(sin,cos,tan,_S) then _S : trigexpand((_S)),
-  if not freeof(sin,cos,tan,_S) then _S : trigsimp((_S)),
-  if not freeof(sin,cos,tan,_S) then _S : trigreduce((_S)),
+  dprint(5,"s=",grind(_S)),
+  dprint(5,"s=",grind(ratsimp(_S))),
+  dprint(5,"s=",grind(ratsimp(ratexpand(_S)))),
+  dprint(5,"s=",grind(ratsimp(factor(_S)))),
+  dprint(5,"s=",grind(factor(ratsimp(_S)))),
+  dprint(5,"s=",grind(fullratsimp(_S))),
+  ratfac:true,dprint(5,"s=",grind(ratsimp(_S))),ratfac:false,
+  radsubstflag:true,dprint(5,"s=",grind(ratsimp(_S))),radsubstflag:false,
+  _Snew : fullratsimp(_S),
 */
-  if not freeof(%e,log,_S) then _Snew : radcan(_S),
+  _Snew : fullratsimp(_S),
   _Nnew : slength(string(_Snew)),
-  if _Nnew < 1.4*_N then _S : _Snew,
+  /*dprint(5,"   N,Nnew = ",_N," ",_Nnew),  */
+  if _Nnew < 1.4*_N then (_S : _Snew, _N : slength(string(_S))),
 
+dprint(5,"S=",_S),
+  /* if we have trig functions, we only want to simplify if they depend on x or y */ 
+  if sublist(_ratvars,lambda([_i],not freeof(sin,cos,tan,_i) and not freeof(_x,_y,_i))) # [] then (
+    _Snew : trigreduce(_Snew),  /* reduces again */
+    _Snew : trigsimp(_S),       /* writes sec -> 1/cos and tan(2x) -> sin(2x)/cos(2x)*/
+    _Snew : trigexpand(_Snew),  /* writes sin(2x) as 2sin(x)cos(x) */
+    _Snew : trigsimp(_Snew),    /* trigsimp again, this improves the probability of success of simplification! */
+
+    _Nnew : slength(string(_Snew)),
+    /*dprint(5,"trig,   N,Nnew = ",_N," ",_Nnew),  */
+    if _Nnew < 1.4*_N then (_S : _Snew, _N : slength(string(_S)))
+  ),
+dprint(5,"S=",_S),
+
+  if sublist(_ratvars,lambda([_i],not freeof(asinh,acosh,_i) and not freeof(_x,_y,_i))) # [] then (
+    _Snew : logarc(_Snew),
+    _Nnew : slength(string(_Snew)),
+    /*dprint(5,"trigh   N,Nnew = ",_N," ",_Nnew),  */
+    if _Nnew < 1.4*_N then (_S : _Snew, _N : slength(string(_S)))
+  ),
+
+  if sublist(_ratvars,lambda([_i],not freeof(%e,log,_i) and not freeof(_x,_y,_i))) # [] then (
+    _Snew : radcan(_S),
+    _Nnew : slength(string(_Snew)),
+    /*dprint(5,"log   N,Nnew = ",_N," ",_Nnew),  */
+    if _Nnew < 1.4*_N then (_S : _Snew, _N : slength(string(_S)))
+  ),
 
   return(_S)
 )$
@@ -425,9 +520,173 @@ nrOpsPriv(_expression, _opList) :=
              )
         )$
 
+/*****************************************************************************************************/
+/* ----- creates a list of user defined functions from expr. the functions should not have any properties
+         with the possible exception of noun                                                   ----- */
+/*****************************************************************************************************/
+listUDF(_expr):= block( [ _counter:0,listUDF:[]],
+        listUDFPriv (_expr, []),
+        return(unique(listUDF))
+)$
+
+listUDFPriv(_expr, _opList) :=
+ block ( [_x, _args, _newList],
+        if atom(_expr) then ( 
+           _opList 
+        )
+        else if udf(_expr) then (
+          listUDF: cons(_expr,listUDF) 
+        )
+        else ( 
+          _x:    op(_expr),
+          _args: args(_expr),
+          /* add the operators to the opList */
+          _newList: cons(_x, _opList),
+          for _arg in _args do _newList: listUDFPriv(_arg, _newList),
+          _newList
+        )
+)$
+
+
+listUDFGeneral(_expr):= block( [ _counter:0,listUDF:[]],
+        listUDFGeneralPriv (_expr, []),
+        return(unique(listUDF))
+)$
+
+listUDFGeneralPriv(_expr, _opList) :=
+ block ( [_x, _args, _newList],
+        if atom(_expr) then ( 
+           _opList 
+        )
+        else if udfGeneral(_expr) then (
+          listUDF: cons(_expr,listUDF) 
+        )
+        else (
+          _x:    op(_expr),
+          _args: args(_expr),
+          /* add the operators to the opList */
+          _newList: cons(_x, _opList),
+          for _arg in _args do _newList: listUDFGeneralPriv(_arg, _newList),
+          _newList
+        )
+)$
+
+simplifyingp(_f):= symbolp(_f) and is(?get(_f,?operators)=false)$
+
+/*udf(_f):=not(stringp(op(_f)) or symbolp(op(_f)) or (simplifyingp(op(_f))))$*/
+/* a user defined function is: 
+     not a a string, just like sin(x), but not like x 
+     a symbolp, like sin(x), but not like x
+     a function with no properties
+*/
+
+
+
+ 
+/*udf(_f):=not(stringp(op(_f))) and (symbolp(op(_f))) and (apply(properties,[op(_f)])=[] or apply(properties,[op(_f)])=[noun])$*/
+/* returns true if it is a udf*/
+udf(_f):=not(stringp(op(_f))) and (symbolp(op(_f))) and simplifyingp(op(_f)) and not ?fboundp(op(_f)) $
+
+/* general functions, including sin(a*x+b*y) */
+/* we do not want diff() stuff here, they are usually udf and we do not support unevaluated diffs for known functions */
+udfGeneral(_f):=not(stringp(op(_f))) and (symbolp(op(_f))) and not ?fboundp(op(_f)) and not(op(_f)=op(diff(__f1(__x),__x)))$
+
+
+
+
+
+listGDF(_expr,_y,_x):= block( [ _counter:0,listGDF:[]],
+        listGDFPriv (_expr, _y,_x, []),
+        return(unique(listGDF))
+)$
+
+listGDFPriv(_expr, _y,_x, _opList) :=
+ block ( [_op, _args, _newList],
+        if atom(_expr) then ( 
+           _opList 
+        )
+        else if gdfGeneral1(_expr,_y,_x) then (
+          listGDF: cons(_expr,listGDF) 
+        )
+        else (
+          _op:    op(_expr),
+          _args: args(_expr),
+          /* add the operators to the opList */
+          _newList: cons(_op, _opList),
+          for _arg in _args do _newList: listGDFPriv(_arg,_y,_x, _newList),
+          _newList
+        )
+)$
+
+
+
+/* c^f(x,y)  or f(x,y)^c  or sqrt(f(x,y))*/
+gdfGeneral1(_f,_y,_x):=(op(_f)="^" and (
+                         ((atom(args(_f)[1]) and freeof(_x,_y,args(_f)[1])) and not(freeof(_x,args(_f)[2])) and not(freeof(_y,args(_f)[2])) ) 
+                         or 
+                         ((atom(args(_f)[2]) and freeof(_x,_y,args(_f)[2])) and not(freeof(_x,args(_f)[1])) and not(freeof(_y,args(_f)[1])) )
+                         )) 
+                      or (op(_f)=sqrt and not(freeof(_x,args(_f)[1])) and not(freeof(_y,args(_f)[1])) )
+$
 
 /* ************************************************************************* */
 /* ***** print expr only when flag<DEBUGFLAG                           ***** */
 /* ************************************************************************* */
 dprint(flag,[_expr])::= if flag <= DEBUGFLAG then buildq ([_expr], print (splice (_expr)))$
 /* ************************************************************************* */
+
+
+/* ************************************************************************** */
+/* we introduce dependencies and gradefs for the ode                          */
+/* ************************************************************************** */
+explicit_form_to_dependencies_form1(_ode) :=block([_udfargs], 
+/* ************************************************************************** */
+  /* get a list of user defined functions */
+  _dependencylist : copy(dependencies),
+ 
+  _listudf : listUDF(rhs(_ode)),
+  _listudf : sublist(_listudf,lambda([_i], not(length(args(_i))=1 and atom(args(_i)[1])))),
+  _udf_op : map(op,_listudf),
+  _udf_args : flatten(map(args,_listudf)), 
+
+  /* get a list of generally defined functions */ 
+  _listgdf : listUDFGeneral(rhs(_ode)),
+  _listgdf : sublist(_listgdf,lambda([_i], not(length(args(_i))=1 and atom(args(_i)[1])))),
+  _listgdf : append(_listgdf,listGDF(rhs(_ode),_y,_x)),
+  /* remove everything that is already in listudf */
+  _listgdf : unique(sublist(_listgdf,lambda([_i],not(member(_i,_listudf))))),
+  _gdf_op : map(op,_listgdf),
+  _gdf_args : unique(flatten(map(args,_listgdf))),
+
+  /* for the udf, we need to introduce new variables      */
+  /* note that we remove gradefs by removing dependencies */
+  _varlist:makelist(concat(%g,_i),_i,1,length(_udf_args)),
+  dprint(5,"varlist = ",_varlist), 
+   depends(_varlist,[x,y]),
+   _udfargs : _udf_args,  
+   for _g in _varlist do (
+      apply('gradef,[_g,_x,diff(first(_udfargs),_x)]),   
+      apply('gradef,[_g,_y,diff(first(_udfargs),_y)]),
+      _udfargs:rest(_udfargs)    
+   ), 
+
+  /* replace all udfs with their operators: f(ax+by)  -> f */
+  _ode : subst(map("=",_listudf,_udf_op),_ode),
+
+  /* only dependencies for the udf, not for the general free functions */
+  map(depends,_udf_op,_varlist),   
+
+  dprint(5,"canonical form of ode, replaced long arguments = ",_ode),
+  dprint(5,"dependencies=",dependencies),
+  dprint(5,"listudf = ",_listudf), 
+  dprint(5,"udf_op = ",_udf_op), 
+  dprint(5,"udf_args = ",_udf_args), 
+  dprint(5,"listgdf = ",_listgdf), 
+  dprint(5,"gdf_op = ",_gdf_op), 
+  dprint(5,"gdf_args = ",_gdf_args), 
+  /* ***** ************************************************* ***** */
+  return(_ode)
+)$
+/* ************************************************************************** */
+
+

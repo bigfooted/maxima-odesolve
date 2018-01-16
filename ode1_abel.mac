@@ -1,0 +1,815 @@
+/* ************************************************************************** */
+/* *****     ode1_abel                                                  ***** */
+/* *****                                                                ***** */
+/* *****     Author: Nijso Beishuizen                                   ***** */
+/* *****     contains routines for Bernoulli, Abel and Chini odes       ***** */
+/* *****     usage: call this file from ode1_lie.mac                    ***** */
+/* ***** F. Schwarz - Abel ode paper                                    ***** */ 
+/* ************************************************************************** */
+
+/* to do: generalized abel equation  1.189 */
+/* chini equation */
+/* non-constant invariants 1.215 */
+
+
+/* ************************************************************************** */
+
+/* ************************************************************************** */
+put('ode1_abel,001,'version)$
+/* ************************************************************************** */
+
+/* we can have y= ax + b, with a nonzero */
+matchdeclare (_a, lambda ([_e], _e#0 and freeof(_x, _e)), _b, freeof(_x));
+defmatch (linearpx, _a*_x + _b, _x);
+
+/* Abel equation (we allow the third order term coefficient a3 to be zero) */
+matchdeclare (_a3,freeof(_y), _a2, freeof(_y),_a1,freeof(_y),_a0,freeof(_y),_ag,freeof(_y),_an,lambda([_i],freeof(_i,_y) and freeof(_i,_x)))$
+/* Bernoulli term a*y^n */
+defmatch (Bernoullip, _y^_an, _y,_x)$
+/* Abel ode of first kind */
+defmatch (Abel1p, _a3*_y^3  +_a2*_y^2 + _a1*_y +_a0, _y)$
+/* Abel ode of second kind (can be reduced to Abel ode of the first kind) */ 
+defmatch (Abel2p, (_a3*_y^3 + _a2*_y^2 + _a1*_y + _a0)/(_y+_ag), _y)$
+ 
+
+
+
+
+/* ************************************************************************** */
+/* ***** returns the symmetries of the Bernoulli Equation               ***** */
+/* ***** y' = C[1]*y^C[2] + C[3]*y (Bernoulli ODE)                      ***** */
+/* ***** input: the right hand side phi of a first order ode, y'=phi    ***** */
+/* ************************************************************************** */
+ODE1_solveBernoulli(_phi,_y,_x) :=block([returnSymmetries:false,_xi,_eta,_C],
+  /* ***** y' = C[1]*y^C[2] + C[3]*y (Bernoulli ODE) ***** */
+  _C : isBernoulli(_phi,_y),
+  if _C#false then (
+     dprint(5,"y' = c1*y^c2 + c3*y (Bernoulli)"),  
+     method: "Bernoulli",
+     _xi:0, 
+     _eta:ratsimp(_y^_C[2] * exp((1-_C[2])*integrate(_C[3],_x))),  
+     return([_xi,_eta])
+  )
+)$
+/* ************************************************************************** */
+
+
+
+/* ************************************************************************** */
+/* ***** detects if the expression is the right-hand side of a Chini equation */
+/* ***** y' + a*y^b + c*y + d =0                                        ***** */
+/* ***** note: Chini's equation is a case of the generalised Abel equation    */
+/* ************************************************************************** */
+isChini(_expr,_y):=block([_a,_b,_c,_d,_n1,_n2,_bb,_ba,_bc],
+
+  _expr : ratexpand(rhs(_expr)),
+  dprint(5,"chini::expr = ",_expr),
+  dprint(5,"chini::y = ",_y),
+  dprint(5,"chini::expr = ",grind(_expr)),
+
+
+  _n1 : hipow(_expr,_y),
+  _n2 : lopow(_expr,_y),
+ 
+  dprint(5,"n1,n2=",_n1," ",_n2), 
+  
+  /* ***** some quick filtering of the results ***** */
+  if (_n1=_n2) then return(false),
+  
+  if abs(_n1)>abs(_n2) then _n : _n1 else _n:_n2,
+
+  
+  /* after a ratexpand, if the denominator depends on y, then it cannot be bernoulli*/
+  /* todo, do we need a ratexpand? better to use ratsimp?*/
+  if not(freeof(_y,denom(_expr))) then return(false),
+
+  /* ***** now check if we have a term _ba(x)*y   ****** */
+  
+  dprint(5,"expr=",_expr),
+  _ba : ratcoef(_expr,_y,1),
+  dprint(5,"ba=",_ba),
+  if not freeof(_y,_ba) then return(false), 
+  if _ba=0 then return(false),
+
+  _expr : ratexpand(ratsimp(_expr-_ba*_y)),
+  dprint(5,"expr=",_expr),
+  if _expr=0 then return(false),
+
+  /* ***** now check if we have a term _bb(x)*y^_n   ****** */
+  _bb : ratcoef(_expr,_y,_n),
+  dprint(5,"bb=",_bb),
+  if not freeof(_y,_bb) then return(false), 
+  if _bb=0 then return(false),
+
+  _expr : ratsimp(_expr-_bb*_y^_n),
+  dprint(5,"expr=",_expr),
+  if _expr=0 then return(false),
+
+  /* ***** now check if we have a term _bc(x)   ****** */
+  
+  dprint(5,"expr=",_expr),
+  _bc : ratcoef(_expr,_y,0),
+  dprint(5,"ba=",_bc),
+  if not freeof(_y,_bc) then return(false), 
+  if _bc=0 then return(false),
+
+  _expr : ratexpand(ratsimp(_expr-_bc)),
+  dprint(5,"expr=",_expr),
+
+
+  if _expr#0 then return(false),
+ 
+
+    /* if not false then chini is _bc + _ba*y + _bb*y^_bn*/
+    if _S#false then (
+      dprint(5,"a,b,c=",_bb,_n,_ba,_bc),
+      return([_bb,_n,_ba,_bc])
+    )
+
+
+
+
+
+
+/*
+  _expr : rhs(solve(ode,'diff(_y,_x))[1]),
+  // first, check if the expression is f/g. if it is, we return false 
+  _expr:ratexpand(_expr),
+  if denom(_expr)#1 then return(false),
+
+  // Chini equation must have {a,b,c,d} # 0 
+  _d : errcatch(ratsimp(subst(0,_y,_expr))), 
+  if _d=[0] or _d=[] then return(false), 
+  _d : _d[1],
+
+  phi_y : diff(_expr,_y), 
+  // y' = a*y^b + c*y + d. take the derivative to compute c. 
+  _c:errcatch(ratsimp(subst(0,_y,phi_y))), if _c=[0] or _c=[] then return(false), 
+  _c : _c[1],
+  _a:errcatch(ratsimp(subst(1,_y,_expr-_c*_y - _d))), if _a=[0] or _a=[] then return(false),
+  _a : _a[1],
+  _b:ratsimp((log((_expr-_c*_y - _d)/_a))/log(_y)),
+  _b : radcan(_b),
+  if not freeof(_y,_b) then return(false),
+  if (ratsimp(_a*_y^_b+_c*_y + _d - _expr)=0) then 
+    return([-_a,_b,-_c,-_d]) 
+  else 
+    return(false) 
+*/
+)$
+
+
+/* ************************************************************************** */
+/* TODO    */
+/* generalize to 'generalized Abel ode'    */
+/* split into case a: Bernoulli and case b */
+/* ************************************************************************** */
+ODE1_SolveChini(ode,_y,_x):=block([_phi,_A1,_An,_n,_K,Chinicoeffs,_b1,_bn,_m,_b0],
+
+  /*_phi : rhs(solve(ode,'diff(_y,_x))[1]),*/
+
+  /*dprint(5,"the ode is ",lhs(ode)-rhs(ode)),*/
+  Chinicoeffs:isChini(ode,_y),
+  if Chinicoeffs=false then return(false),
+  [_bn,_m,_b1,_b0] : Chinicoeffs,
+  
+  /*ode1: subst(_y=_w(_x)*_b0,convert_to_diff(ode)),*/
+  ode1: subst(_y=_w(_x)*_b0,ode),
+  ode1: ev(ode1,nouns),
+/*  ode1: convert_to_diff(ode1),*/
+  Chinicoeffs:isChini(ode1,_w(_x)),
+  [_An,_n,_A1,_A0] : Chinicoeffs,
+  
+/*
+  _Kn : ratsimp((_A1 - diff(_An,_x)/(_n*_An))^_n),
+  if _Kn#0 then _Kn : ratsimp(_An/_Kn),
+*/  
+    _C : ratsimp(_n*_A1*_An - diff(_An,_x)),
+    if _C#0 then _K : ratsimp(_An/(_A1-diff(_An,_x)/(_n*_An))),
+
+    if _C=0 then (
+      dprint(4,"exceptional case"),
+      /* exceptional case */
+      _xi : ratsimp(1/_An^(1/_n)),
+      _eta : ratsimp(diff(xi,_x) * _w), 
+      checkSymmetries([_xi,_eta],'diff(_w,_x)+_An*_w^_n+_A1*_w+1, _w,_x),
+ 
+      /* transform back */
+      sub : _v=_w*b0,  
+      _eta : _xi*diff(rhs(sub),_x) + _eta*diff(rhs(sub),_w),
+      _eta : ratsimp(subst(_w=_v/b0, _eta)), 
+      checkSymmetries([_xi,_eta],'diff(_v,_x) +_bn*_v^_n+_b1*_v +_b0, _v,_x)
+    )  
+    else if freeof(_x,_K) then (
+      dprint(4,"constant invariant case"),
+      _xi : ratsimp(_n*_An/_C),                 /* eq. 34 from Schwarz*/
+      _eta : ratsimp(-diff(_An,_x)*_w/_C),     /* eq. 34 from Schwarz */
+      checkSymmetries([_xi,_eta],'diff(_w,_x)+_An*_w^_n+_A1*_w+1, _w,_x),
+
+      /* transform back */
+      sub : _v=_w*_b0,
+      _eta : _xi*diff(rhs(sub),_x) + _eta*diff(rhs(sub),_w),
+      _eta : ratsimp(subst(_w=_v/_b0, _eta)),
+      checkSymmetries([_xi,_eta],'diff(_v,_x) + _bn*_v^_m + _b1*_v + _b0, _v,_x)
+    )
+    else (
+      dprint(3,"nonconstant invariant case"),
+      dprint(3,"invariant = ",_K)
+    ),  
+  
+return([_xi,_eta])
+)$
+/* ************************************************************************** */
+
+/* ************************************************************************** */
+/* ***** detects if expr is the right-hand side of a Bernoulli equation ***** */
+/* ************************************************************************** */
+isBernoulli(_expr,_y,_x):=block( [_a,_b,_c,_phi_y,_power1:0,_powern:0,_n,_res:true,_isBernoulli:true],
+
+  _expr : ratexpand(_expr),
+  dprint(5,"bernoulli::expr = ",_expr),
+
+/*
+  _n1 : hipow(_expr,_y),
+  _n2 : lopow(_expr,_y),
+*/
+
+  /* 1. ratexpand and loop over all terms */
+  /* 2. all terms should be separable into f(x)*g(y) */
+  /* for all g(y), we should only have 2 types, y or y^a */
+  _op : op(ratexpand(_expr)),
+  if _op="+" then 
+    _terms : args(ratexpand(_expr))
+  else ( 
+    /* we have a single term. it must be of the form a*y^n */
+    _terms : [_expr]
+  ),
+  dprint(3,"terms=",_terms), 
+
+
+  /* we construct a list of the separable terms. If one of the terms is not separable, it is not Bernoulli */
+  _list : [],
+  for _t in _terms do (
+    _S : separable(_t,_y,_x), 
+    dprint(3,"separable=",_S),
+    if _S=false then return(false),
+    _list:cons(_S,_list)
+  ),
+  if _S=false then return(false),
+  dprint(3,"separable terms:",_list),
+  
+
+  /* first grab all terms that are f(x)*y */
+
+  _listy : sublist(_list,lambda([_l],_l[1]=_y)),
+  _listnoty : sublist(_list,lambda([_l],_l[1]#_y)),
+  dprint(3,"f(x)*y terms:",_listy),
+  dprint(3,"f(x)*y^n terms:",_listnoty),
+  
+  _y1term:0,
+  if _listy #[] then for _l in _listy do _y1term:_y1term+_l[2],
+
+  if _listnoty=[] then return(false),
+
+
+  _By : Bernoullip(first(_listnoty)[1],_y,_x),
+  dprint(3,"By=",_By),
+  if _By=false then return(false),
+  
+/*  if _listnoty #[] then for _l in _listnoty do ((_l[2]),*/
+
+
+
+  /* looking for a*y^n */
+  _Bx : first(_listnoty)[2], /* a */
+  dprint(3,"Bx=",_Bx),
+  _Bn : first(_listnoty)[1], /* y^n */
+  dprint(3,"Bn=",_Bn),
+  _listnoty : rest(_listnoty), 
+  dprint(3,"listnoty=",_listnoty),
+
+  /* get the a and n in a*y^n */  
+  for _l in _listnoty do(
+    dprint(3,"l-term=",_l),
+    if _l[1] # _Bn then (
+      dprint(3,"not bernoulli:",_l),
+      _isBernoulli : false,
+      return(false)
+    ) else (
+      _Bx : _Bx + _l[2],
+      dprint(3,"bernoulli:",_Bx)
+    ) 
+  ),
+  dprint(3,"Bernoulli =",_Bx," ",_By),
+
+  if _isBernoulli=false then return(false)
+  else return([_Bx,_an,_y1term])
+  /* */
+
+/* 
+  dprint(5,"n1,n2=",_n1," ",_n2), 
+  if (_n1=0) then return(false), 
+  if _n1#1 then _n : _n1 else _n:_n2,
+  if not(freeof(_y,denom(_expr))) then return(false),
+  dprint(5,"expr=",_expr),
+  _ba : ratcoef(_expr,_y,1),
+  dprint(5,"ba=",_ba),
+  if not freeof(_y,_ba) then return(false), 
+  if _ba=0 then return(false),
+  _expr : ratexpand(ratsimp(_expr-_ba*_y)),
+  dprint(5,"expr=",_expr),
+  _bb : ratcoef(_expr,_y,_n),
+  dprint(5,"bb=",_bb),
+  if not freeof(_y,_bb) then return(false), 
+  if _bb=0 then return(false),
+  _expr : ratsimp(_expr-_bb*_y^_n),
+  dprint(5,"expr=",_expr),
+   if _expr#0 then return(false),
+    if _S#false then (
+      dprint(5,"a,b,c=",_bb,_n,_ba),
+      return([_bb,_n,_ba])
+    )
+*/
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* ***** check if input ode is Abel first or Abel second, or semi-Abel  ***** */
+/* ************************************************************************** */
+isAbel(ode,_y,_x):=block([_phi,_C,_D],
+  _phi : rhs(solve(ode,'diff(_y,_x))[1]),
+  /* we exclude y'=f(x), although it is formally an abel ode of the second kind */
+  /* if freeof(_y,_phi) then (dprint(3,"not an Abel ode"),return(false)),*/
+
+  _phi : ratsimp(_phi),
+  _phi_num : num(_phi),
+  _phi_denom : denom(_phi),
+  dprint(3,"phinum=",_phi_num),
+  dprint(3,"phidenom=",_phi_denom),
+
+  if (freeof(_y,_phi_denom)) then (_phi_num : ratexpand(_phi),_phi_denom:1),
+
+  _C : Abel1p(ratexpand(_phi_num),_y),
+  /* not Abel */
+  if (_C=false) then (dprint(3,"not an Abel ode"),return(false)),
+  /* Abel of first kind (must have a third degree term) */
+  if (_a3#0) and (_phi_denom=1 ) then (dprint(3,"Abel ode of the first kind"),return([sort(_C,orderlessp)])),
+   
+  /* test for Abel ode of second kind (denominator is a*y+b, with nonzero y) */ 
+  _D : linearpx(_phi_denom,_y), 
+  dprint(3,"abel test: D=",_D), 
+  if (_D=false) then (dprint(3,"semi-Abel ode"),return(false))
+  else (dprint(3,"Abel ode of the second kind"),return([sort(_C,orderlessp),sort(_D,orderlessp)]))  
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* ***** check if ode is Abel ode of First kind                         ***** */
+/* ************************************************************************** */
+isAbelFirst(ode,_y,_x):=block([abelcoeffs],
+  /*_phi : rhs(solve(ode,'diff(_y,_x))[1]),*/
+   abelcoeffs : isAbel(ode,_y,_x),
+  if abelcoeffs=false then (
+    dprint(3,"not an Abel ode!"),
+    return(false)
+  )
+  else if length(abelcoeffs)=1 then (
+    dprint(3,"Abel ode of first kind"),
+    return(true)
+  )
+  else (
+    dprint(3,"Abel ode of second kind"),
+    return(false)
+  )
+)$
+
+/* ************************************************************************** */
+/* ***** check if ode is Abel ode of Second kind                        ***** */
+/* ************************************************************************** */
+isAbelSecond(ode,_y,_x):=block([abelcoeffs],
+  /*_phi : rhs(solve(ode,'diff(_y,_x))[1]),*/
+  abelcoeffs : isAbel(ode,_y,_x),
+  if abelcoeffs=false then (
+    dprint(3,"not an Abel ode!"),
+    return(false)
+  )
+  else if length(abelcoeffs)=1 then (
+    dprint(3,"Abel ode of first kind"),
+    return(false)
+  )
+  else (
+    dprint(3,"Abel ode of second kind"),
+    return(true)
+  )
+)$
+/* ************************************************************************** */
+
+
+
+/* ************************************************************************** */
+/* convert an Abel ode of the second kind to an Abel ode of the first kind */
+/* ************************************************************************** */
+ODE1_AbelFirst(ode,_y,_x):=block([_ode1,abelcoeffs],
+
+  /*_phi : rhs(solve(ode,'diff(_y,_x))[1]),*/
+  abelcoeffs:isAbel(ode,_y,_x),
+  if abelcoeffs=false then (dprint(3,"not an Abel ode!"),return(false)),
+  
+  /* if Abel ode of second kind, transform to Abel ode of first kind */
+  if length(abelcoeffs)=2 then (
+    dprint(3,"Abel ode of the second kind - transforming to first kind"),
+    /* transformation : y=1/v - g */
+    _ode1: subst(_y=1/_y(_x)-_lb/_la,ode),
+    _ode1: ratexpand(ratsimp(solve(ratexpand(ev(_ode1,nouns)),diff(_y(_x),_x))[1])),
+    _ode1: subst(_y(_x)=_y,_ode1),
+    return(_ode1)
+  ) else (dprint(3,"Abel ode is already of the first kind!"),return(ode))
+)$
+
+
+/* ************************************************************************** */
+/* convert an Abel ode of the first kind to an Abel ode of the second kind */
+/* note that it introduces arbitrary functions f(x),g(x)*/
+/* ************************************************************************** */
+ODE1_AbelSecond(ode,_y,_x):=block([_ode1,abelcoeffs],
+  abelcoeffs:isAbel(ode,_y,_x),
+  if abelcoeffs=false then (dprint(3,"not an Abel ode!"),return(false)),
+  
+  /* if Abel ode of the first kind, transform to Abel ode of second kind */
+  if length(abelcoeffs)=1 then (
+    dprint(3,"Abel ode of the first kind - transforming to second kind (introducing arbitrary f(x),g(x))"),
+    /* transformation : from 2 -> 1 : y=1/v - g */
+    /* transformation : from 1 -> 2 : 1/(y+g)=v */
+    _ode1: subst(_y=1/(_y(_x)+(f(_x)/g(_x))),ode),
+    _ode1: ratexpand(ratsimp(solve(ratexpand(ev(_ode1,nouns)),diff(_y(_x),_x))[1])),
+    _ode1: subst(_y(_x)=_y,_ode1),
+    return(_ode1)
+  ) else (dprint(3,"Abel ode is already of the second kind!"),return(ode))
+)$
+/* ************************************************************************** */
+
+
+
+/* ************************************************************************** */
+/* convert an Abel ode to rational normal form, either w' + aw^3+bw = 0 or w' + aw^3+bw+1=0*/
+/* ************************************************************************** */
+ODE1_AbelRNF(ode,_y,_x):=block([],
+  abelcoeffs:isAbel(ode,_y,_x),
+  if abelcoeffs=false then (dprint(3,"not an Abel ode"),return(false)),
+  
+  /* if Abel ode of second kind, transform to Abel ode of first kind */
+  if length(abelcoeffs)=2 then (
+    dprint(3,"Abel ode of second kind - transforming to first kind"),
+    /* transformation : y=1/v - g */
+    /*ode1: subst(_y=1/_y(_x)-_lb/_la,convert_to_diff(ode)),*/
+    ode1: subst(_y=1/_y(_x)-_lb/_la,ode),
+    ode1: ratexpand(ratsimp(solve(ratexpand(ev(ode1,nouns)),diff(_y(_x),_x))[1])),
+    phi1 : ratexpand(rhs(ode1)),
+    [_a0,_a1,_a2,_a3] : [ratsimp(-coeff(phi1,_y(_x),0)), ratsimp(-coeff(phi1,_y(_x),1)), ratsimp(-coeff(phi1,_y(_x),2)),ratsimp(-coeff(phi1,_y(_x),3))]
+  ) else ode1:subst(_y=_y(_x),ode),
+
+  /*ode1: subst(_y(_x)=_v(_x)-_a2/(3*_a3),convert_to_diff(ode1)),*/
+  ode1: subst(_y(_x)=_v(_x)-_a2/(3*_a3),ode1),
+  ode1: ev(ode1,nouns),
+  ode1: solve(ode1,diff(_v(_x),_x))[1],
+  phi1 : ratexpand(rhs(ode1)),
+  [b0,b1,b3] : [ratsimp(-coeff(phi1,_v(_x),0)), ratsimp(-coeff(phi1,_v(_x),1)), ratsimp(-coeff(phi1,_v(_x),3))],
+  dprint(5,"the ode is ",ode1),
+
+  if b0=0 then (
+    dprint(4,"case a"),
+    /* case a : v' + A*v^3 + B*v = 0 */
+    /* This is a Bernoulli equation */
+    _A : b3,              
+    _B : b1,
+    ode1 : 'diff(_y,_x) + _A*_y^3 + _B*_y 
+  ) else (
+    dprint(4,"case b"),
+    /* case b : w' + A*w^3 + B*w + 1 = 0 */
+    dprint(5,"the transformation is v(x)=w(x)*",grind(b0)),
+    _A : ratsimp(b0^2*b3), 
+    _B : ratsimp(b1 + diff(b0,_x)/b0),
+    ode1 : 'diff(_y,_x) + _A*_y^3+_B*_y + 1,
+    dprint(5,"the ode is ",ode1)
+  ),
+
+return(ode1)
+)$
+/* ************************************************************************** */
+
+/* ************************************************************************** */
+/* Solve Abel ODE's according to the method in F. Schwarz' paper (solves all kamke's Abel odes with constant invariant)*/
+/* returns: the symmetry generator */
+/* note: split this routine into ODE1_AbelNormalForm */
+/* ************************************************************************** */
+ODE1_AbelSolve(ode,_y,_x):=block([odenew,abelType,dependencyDeclared,_a0,_a1,_a2,_a3,b0,b1,b2,b3,_g1,_g2,transform,transformlist:[]],
+  method : "Abel ",
+  dprint(5,"the ode is ",lhs(ode)-rhs(ode)),
+  abelcoeffs:isAbel(ode,_y,_x),
+  if abelcoeffs=false then return(false),
+  
+  /* if Abel ode of second kind, transform to Abel ode of first kind */
+  if length(abelcoeffs)=2 then (
+    dprint(3,"Abel ode of second kind - transforming to first kind"),
+    method:concat(method,"second kind, "),
+    /* transformation : y=1/v - lb */
+    /* rewrite to (a3y^3 + a2y^2 + a1y + a0) */
+    transform : [_y=1/(_a*_u)-(_b/_a),_u],
+    transformlist : cons(transform,transformlist),
+    ode1: subst(transform[1],ode),
+    depends(_u,_x),
+    ode1: ratsimp(solve(ratexpand(ev(ode1,nouns)),diff(_u,_x))[1]),
+    remove(_u,dependency),
+    dprint(3,"the ode of the first kind is ",ode1),
+    phi1 : ratexpand(rhs(ode1)),
+    dprint(3,"the ode of the first kind is ",phi1),
+    abelcoeffs:isAbel(ode1,_u,_x)
+  ) else (
+    ode1:subst(_y=_u,ode),
+    method:concat(method,"first kind, ")
+  ),
+  dprint(3,"abelcoeffs = ",abelcoeffs),
+
+
+  dprint(3,"the transformation is y=v-",ratsimp(_a2/(3*_a3))),
+  transform : [_u=_v-_a2/(3*_a3),_v],
+  transformlist : cons(transform,transformlist),
+  ode1: subst(transform[1],ode1),
+  depends(_v,_x),
+  ode1: ratsimp(solve(ratexpand(ev(ode1,nouns)),diff(_v,_x))[1]),
+  remove(_v,dependency),
+  dprint(3,"the ode v in one of the RNF kind is ",ode1),
+  abelcoeffs:isAbel(ode1,_v,_x),
+  dprint(3,"abelcoeffs RNF = ",abelcoeffs),
+  
+  /* _a2 should now be 0: */
+  if _a2#0 then (dprint(0,"fatal error in determining intermediate Abel ode"), return(false)),
+  dprint(3,"the RNF ode is ",ode1),
+   
+  dprint(3,"case a or case b determined by a0. a0=",_a0),
+  if _a0=0 then (
+    dprint(3,"case a, transformed to Bernoulli"),
+    method:concat(method,"bernoulli "),
+    /* case a : v' + A*v^3 + B*v = 0 */
+    /* This is a Bernoulli equation */
+    
+    /* ***** copied from bernoulli ***** */
+    _C : isBernoulli(rhs(ode1),_v,_x),
+    if _C#false then (
+      dprint(5,"bernoulli = ",_C),
+      dprint(3,"y' = c1*y^c2 + c3*y (Bernoulli)"),  
+      [_xi,_eta]: [0, _eta:ratsimp(_v^_C[2] * exp((1-_C[2])*integrate(_C[3],_x)))],  
+   
+     checkSymmetries([_xi,_eta],ode1,_v,_x)
+   ) else (
+     /* when bernoulli is actuall a quadrature (kamke 223) */
+     return(false)
+   )
+  ) else (
+    dprint(3,"case b"),
+    /* substitution of variables */
+    /* case b : w' + A*w^3 + B*w + 1 = 0 */
+    dprint(3,"the transformation is v(x)=w(x)*",grind(_a0)),
+    transform : [_v=_w*_a0,_w],  /* transformation, and variable*/
+    transformlist : cons(transform,transformlist),
+    dprint(3,"transformlist = ",transformlist),
+    ode1: subst(transform[1],ode1),
+    dprint(3,"ode=",ode1),
+    depends(_w,_x),
+    ode1: ratsimp(solve(ratexpand(ev(ode1,nouns)),diff(_w,_x))[1]),
+    dprint(3,"depends-ode=",ode1),
+    remove(_w,dependency),
+    dprint(3,"the ode in one of the RNF kind is ",ode1),
+    abelcoeffs:isAbel(ode1,_w,_x),
+
+    dprint(3,"transforms = ",transformlist),
+/*
+  ode1: subst(_y=_y(_x)*_a0,ode1),
+  ode1: ratsimp(solve(ratexpand(ev(ode1,nouns)),diff(_y(x),_x))[1]),
+  ode1: subst(_y(x)=_y,ode1),
+  dprint(3,"the ode in RNF kind b is ",ode1),
+  abelcoeffs:isAbel(ode1,_y,_x),
+  dprint(3,"abelcoeffs RNF = ",abelcoeffs),
+*/
+   
+/* 
+    _A : ratsimp(_a0^2*_a3), 
+    _B : ratsimp(_a1 + diff(_a0,_x)/_a0),
+    ode1 : 'diff(w,x)+_A*w^3+_B*w + 1,
+    dprint(3,"the ode is ",ode1),
+*/
+
+    _A : _a3,
+    _B : _a1,
+
+    _C : ratsimp(diff(_A,_x) - 3*_A*_B),
+    /*_K : ratsimp(_A/(-_C/(3*_A))^3),*/
+    if _C#0 then _K : ratsimp(_A/(_B-(1/3)*diff(_A,_x)/_A)^3),
+    dprint(3,"invariant K = ",_K),
+    dprint(3,"invariant K = ",grind(_K)),
+    if _C=0 then (
+      dprint(3,"exceptional case"),
+      method:concat(method," exceptional case"),
+      /* exceptional case */
+      _xi : ratsimp(1/_A^(1/3)),
+      _eta : ratsimp(- diff(_A,_x)*_w/(3*_A^(4/3))),
+      checkSymmetries([_xi,_eta],ode1, _w,_x)
+ 
+      /* transform back */
+      /*
+      sub : _v=_w*_a0,
+      _eta : _xi*diff(rhs(sub),_x) + _eta*diff(rhs(sub),_w),
+      _eta : ratsimp(subst(_w=_v/_a0, _eta))
+      */
+      /*checkSymmetries([_xi,_eta],'diff(_v,_x) + b3*_v^3 + b1*_v + b0, _v,_x)*/
+    )  
+    else if freeof(_x,_K) then (
+
+      dprint(3,"constant invariant case"),
+      method:concat(method," constant invariant"),
+      _xi : ratsimp(3*_A/_C),                 /* eq. 10 from Schwarz*/
+      _eta : ratsimp(-diff(_A,_x)*_w/_C),     /* eq. 10 from Schwarz */
+      dprint(3,"xi,eta=",_xi," ",_eta),
+      checkSymmetries([_xi,_eta],ode1, _w,_x)
+
+    )
+    else (
+      dprint(3,"nonconstant invariant case"),
+      dprint(3,"invariant = ",_K),
+      method:concat(method,"nonconstant invariant"),
+      /* What we can do here is try to convert it to a linear ODE or to a Riccati ODE by using rational transformations */
+      /* Gine and Llibre, On the integrable rational Abel differential equations */
+      /* Class  1: difficult rational map */
+      /* Class  2: X=x^2 - 1/y  , Y=x                    ===>    Riccati dY/dX = Y^2 - X */
+      /* Class  3: z=x   - 1/y  , x=x, Y=z^2-1/(2x), z=z ===>    Riccati du/dz = -u^2 + z^2  (maybe a mistake here?)*/
+      /* Class  4: z=x   - 1/y                           ===>    Ricatti dx/dz = x^2/z -x/   (can be transformed further into linear) */
+      /* Class  5: z=difficult */
+      /* Class  6: z = (y+x(x-1))/(yx(x-1)) = 1/(x*(x-1)) + 1/y  */
+      /* Class  7: complicated rational map*/
+      /* Class A: z=x^3/(y+x), u=-yx^2/(y+x) */  
+      /* Class B: z=x^2 + 1/y, x=x     ===> Riccati dx/dz=(x^2-z)/(2*(z-a^2))*/
+      /* Class C: z=(1-xy)/y=1/y-x=-(x-1/y), x=x */
+      /* Class D: z=x-a/x-1/y, x=x*/
+
+      /* test 1: use transformation z=+(x-1/y) */
+      /* test 2: use transformation z=-(x-1/y) */ 
+     
+      /* step 1: take the abel ode of the second kind as the basis ode and check if we can match it with the target ode*/
+      if length(abelcoeffs)#2 then (dprint(3,"abel ode is not in second kind form"),return(false)),
+      dprint(3,"Abelcoefs of numerator = ",abelcoeffs[1]), 
+      dprint(3,"Abelcoefs of denominator = ",abelcoeffs[2]), 
+      return(false)
+    ),
+
+
+      /* transform back */
+      transform : first(transformlist),
+      sub : transform[1],
+      transformlist:rest(transformlist),
+
+      _eta : _xi*diff(rhs(sub),_x) + _eta*diff(rhs(sub),_w),
+      ode1: subst(solve(sub,transform[2]),ode1),
+
+      depends(_w,_x),depends(_v,_x),
+      ode1: ratsimp(solve(ratexpand(ev(ode1,nouns)),diff(_v,_x))[1]),
+      dprint(3,"the ode v of the first kind is ",ode1),
+      _eta : ratsimp(subst(solve(sub,transform[2]), _eta)),
+      remove(_w,dependency),remove(_v,dependency),
+      dprint(3,"xi,eta=",_xi," ",_eta),
+      checkSymmetries([_xi,_eta],ode1, _v,_x)
+
+
+
+    ),
+
+      /*
+      abelcoeffs:isAbel(ode,_y,_x),
+      dprint(3,"abelcoeffs = ",abelcoeffs),
+      */
+
+      /* transform back */
+      transform : first(transformlist),
+      sub : transform[1],
+      transformlist:rest(transformlist),
+
+      _eta : _xi*diff(rhs(sub),_x) + _eta*diff(rhs(sub),_v),
+      ode1: subst(solve(sub,transform[2]),ode1),
+
+      depends(_u,_x),depends(_v,_x),
+      ode1: ratsimp(solve(ratexpand(ev(ode1,nouns)),diff(_u,_x))[1]),
+      dprint(3,"the ode u of the first kind is ",ode1),
+      _eta : ratsimp(subst(solve(sub,transform[2]), _eta)),
+      remove(_v,dependency),remove(_u,dependency),
+      dprint(3,"xi,eta=",_xi," ",_eta),
+      checkSymmetries([_xi,_eta],ode1, _u,_x),
+
+
+/*
+      transform : first(transformlist),
+      sub : transform[1],
+      transformlist:rest(transformlist),
+      _eta : _xi*diff(rhs(sub),_x) + _eta*diff(rhs(sub),_v),
+      _eta : ratsimp(subst(solve(sub,transform[2]), _eta)),
+      checkSymmetries([_xi,_eta],'diff(_v,x) + _a3*_v^3 + _a2*_v^2 + _a1*_v + _a0, _v,_x),
+*/
+      if transformlist#[] then (
+        dprint(5,"transform back to abel ode of second kind"),
+      /* transform back */
+      transform : first(transformlist),
+      sub : transform[1],
+      transformlist:rest(transformlist),
+
+      _eta : _xi*diff(rhs(sub),_x) + _eta*diff(rhs(sub),_u),
+      ode1: subst(solve(sub,transform[2]),ode1),
+
+      depends(_u,_x),depends(_y,_x),
+      ode1: ratsimp(solve(ratexpand(ev(ode1,nouns)),diff(_y,_x))[1]),
+      dprint(3,"the ode y of the first kind is ",ode1),
+      _eta : ratsimp(subst(solve(sub,transform[2]), _eta)),
+      remove(_u,dependency),remove(_y,dependency),
+      dprint(3,"xi,eta=",_xi," ",_eta),
+      checkSymmetries([_xi,_eta],ode1, _y,_x)
+
+
+        /* transformation : y=1/v - g2/g1 */
+       /* transformation : 1/(y + lb/la) =v */
+       /*
+        sub : _y=1/_yp-(_lb/_la),
+        _eta : _xi*diff(rhs(sub),_x) + _eta*diff(rhs(sub),_yp),
+        _eta : ratsimp(subst(solve(sub,transform[2]), _eta))
+       */
+      ) else (
+        dprint(3,"not second kind: the ode y of the first kind is ",ode1),
+        _xi : subst(_u=_y,_xi),
+        _eta:subst(_u=_y,_eta),
+        dprint(3,"xi,eta=",_xi," ",_eta)
+      ),
+
+  _c : greatest_constant_divisor(_xi,_eta,[_x,_y]),
+  dprint(3,"greatest constant divisor = ",_c),
+  if _c#0 then (
+    _xi : _xi/_c,
+    _eta : _eta/_c
+  ),
+  checkSymmetries([_xi,_eta],ode,_y,_x),
+  return([_xi,_eta])
+
+)$
+/* ************************************************************************** */
+
+
+
+
+
+
+
+
+/* test for Abel ode of first and second kind */
+/* kamke odes:
+
+40 const. invariant (ALL solved by the routine!):
+38,41,46,49,51,188,204,213,214,215,216,218,221,222,223,224,225,
+226,227,228,229,231,236,238,239,243,244,245,246,247,248,249,251,
+252,254,255,260,261,262,264
+(note that 49 is weierstrass function)
+24 non-const invariant:
+36,37,40,42,43,45,47,48,111,145,146,147,151,169,185,203,(205,unsolvable),206,
+234,235,237,253,257,265
+
+/* darboux: not solved by prelle-singer method*/
+36    [y^2, -2y^2-2axy]
+37    [y^2, 2y^2+2a*exp(x)y]
+40    y^2 (too general)
+42    [y^2, (2x^2+4x)y^2+(2x+6)y]
+43    [y^2,(-6ax^2-8a^2x-2b)y^2-6xy]
+45    [y^3,(b^2x-6a^2x^3)y^2-9by ]
+47    too general 
+48    too general
+111   [y^3,-3y^2-9xy],          [x,1]
+145   [y^3,3ax^2y-3ay^2],       [x^2,2x]
+146   [y^2,-2xy^2-2ay],         [x^2,2x]
+147   [y^2],[-2ax^2y^2-2by],    [x^2,2x]
+151   [xy-1,-2xy^2-y-x]   
+169   [y^2,(-2ax-2b)y^2-2cy],   [(ax+b)^2,2a^2x+2ab]
+185   [y^2,(-4x^2-4)y^2-10x^3y],[x^7,7x^6]
+203   too general
+205   too general
+206   too general
+234   too general
+235   too general 
+237   too general
+253   too general
+257   [y,xy-x^4-1],              [x^5,5xy+5x^4-5]
+265   too general 
+
+(these are all of type abel special)
+204 for N=2: (y^2+axy+x^2)^4,-4a
+213 for N=2: (y^2-xy+3y-x^2+x+1)^4,4
+214 for N=2: (3y^2-10y+6x^2+8x+11)^4,8
+215 for N=2: (3y^2+3xy-9y+3x^2-6x+7)^4,12  
+
+no known solution (in kamke or cheb-terrab):
+40,47,48,203,205,206,234,237,253,265
+*/
