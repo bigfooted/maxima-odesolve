@@ -20,7 +20,7 @@ put('separable,002,'version)$
 /* ************************************************************************** */
 /* ***** print all statements with flag lower than DEBUGFLAG           ***** */
 /* ************************************************************************** */
-DEBUGFLAG:1$
+DEBUGFLAG:2$
 
 /* ************************************************************************** */
 /* ***** the maximum length of an expression(using the length of the    ***** */
@@ -32,8 +32,11 @@ DEBUGFLAG:1$
 /* ***** setting this value to 100,000 led to extra solutions found     ***** */
 /* ***** with the ode solver, higher values not (and led to inf time)   ***** */
 /* ************************************************************************** */
-MAX_LENGTH_FOR_SEPARABILITY:10000$
-MAX_LENGTH_FOR_SIMPLIFICATION:10000$
+
+/* we need 4000 for kamke1.87 */
+/* we need 8000 for kamke1.51 */
+MAX_LENGTH_FOR_SEPARABILITY:8000$
+MAX_LENGTH_FOR_SIMPLIFICATION:8000$
 
 ratfac:true$
 radsubstflag:true$
@@ -359,24 +362,26 @@ isSeparable(_F,_x,_y) :=block([_F1,_P,_Q,_L,_SP,_SQ,_dF,_S],
 /* ***** step 1: construct a set of args(expr)                          ***** */
 /* ***** step 2: determine the subset containing only constants         ***** */
 /* ************************************************************************** */
-constant_factors(_expr,_varlist) := block([inflag:true,_constantfactors:1,_oldratvars,_C1:1,_G,_oldratvars,_arglist,_L,_W],
-/* note: make function G local*/
-
+/*
+constant_factors(_expr,_varlist) := block([inflag:true,_constantfactors:1,_C1:1,_G,_oldratvars,_arglist,_L,_W],
+// note: make function G local
+  dprint(0,"constant_factors in separable"),
   if lfreeof(_varlist,_expr) then return(_expr),
   if mapatom(_expr) then return(1),
 
   if not(listp(_varlist)) then _varlist : [_varlist],
 
   _oldratvars : ratvars,
-  ratvars : _varlist, /* this was done globally elsewhere, should we do it only locally? */
+  ratvars : _varlist, // this was done globally elsewhere, should we do it only locally? 
 
-  /* first we find terms C*f + C*g + C*h */
+  // first we find terms C*f + C*g + C*h
+  // nijso: TODO when is this important? we do not have it in the current constant_factors... should we re-implement it? 
   _expr : ratexpand(_expr),
   _G([L]):=gcd(L[1],L[2]),
   if op(_expr)="+" then (
      _arglist:args(_expr),
      _L : map(lambda([_i],constant_factors(_i,_varlist)),_arglist),
-     /* determine if there is a shared minus sign */
+     // determine if there is a shared minus sign 
      _C1 : lreduce(_G,_L),
      _W : unique(map(string,_L)),
      if length(_W)=1 then (
@@ -390,8 +395,8 @@ constant_factors(_expr,_varlist) := block([inflag:true,_constantfactors:1,_oldra
   _expr : ratsimp(_expr/_C1),
 
   if not mapatom(_expr) and op(_expr)="*"
-  /* we know that the internal dependent variable is _x,and we want expr to be free of x */
-  /* constantp doesn't knowthat abs(a) is constant */
+  // we know that the internal dependent variable is _x,and we want expr to be free of x 
+  // constantp doesn't knowthat abs(a) is constant 
   then
     _constantfactors : xreduce("*",listify(subset(setify(args(_expr)),lambda([_u],lfreeof(_varlist,_u))))),
 
@@ -399,15 +404,51 @@ constant_factors(_expr,_varlist) := block([inflag:true,_constantfactors:1,_oldra
 
   return(_constantfactors*_C1)
 )$
+*/
+
+/* ************************************************************************** */
+/* ----- simple method of finding the constant factor in front of an equation */
+/* step 1: construct a set of args(expr)                                      */
+/* step 2: determine the subset containing only constants                     */
+/* ************************************************************************** */
+constant_factors(_expr,_varlist) := block([inflag:true,_constantfactors:1,_oldratvars,_substlist],
+  /*dprint(0,"constant_factors in ode1_lie"),*/
+  /* first, substitute dependencies */
+  _substlist: map("=",map(op,dependencies),dependencies),
+  _expr : subst(_substlist,_expr),
+
+  if not(listp(_varlist)) then _varlist : [_varlist],
+
+  _oldratvars : ratvars,
+  ratvars : _varlist, /* this was done globally elsewhere, should we do it only locally? */
+  _expr : ratsimp(_expr),
+
+  if lfreeof(_varlist,_expr) then
+    _constantfactors:_expr
+  else if not mapatom(_expr) and op(_expr)="*"
+  /* we know that the internal dependent variable is _x,and we want expr to be free of x */
+  /* constantp doesn't knowthat abs(a) is constant */
+  then
+    _constantfactors : xreduce("*",listify(subset(setify(args(_expr)),lambda([_u],lfreeof(_varlist,_u))))),
+
+  ratvars : _oldratvars,
+
+  return(_constantfactors)
+)$
+/* ************************************************************************** */
+
+
+
 /* ************************************************************************** */
 
 /* ************************************************************************** */
-simplify(_S):=block([_N,_Nnew,_Snew,_ratvars,_lS],
-  dprint(5,"simplify::S=",_S),
+simplify(_S):=block([_N,_Nnew,_Snew,_ratvars,_lS,_isimaginary:false,_oldradexpand],
+  dprint(5,"simplify::START, S=",grind(_S)),
   /* simplify unfactored subexpressions like sqrt(f+g)/(fg+g^2) -> 1/sqrt(f+g) that are not factored */
   /* try to evaluate nouns */
   _S : ev(_S,nouns),
 
+  if not freeof(%i,_S) then _isImaginary:false,
 /*
   if not freeof(%i,_S) then (
     dprint(1,"warning, trying to get rid of imaginary numbers, check the result:",_S),
@@ -427,48 +468,73 @@ simplify(_S):=block([_N,_Nnew,_Snew,_ratvars,_lS],
   ),
 
   _ratvars : showratvars(_S),
-  /*dprint(5,"ratvars = ",_ratvars),*/
+  dprint(5,"ratvars = ",_ratvars),
   /* we use length of expression as a simple measure for complexity to check for expression swell*/
   _N : slength(string(_S)),
   _Snew : fullratsimp(_S),
   _Nnew : slength(string(_Snew)),
-  /*dprint(5,"   N,Nnew = ",_N," ",_Nnew),  */
+  dprint(5,"   N,Nnew = ",_N," ",_Nnew),  
   if _Nnew < 1.4*_N then (_S : _Snew, _N : slength(string(_S))),
 
-  /*dprint(5,"S=",_S),*/
+
+
+  dprint(5,"2. S=",_S),
   /* if we have trig functions, we only want to simplify if they depend on x or y */ 
   /*if sublist(_ratvars,lambda([_i],not freeof(sin,cos,tan,_i) and not freeof(_x,_y,_i))) # [] then (*/
-  if sublist(_ratvars,lambda([_i],not freeof(sin,cos,tan,_i) )) # [] then (
-    _Snew : trigreduce(_Snew),  /* reduces again */
-    _Snew : trigsimp(_S),       /* writes sec -> 1/cos and tan(2x) -> sin(2x)/cos(2x)*/
-    _Snew : trigexpand(_Snew),  /* writes sin(2x) as 2sin(x)cos(x) */
-    _Snew : trigsimp(_Snew),    /* trigsimp again, this improves the probability of success of simplification! */
-    _Snew : trigreduce(_Snew), /* this simplifies new sin^2 + cos^2, for the backtransformation of the symmetries of kamke 1.80 for instance */
-    
 
-
+  /* we should not do this when we have derivatives of unknown functions, trig functions do not like that... */
+  /*the only ode in the kamke database that is trg + diff(f(x)) is kamke1.80 */
+  if freeof(diff,_ratvars) and sublist(_ratvars,lambda([_i],not freeof(sin,cos,tan,_i) )) # []  then (
+    _Snew : trigreduce(_S), 
+    /*dprint(5,"3. trigreduce,S=",_S),*/
+ 
+    _Snew : trigsimp(_Snew),            /* sin^2+cos^2->1, sec -> 1/cos and tan(2x) -> sin(2x)/cos(2x)*/
+   /*dprint(5,"3. trigsimp,S=",_S),*/
+    _Snew : expand(trigexpand(_Snew)),  /* writes sin(2x) as 2sin(x)cos(x) and sin(a+b) as sin(a)cos(b)+cos(a)sin(b) and sin(3x) as 3cos^2sin - sin^2*/
+  /*dprint(5,"3. trigexpand,S=",_Snew),*/
+    _Snew : trigsimp(_Snew),            /* trigsimp again, this improves the probability of success of simplification! */
+  /*dprint(5,"3. trigsimp,S=",grind(_Snew)),*/
+    _Snew : trigreduce(_Snew),  /* this simplifies new sin^2,cos^2 to sin(2x),cos(2x) terms, for the backtransformation of the symmetries of kamke 1.80 for instance */
+  /*dprint(5,"3. trigreduce,S=",grind(_Snew)),*/
+  /*  dprint(5,"done"),*/
     _Nnew : slength(string(_Snew)),
-    /*dprint(5,"trig,   N,Nnew = ",_N," ",_Nnew),  */
+    dprint(5,"trig,   N,Nnew = ",_N," ",_Nnew),  
     if _Nnew < 1.4*_N then (_S : _Snew, _N : slength(string(_S)))
   ),
-  /*dprint(5,"S=",_S),*/
+  dprint(5,"3. S=",_S),
 
   /*if sublist(_ratvars,lambda([_i],not freeof(asinh,acosh,_i) and not freeof(_x,_y,_i))) # [] then (*/
   if sublist(_ratvars,lambda([_i],not freeof(asinh,acosh,_i) )) # [] then (
-    _Snew : logarc(_Snew),
+    _Snew : logarc(_S),
     _Nnew : slength(string(_Snew)),
     /*dprint(5,"trigh   N,Nnew = ",_N," ",_Nnew),  */
     if _Nnew < 1.4*_N then (_S : _Snew, _N : slength(string(_S)))
   ),
+
+  /* important for kamke 68,69,70,71*/
+  if sublist(_ratvars,lambda([_i],not freeof(sqrt,dispform(_i,all)) )) # [] then (
+    dprint(0,"simplifying roots"),
+    _oldradexpand:radexpand,
+    radexpand:all,
+    _Snew : rootscontract(_S),
+    radexpand:_oldradexpand,
+    dprint(5,"sqrt: ",_Snew),
+    dprint(5,"sqrt   N,Nnew = ",_N," ",_Nnew),  
+    if _Nnew < 1.4*_N then (_S : _Snew, _N : slength(string(_S)))
+  ),
+
 
   /*if sublist(_ratvars,lambda([_i],not freeof(%e,log,_i) and not freeof(_x,_y,_i))) # [] then (*/
   if sublist(_ratvars,lambda([_i],not freeof(%e,log,_i) )) # [] then (
     _Snew : radcan(_S),
     _Nnew : slength(string(_Snew)),
     /*dprint(5,"log   N,Nnew = ",_N," ",_Nnew),  */
-    if _Nnew < 1.4*_N then (_S : _Snew, _N : slength(string(_S)))
+    if _isimaginary=false and not freeof(%i,_Snew) then (
+      dprint(1,"warning: simplification introduced complex numers, ignoring sqrt-simplification")
+    ) else if _Nnew < 1.4*_N then (_S : _Snew, _N : slength(string(_S)))
   ),
 
+  dprint(5,"simplify::END, S=",grind(_S)),
   return(_S)
 )$
 /* ************************************************************************** */
