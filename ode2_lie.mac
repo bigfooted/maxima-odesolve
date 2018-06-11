@@ -38,7 +38,7 @@ defmatch (linearode, _la*dy + _lb*_y + _lc, _y)$
 /* *****    OUTPUT: integrating factor, reduced ode, or false           ***** */
 /* ************************************************************************** */
 ode2_lie(_expr,_y,_x) := block(
-  [_mu,_r,_s,_ode,_ode1],
+  [_mu,_r,_s,_ode,_ode1,_phi],
 
   dprint(3,""),
   dprint(3,"----------------------------------------------------------------------------"),
@@ -52,13 +52,19 @@ ode2_lie(_expr,_y,_x) := block(
   /* ode is now also explicit */
   dprint(3,"explicit ode = ",_ode),
 
+  /* transform ode*/
+  _phi : subst(['diff(_y,_x)=_dy],rhs(_ode)),
+  
+
 
   /* ***************************************************** */
   /* ***** 1. check if ode is exact                  ***** */
   /* ***************************************************** */
   if (isExact(_expr,_y,_x)) then (
     dprint(3,"ode is exact"),
+    /* note that according to the definition of cheb-terrab and Roche, mu is the coefficient of y'' and mu */
     _mu : diff(_expr,'diff(_y,_x,2)),
+    if not freeof("=",_mu) then _mu : lhs(_mu)-rhs(_mu),
     dprint(3,"mu=",_mu),
     if (_mu # false) then return(_mu/constant_factors(_mu,[_x,_y]))
   ), 
@@ -69,10 +75,10 @@ ode2_lie(_expr,_y,_x) := block(
   /* ***** 2. check if missing y                     ***** */
   /* ***************************************************** */
   dprint(3,"*** check if ode is of type 'ode2, missing y' "),
-  if freeof(_y,rhs(_ode)) then (
+  if freeof(_y,_phi) then (
     dprint(2,"ode is of type: missing y"),
     /*_xi : 0, _eta : 1,*/
-    _sol : subst(['diff(_x,_x,2)='diff(w,_x,1),'diff(_y,_x)=w],_ode),
+    _sol : subst(['diff(_y,_x,2)='diff(w,_x,1),'diff(_y,_x)=w],_ode),
     dprint(3,"returning the transformed ode with y\"=w\' and y\'=w "),
     return(_sol) 
   ),
@@ -387,10 +393,13 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
         _ddp : -(2*_Psi_dy + _Lambda_x + ( diff(_Lambda_yp,_x) + diff(_Psi_dy,_dy))*(_dy+_dp))/_Lambda_yp,
         _ddp: ratsimp(ratexpand(_ddp)),
         if not freeof(_dy,_ddp) then (
-          dprint(4,"not free of dY"),
+          dprint(4,"not free of dY")
+          
+/*
           _ddp_dY : ratsimp(ratexpand(diff(_ddp,_dy))),
           _dp : solve(ddp_dY,_dp),
           _dp : rhs(dp[1])
+*/
         ) else (
      
           _dddp : diff(_ddp,_x),
@@ -401,8 +410,7 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
           _eq1: _eq1 + ratexpand(_Psi_x),
           _eq1: _eq1 = _dp,
           _sol : solve(_eq1,_dp),
-          _dp : rhs(_sol[1])
-        ),
+          _dp : rhs(_sol[1]),
 
         _F : ((_dp + _dy)*_W)/_gamma,
 
@@ -415,9 +423,33 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
         ) else (
           dprint(4,"no integrating factor of this form, mu_tilde(x) depends on y or dy")
         )
+
+        )
+
         /* --- */    
       ) else (
-        dprint(1," error, not implemented, lambda_yp is 0, implement this small extension! ")
+        /* in this case, 2.83 is already an algebraic equation for dp */
+        dprint(5,"psi_dy=",_Psi_dy),
+        if _Psi_dy # 0 then (
+          _dp : (-2*_Psi_dy - _Lambda_x)/(diff(_Psi_dy,_dy)) - _dy,
+          _dp : ratsimp(_dp),
+          if freeof(_y,_dy, _dp) then (
+            _F : ((_dp + _dy)*_W)/_gamma,
+
+            _mu_tilde : mu_tilde(_phi,_F,_x,_y,_dy),
+            if (_mu_tilde # false) then (
+              _mu : subst(_dy='diff(_y,_x),_F*_mu_tilde),
+              _mu : ratsimp(_mu),
+              dprint(4,"integrating factor mu(x,y') = ",_mu),
+              return(_mu)
+            ) else (
+              dprint(4,"no integrating factor of this form, mu_tilde(x) depends on y or dy")
+            )
+          )
+        ) else (
+          dprint(1,"warning: input ode is actually a linear second order ode. use other methods...")
+        )
+         
       )
     )
   ) else (
@@ -578,7 +610,7 @@ odeType(_expr,_y,_x):=block([_rhs,_df,_df_x,_df_y,_ode],
   /* 2. check if we have an equal sign */
   if freeof("=",_expr) then ( 
     _ode : _expr=0,
-    dprint(1,"Warning: no equal sign found! Assuming the input equals zero: ",_ode)
+    dprint(2,"Warning: no equal sign found! Assuming the input equals zero: ",_ode)
    ) else (
     _ode : lhs(_expr) - rhs(_expr)
    ), 
@@ -629,15 +661,20 @@ Dt_A(_expr,_phi,_x,_y,_dy):=block([_fx,_fy,_fdy,_A],
 /* ***** usign lambda = A(mu)/mu + phi_dy                     ***** */
 /* ***** A = dx + dy*du +phi*d(du)                            ***** */
 /* ************************************************************************** */
-lambdaSymmetry(_phi,_mu,_x,_y,_dy):=block([_lambda],
+lambdaSymmetry(_expr,_mu,_y,_x):=block([_lambda,_phi_dy,_phi,_ode],
 
- /* note, the input need to have diff(y,x) replaced by dy*/
+ /* note, the input need to have diff(y,x) replaced by _dy*/
  /* also note that we need to define depends(y,x) and depends(dy,x) */
+  _ode : odeType(_expr,_y,_x),
+  _phi : subst(['diff(_y,_x)=_dy],rhs(_ode)), 
+  _mu : subst(['diff(_y,_x)=_dy],_mu), 
 
   _phi_dy : diff(_phi,_dy),
 
   _lambda : (Dt_A(_mu,_phi,_x,_y,_dy)/_mu + _phi_dy),
   _lambda : ratsimp(_lambda),
+
+  _lambda : subst(_dy='diff(_y,_x),_lambda),
 
 return(_lambda)
 )$
@@ -647,15 +684,17 @@ return(_lambda)
 /* ***** determine if mu is an integrating factor of the ode            ***** */
 /* ***** by applying Euler's operator to the total derivative           ***** */
 /* ************************************************************************** */
-isIntegratingFactor(_mu,_expr,_y,_x):=block([_ode,_mu,_phi,_A,_B],
+isIntegratingFactor(_mu,_expr,_y,_x):=block([_ode,_phi,_A,_B,_isMu],
   _ode : odeType(_expr,_y,_x),
   _phi : subst(['diff(_y,_x)=_dy],rhs(_ode)), 
+  _mu : subst(['diff(_y,_x)=_dy],_mu), 
 
   /* determine if mu is an integrating factor of the second order ode */
   _isMu : diff(_mu,_y) + diff( Dt_A(_mu,_phi,_x,_y,_dy) + _mu*diff(_phi,_dy),_dy),
-  _isMu : ratsimp(_isMu), 
+  _isMu : ratsimp(_isMu),
+  dprint(5,"ismu = ",_isMu),
 
-  return(is(_isMu)) 
+  return(is(_isMu=0)) 
 )$
 
 /* ************************************************************************** */
@@ -686,9 +725,11 @@ isExact(_expr,_y,_x):=block([_dy,_ddy,_dddy,_ode,_phi,_phi_y,_phi_dy,_phi_ddy],
 
   /* test for exactness (e.g. Murphy, p. 164, 'exact nonlinear equation')*/
   _expr: _phi_y - diff(_phi_dy,_x) + diff(_phi_ddy,_x,2),
-
+ dprint(5,"expr = ",_expr),
    _expr:subst(['diff(_y,_x)=_dy,'diff(_y,_x,2)=_ddy,'diff(_y,_x,3)=_dddy,
                 'diff(_dy,_x)=_ddy,'diff(_dy,_x,2)=_dddy,'diff(_ddy,_x)=_dddy],_expr),
+ dprint(5,"expr = ",_expr),
+ 
   _expr:ratexpand(_expr),
   _expr:ratsimp(_expr),
    /*_expr:subst(_dddy=0,_expr),*/
@@ -717,6 +758,7 @@ isFirstIntegral(_I,_expr,_y,_x):=block([_phi,_DI,_FI],
   dprint(5,"ode = ",_ode),
 
   _FI :   subst(['diff(_y,_x)=_dy,'diff(_y,_x,2)=_ddy],_I), 
+  _FI : lhs(_FI) - rhs(_FI),
   dprint(5,"I = ",_FI),
 
   _DI : ratsimp(diff(_FI,_x) + _dy*diff(_FI,_y) + _ddy*diff(_FI,_dy)),
@@ -763,7 +805,7 @@ isLambdaSymmetry(_lambda,_expr,_y,_x):=block([],
 /* ************************************************************************** */
 /* ***** compute a first integral for an exact second order ode ***** */
 /* ************************************************************************** */
-FirstIntegral(_expr,_y,_x):=block([_ode,_lambda,_mu,_isMu,_phi,_dI1,I1,_dI2,_I2,_dI3,_I3,_I,_lI,_DI,_ode1],
+firstIntegral(_expr,_y,_x):=block([_ode,_lambda,_mu,_isMu,_phi,_dI1,I1,_dI2,_I2,_dI3,_I3,_I,_lI,_DI,_ode1],
 
   if not freeof("=", _expr) then (_expr:lhs(_expr)-rhs(_expr)),
 
@@ -788,7 +830,7 @@ FirstIntegral(_expr,_y,_x):=block([_ode,_lambda,_mu,_isMu,_phi,_dI1,I1,_dI2,_I2,
   dprint(3,"is mu: ",_isMu),
   dprint(3,"is mu an integrating factor: ",is(_isMu=0)),
   /* determine a lambda-symmetry */
-  _lambda : lambdaSymmetry(_phi,_mu,_x,_y,_dy),
+  _lambda : lambdaSymmetry(_ode,_mu,_y,_x),
   dprint(5,"lambda symmetry = ",_lambda),
   _lambda : subst(['diff(_y,_x)=_dy,'diff(_dy,_x)=_ddy,'diff(_y,_x,2)=_ddy],_lambda), 
   dprint(3,"lambda symmetry = ",_lambda),
@@ -853,8 +895,26 @@ FirstIntegral(_expr,_y,_x):=block([_ode,_lambda,_mu,_isMu,_phi,_dI1,I1,_dI2,_I2,
   dprint(3,"mu = ",_mu),
   dprint(5,"original expression = ",_expr),
 
-  dprint(3,"exact:",isExact(_mu*_expr,_y,_x)),
+  /* note that mu makes the explicit second order ode exact */
   dprint(3,"exact:",isExact(_mu*('diff(_y,_x,2)-_phi),_y,_x)),
 
   return(_ode1)
 )$
+
+/* ************************************************************************** */
+/* ***** construct ode that admits a certain integrating factor         ***** */
+/* ***** note: specialized here for second order odes                   ***** */
+/* ***** this is eq. 2.11 of Cheb-terrab and Roche                      ***** */
+/* ************************************************************************** */
+odeconstruct(_mu,_y,_x) :=block([_phi],
+
+  _mu : subst(['diff(_y,_x)=_dy],_mu), 
+
+  _phi : -(1/_mu) * (diff(integrate(_mu,_dy) + %F(_x,_y,_dy),_x)),
+  _phi : _phi + (-1/_mu)*_dy*(diff(integrate(_mu,_dy)+%F(x,y,_dy),_y)),
+  _phi : ratsimp(subst([_dy='diff(_y,_x)],_phi)),
+
+  return('diff(_y,_x,2)=_phi)
+)$
+
+

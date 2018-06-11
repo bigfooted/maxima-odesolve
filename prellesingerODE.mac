@@ -54,7 +54,7 @@ prellesingerODE(expr,_y ,_x):= block([_a:0,_b,_p:1,_q:1,res:false,%x%,%y%,mon2ns
   [res,%y%,%x%,[_q,_p]]: checkPSInput(expr,_y,_x,'firstorder), 
   if (res=false) then return(false),
  
-  print("ode = ",eq),
+  print("ode = ",expr),
   print("y = ",%y%),
   print("x = ",%x%),
   print("_M = ",_q),

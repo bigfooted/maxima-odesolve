@@ -21,6 +21,16 @@
 /* ************************************************************************** */
 /* ************************************************************************** */
 
+/* --- TODO --- */
+/* fixed points X: f(X)=0 
+
+
+
+
+*/
+/* 1. implement line at infinity (exponential factors for trivial darboux polynomials) */
+/* 2. introduce auxiliary variables for x^n and y^m, where n,m are defined integers >4 */
+/* 3. */
 
 /* ************************************************************************** */
 put('prellesinger,001,'version)$
@@ -60,6 +70,10 @@ defmatch (linearp, _a*_x + _b, _x);
 /* detect p1*sqrt(p2/q2) and split into sqrt(p2) and sqrt(q2) */
 matchdeclare(_p1,lambda([_e1],_e1#0),_p2,lambda([_e3],_e3#0),_q2,lambda([_e4],_e4#1));
 defmatch(sqrtOfFraction,_p1*sqrt(_p2/_q2));
+
+
+/* global variables */
+/* question: do we want to have global variables like basisFunctions? */
 
 
 
@@ -960,6 +974,8 @@ new_ps_1(_P,_Q,_y,_x,_userDefinedBasisFunctions):=block(
         Sfg : delete([0,0],Sfg), /* delete darboux polynomials zero */
 
         /* note that we have as exponential factors exp(P/Q) and that Q can only be an invariant algebraic curve */
+        /* Note that when taking into account the line at infinity, Q can be trivial, and there are odes with Liouvillian first integrals */
+        /* that do not have invariant algebraic curves, but only an exponential factor */
         /* when do we need to search for exponential factors? only when we have already found Darboux polynomials, so length(Sfg)#0 ? */ 
         /* we can also construct Pdh/dx + Qdh/dy = h*k + f*k_g , with f and k the invariant algebraic curves and the cofactors*/
         /* note that Q = f1^m1 * f2^m2 * ... * fn^mn with fi the invariant algebraic curves */
