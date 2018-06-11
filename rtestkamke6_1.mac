@@ -1,0 +1,553 @@
+/* ODE tests - Second order nonlinear equations 
+    E Kamke, Differentialgleichungen Losungsmethoden und Losungen, 
+    Vol 1, Geest & Portig, Leipzig, 1961
+*/
+
+/* Print ode number*/
+(pn_(n_)=0,y,x));=print("Kamke ODE 6.",n_),true);
+true;
+
+/* Kamke 6. 1  */ 
+(pn_(1),ans:contrib_ode(eqn:'diff(y,x,2)-y^2=0,y,x));
+/* Kamke 6. 2  */ 
+(pn_(2),ans:contrib_ode(eqn:'diff(y,x,2)-6*y^2=0,y,x));
+/* Kamke 6. 3  */ 
+(pn_(3),ans:contrib_ode(eqn:'diff(y,x,2)-6*y^2-x=0,y,x));
+/* Kamke 6. 4  */ 
+(pn_(4),ans:contrib_ode(eqn:'diff(y,x,2)-6*y^2+4*y=0,y,x));
+/* Kamke 6. 5  */ 
+(pn_(5),ans:contrib_ode(eqn:'diff(y,x,2)+a*y^2+b*x+c=0,y,x));
+/* Kamke 6. 6  */ 
+(pn_(6),ans:contrib_ode(eqn:'diff(y,x,2)-2*y^3-y*x+a=0,y,x));
+/* Kamke 6. 7  */ 
+(pn_(7),ans:contrib_ode(eqn:'diff(y,x,2)-a*y^3=0,y,x));
+/* Kamke 6. 8  */ 
+(pn_(8),ans:contrib_ode(eqn:'diff(y,x,2)-2*a^2*y^3+2*a*b*x*y-b=0,y,x));
+/* Kamke 6. 9  */ 
+(pn_(9),ans:contrib_ode(eqn:'diff(y,x,2)+d+b*x*y+c*y+a*y^3=0,y,x));
+/* Kamke 6.10  */ 
+(pn_(10),ans:contrib_ode(eqn:'diff(y,x,2)+d+b*y^2+c*y+a*y^3=0,y,x));
+/* */
+/* Kamke 6.11  */ 
+(pn_(11),ans:contrib_ode(eqn:'diff(y,x,2)+a*x^r*y^n=0,y,x));
+/* Kamke 6.12  */ 
+(pn_(12),ans:contrib_ode(eqn:'diff(y,x,2)+(n+1)*a^(2*n)*y^(2*n+1)-y=0,y,x));
+/* Kamke 6.13  */ 
+(pn_(13),ans:contrib_ode(eqn:'diff(y,x,2)-(a*y^2+b*x*y+c*x^2+d*y+e*x+k)^(-3/2)=0,y,x));
+/* Kamke 6.14  */ 
+(pn_(14),ans:contrib_ode(eqn:'diff(y,x,2)-exp(y)=0,y,x));
+/* Kamke 6.15  */ 
+(pn_(15),ans:contrib_ode(eqn:'diff(y,x,2)+a*exp(x)*y^(1/2)=0,y,x));
+/* Kamke 6.16  */ 
+(pn_(16),ans:contrib_ode(eqn:'diff(y,x,2)+exp(x)*sin(y)=0,y,x));
+/* Kamke 6.17  */ 
+(pn_(17),ans:contrib_ode(eqn:'diff(y,x,2)+a*sin(y)=0,y,x));
+/* Kamke 6.18  */ 
+(pn_(18),ans:contrib_ode(eqn:'diff(y,x,2)+a^2*sin(y)-b*sin(x)=0,y,x));
+/* Kamke 6.19  */ 
+(pn_(19),ans:contrib_ode(eqn:'diff(y,x,2)+a^2*sin(y)-b*f(x)=0,y,x));
+/* Kamke 6.20  */ 
+(pn_(20),ans:contrib_ode(eqn:'diff(y,x,2)-x^(-3/2)*h(y*x^(-1/2))=0,y,x));
+/* */
+/* Kamke 6.21  */ 
+(pn_(21),ans:contrib_ode(eqn:'diff(y,x,2)-3*'diff(y,x)-y^2-2*y=0,y,x));
+/* Kamke 6.22  */ 
+(pn_(22),ans:contrib_ode(eqn:'diff(y,x,2)-7*'diff(y,x)-y^(3/2)+12*y=0,y,x));
+/* Kamke 6.23  */ 
+(pn_(23),ans:contrib_ode(eqn:'diff(y,x,2)+5*a*'diff(y,x)-6*y^2+6*a^2*y=0,y,x));
+/* Kamke 6.24  */ 
+(pn_(24),ans:contrib_ode(eqn:'diff(y,x,2)+3*a*'diff(y,x)-2*y^3+2*a^2*y=0,y,x));
+/* Kamke 6.25  */ 
+(pn_(25),ans:contrib_ode(eqn:'diff(y,x,2)-((3*n+4)/n)*'diff(y,x)-(2*(n+1)*(n+2)/n^2)*y*(y^(n/(n+1))-1)=0,y,x));
+/* Kamke 6.26  */ 
+(pn_(26),ans:contrib_ode(eqn:'diff(y,x,2)+a*'diff(y,x)+b*y^n+(a^2-1)/4*y=0,y,x));
+/* Kamke 6.27  */ 
+(pn_(27),ans:contrib_ode(eqn:'diff(y,x,2)+a*'diff(y,x)+b*x^r*y^n=0,y,x));
+/* Kamke 6.28  */ 
+(pn_(28),ans:contrib_ode(eqn:'diff(y,x,2)+a*'diff(y,x)+b*exp(y)-2*a=0,y,x));
+/* Kamke 6.29  */ 
+(pn_(29),ans:contrib_ode(eqn:'diff(y,x,2)+a*'diff(y,x)+f(x)*sin(y)=0,y,x));
+/* Kamke 6.30  */ 
+(pn_(30),ans:contrib_ode(eqn:'diff(y,x,2)+y*'diff(y,x)-y^3=0,y,x));
+/* */
+/* Kamke 6.31  */ 
+(pn_(31),ans:contrib_ode(eqn:'diff(y,x,2)+y*'diff(y,x)-y^3+a*y=0,y,x));
+/* Kamke 6.32  */ 
+(pn_(32),ans:contrib_ode(eqn:'diff(y,x,2)+(y+3*a)*'diff(y,x)-y^3+a*y^2+2*a^2*y=0,y,x));
+/* Kamke 6.33  */ 
+(pn_(33),ans:contrib_ode(eqn:'diff(y,x,2)+(y+3*f(x))*'diff(y,x)-y^3+y^2*f(x)+y*('diff(f(x),x)+2*f(x)^2)=0,y,x));
+/* Kamke 6.34  */ 
+(pn_(34),ans:contrib_ode(eqn:'diff(y,x,2)+y*'diff(y,x)-y^3-('diff(f(x),x)/f(x)+f(x))*(3*'diff(y,x)+y^2)+(a*f(x)^2+3*'diff(f(x),x)+3*('diff(f(x),x)/f(x))^2-'diff(f(x),x,x)/f(x))*y+b*f(x)^3=0,y,x));
+/* Kamke 6.35  */ 
+(pn_(35),ans:contrib_ode(eqn:'diff(y,x,2)+(y-3*'diff(f(x),x)/(2*f(x)))*'diff(y,x)-y^3-('diff(f(x),x)/(2*f(x)))*y^2+(f(x)+('diff(f(x),x)/f(x))^2-'diff(f(x),x,x))/(2*f(x))*y=0,y,x));
+/* Kamke 6.36  */ 
+(pn_(36),ans:contrib_ode(eqn:'diff(y,x,2)+2*y*'diff(y,x)+f(x)*'diff(y,x)+'diff(f(x),x)*y=0,y,x));
+[exact; mu=1; lambda=2y+f(x);dy/dx=-y^2-2*f(x)*y;exact=true]
+/* Kamke 6.37  */ 
+(pn_(37),ans:contrib_ode(eqn:'diff(y,x,2)+2*y*'diff(y,x)+f(x)*('diff(y,x)+y^2)-g(x)=0,y,x));
+/* Kamke 6.38  */ 
+(pn_(38),ans:contrib_ode(eqn:'diff(y,x,2)+3*y*'diff(y,x)+y^3+f(x)*y-g(x)=0,y,x));
+/* Kamke 6.39  */ 
+(pn_(39),ans:contrib_ode(eqn:'diff(y,x,2)+(3*y+f(x))*'diff(y,x)+y^3+f(x)*y^2=0,y,x));
+/* Kamke 6.40  */ 
+(pn_(40),ans:contrib_ode(eqn:'diff(y,x,2)-3*y*'diff(y,x)-(3*a*y^2+4*a^2*y+b)=0,y,x));
+/* */
+/* Kamke 6.41  */ 
+(pn_(41),ans:contrib_ode(eqn:'diff(y,x,2)-(3*y+f(x))*'diff(y,x)+y^3+f(x)*y^2=0,y,x));
+/* Kamke 6.42  */ 
+(pn_(42),ans:contrib_ode(eqn:'diff(y,x,2)-2*a*y*'diff(y,x)-a=0,y,x));
+/* Kamke 6.43  */ 
+(pn_(43),ans:contrib_ode(eqn:'diff(y,x,2)+a*y*'diff(y,x)+b*y^3=0,y,x));
+/* Kamke 6.44  */ 
+(pn_(44),ans:contrib_ode(eqn:'diff(y,x,2)+h(x,y)*'diff(y,x)+j(x,y)=0,y,x));
+/* Kamke 6.45  */ 
+(pn_(45),ans:contrib_ode(eqn:'diff(y,x,2)+a*'diff(y,x)^2+b*y=0,y,x));
+/* Kamke 6.46  */ 
+(pn_(46),ans:contrib_ode(eqn:'diff(y,x,2)+a*'diff(y,x)*abs('diff(y,x))+b*'diff(y,x)+c*y=0,y,x));
+/* Kamke 6.47  */ 
+(pn_(47),ans:contrib_ode(eqn:'diff(y,x,2)+a*'diff(y,x)^2+b*'diff(y,x)+c*y=0,y,x));
+/* Kamke 6.48  */ 
+(pn_(48),ans:contrib_ode(eqn:'diff(y,x,2)+a*'diff(y,x)^2+b*sin(y)=0,y,x));
+/* Kamke 6.49  */ 
+(pn_(49),ans:contrib_ode(eqn:'diff(y,x,2)+a*'diff(y,x)*abs('diff(y,x))+b*sin(y)=0,y,x));
+/* Kamke 6.50  */ 
+(pn_(50),ans:contrib_ode(eqn:'diff(y,x,2)+a*y*'diff(y,x)^2+b*y=0,y,x));
+/* */
+/* Kamke 6.51  */ 
+(pn_(51),ans:contrib_ode(eqn:'diff(y,x,2)+h(y)*'diff(y,x)^2+g(x)*'diff(y,x)=0,y,x));
+/* Kamke 6.52  */ 
+# (pn_(52),ans:contrib_ode(eqn:'diff(y,x,2)-'diff(h(y),y)/h(y)*'diff(y,x)^2+g(x)*'diff(y,x)+f(x)h(y)=0,y,x));
+/* Kamke 6.52  */ 
+(pn_(52),ans:contrib_ode(eqn:'diff(y,x,2)-j(y)/h(y)*'diff(y,x)^2+g(x)*'diff(y,x)+f(x)*h(y)=0,y,x));
+/* Kamke 6.53  */ 
+# (pn_(53),ans:contrib_ode(eqn:'diff(y,x,2)+h(y)*'diff(y,x)^2+f(x)*'diff(y,x)+g(x)*j(y)=0,y,x));
+/* Kamke 6.53  */ 
+(pn_(53),ans:contrib_ode(eqn:(1-D(j)(y))/j(y)*'diff(y,x)^2+f(x)*'diff(y,x)+'diff(y,x,2)+g(x)*j(y)=0,y,x));
+/* Kamke 6.54  */ 
+(pn_(54),ans:contrib_ode(eqn:'diff(y,x,2)+h(y)*'diff(y,x)^2+j(y)*'diff(y,x)+k(y)=0,y,x));
+/* Kamke 6.55  */ 
+(pn_(55),ans:contrib_ode(eqn:'diff(y,x,2)+('diff(y,x)^2+1)*(h(x,y)*'diff(y,x)+j(x,y))=0,y,x));
+/* Kamke 6.56  */ 
+(pn_(56),ans:contrib_ode(eqn:'diff(y,x,2)+a*y*('diff(y,x)^2+1)^2=0,y,x));
+/* Kamke 6.57  */ 
+(pn_(57),ans:contrib_ode(eqn:'diff(y,x,2)-a*(x*'diff(y,x)-y)^r=0,y,x));
+/* Kamke 6.58  */ 
+(pn_(58),ans:contrib_ode(eqn:'diff(y,x,2)-k*x^a*y^b*'diff(y,x)^c=0,y,x));
+/* Kamke 6.59  */ 
+(pn_(59),ans:contrib_ode(eqn:'diff(y,x,2)+('diff(y,x)-y/x)^a*h(x,y)=0,y,x));
+/* Kamke 6.60  */ 
+(pn_(60),ans:contrib_ode(eqn:'diff(y,x,2)-a*sqrt(1+'diff(y,x)^2)=0,y,x));
+/* */
+/* Kamke 6.61  */ 
+(pn_(61),ans:contrib_ode(eqn:'diff(y,x,2)-a*sqrt(1+'diff(y,x)^2)-b=0,y,x));
+/* Kamke 6.62  */ 
+(pn_(62),ans:contrib_ode(eqn:'diff(y,x,2)-a*sqrt(b*y^2+'diff(y,x)^2)=0,y,x));
+/* Kamke 6.63  */ 
+(pn_(63),ans:contrib_ode(eqn:'diff(y,x,2)-a*(1+'diff(y,x)^2)^(3/2)=0,y,x));
+/* Kamke 6.64  */ 
+(pn_(64),ans:contrib_ode(eqn:'diff(y,x,2)-2*a*x*(1+'diff(y,x)^2)^(3/2)=0,y,x));
+/* Kamke 6.65  */ 
+(pn_(65),ans:contrib_ode(eqn:'diff(y,x,2)-a*y*(1+'diff(y,x)^2)^(3/2)=0,y,x));
+/* Kamke 6.66  */ 
+(pn_(66),ans:contrib_ode(eqn:'diff(y,x,2)-a*(c+b*x+y)*(1+'diff(y,x)^2)^(3/2)=0,y,x));
+/* Kamke 6.67  */ 
+(pn_(67),ans:contrib_ode(eqn:'diff(y,x,2)+y^3*'diff(y,x)-y*'diff(y,x)*sqrt(y^4+4*'diff(y,x))=0,y,x));
+/* Kamke 6.68  */ 
+(pn_(68),ans:contrib_ode(eqn:'diff(y,x,2)-h('diff(y,x),a*x+b*y)=0,y,x));
+/* Kamke 6.69  */ 
+(pn_(69),ans:contrib_ode(eqn:'diff(y,x,2)-y*h(x,'diff(y,x)/y)=0,y,x));
+/* Kamke 6.70  */ 
+(pn_(70),ans:contrib_ode(eqn:'diff(y,x,2)-x^(n-2)*h(y/x^n,'diff(y,x)/x^(n-1))=0,y,x));
+/* */
+/* Kamke 6.71  */ 
+(pn_(71),ans:contrib_ode(eqn:8*'diff(y,x,2)+9*'diff(y,x)^4=0,y,x));
+/* Kamke 6.72  */ 
+(pn_(72),ans:contrib_ode(eqn:a*'diff(y,x,2)+h('diff(y,x))+c*y=0,y,x));
+/* Kamke 6.73  */ 
+(pn_(73),ans:contrib_ode(eqn:x*'diff(y,x,2)+2*'diff(y,x)-x*y^n=0,y,x));
+/* Kamke 6.74  */ 
+(pn_(74),ans:contrib_ode(eqn:x*'diff(y,x,2)+2*'diff(y,x)+a*x^m*y^n=0,y,x));
+/* Kamke 6.75  */ 
+(pn_(75),ans:contrib_ode(eqn:x*'diff(y,x,2)+2*'diff(y,x)+x*exp(y)=0,y,x));
+/* Kamke 6.76  */ 
+(pn_(76),ans:contrib_ode(eqn:x*'diff(y,x,2)+a*'diff(y,x)+b*x*exp(y)=0,y,x));
+/* Kamke 6.77  */ 
+(pn_(77),ans:contrib_ode(eqn:x*'diff(y,x,2)+a*'diff(y,x)+b*x^(5-2*a)*exp(y)=0,y,x));
+/* Kamke 6.78  */ 
+(pn_(78),ans:contrib_ode(eqn:x*'diff(y,x,2)-(1-y)*'diff(y,x)=0,y,x));
+/* Kamke 6.79  */ 
+(pn_(79),ans:contrib_ode(eqn:x*'diff(y,x,2)-x^2*'diff(y,x)^2+2*'diff(y,x)+y^2=0,y,x));
+/* Kamke 6.80  */ 
+(pn_(80),ans:contrib_ode(eqn:x*'diff(y,x,2)+a*(x*'diff(y,x)-y)^2-b=0,y,x));
+/* */
+/* Kamke 6.81  */ 
+(pn_(81),ans:contrib_ode(eqn:2*x*'diff(y,x,2)+'diff(y,x)^3+'diff(y,x)=0,y,x));
+/* Kamke 6.82  */ 
+(pn_(82),ans:contrib_ode(eqn:x^2*'diff(y,x,2)-a*(y^n-y)=0,y,x));
+/* Kamke 6.83  */ 
+(pn_(83),ans:contrib_ode(eqn:x^2*'diff(y,x,2)+a*(exp(y)-1)=0,y,x));
+/* Kamke 6.84  */ 
+(pn_(84),ans:contrib_ode(eqn:x^2*'diff(y,x,2)-(2*a+b-1)*x*'diff(y,x)+(c^2*b^2*x^(2*b)+a*(a+b))*y=0,y,x));
+/* Kamke 6.85  */ 
+(pn_(85),ans:contrib_ode(eqn:x^2*'diff(y,x,2)+(1+a)*x*'diff(y,x)-x^k*h(x^k*y,x*'diff(y,x)+k*y)=0,y,x));
+/* Kamke 6.86  */ 
+(pn_(86),ans:contrib_ode(eqn:x^2*'diff(y,x,2)+a*(x*'diff(y,x)-y)^2-b*x^2=0,y,x));
+/* Kamke 6.87  */ 
+(pn_(87),ans:contrib_ode(eqn:x^2*'diff(y,x,2)+a*y*'diff(y,x)^2+b*x=0,y,x));
+/* Kamke 6.88  */ 
+(pn_(88),ans:contrib_ode(eqn:x^2*'diff(y,x,2)-sqrt(a*x^2*'diff(y,x)^2+b*y^2)=0,y,x));
+/* Kamke 6.89  */ 
+(pn_(89),ans:contrib_ode(eqn:(1+x^2)*'diff(y,x,2)+'diff(y,x)^2+1=0,y,x));
+/* Kamke 6.90  */ 
+(pn_(90),ans:contrib_ode(eqn:4*x^2*'diff(y,x,2)-x^4*'diff(y,x)^2+4*y=0,y,x));
+/* */
+/* Kamke 6.91  */ 
+(pn_(91),ans:contrib_ode(eqn:9*x^2*'diff(y,x,2)+a*y^3+2*y=0,y,x));
+/* Kamke 6.92  */ 
+(pn_(92),ans:contrib_ode(eqn:x^3*('diff(y,x,2)+y*'diff(y,x)-y^3)+12*x*y+24=0,y,x));
+/* Kamke 6.93  */ 
+(pn_(93),ans:contrib_ode(eqn:x^3*'diff(y,x,2)-a*(x*'diff(y,x)-y)^2=0,y,x));
+/* Kamke 6.94  */ 
+(pn_(94),ans:contrib_ode(eqn:2*x^3*'diff(y,x,2)+x^2*(9+2*x*y)*'diff(y,x)+b+x*y*(a+3*x*y-2*x^2*y^2)=0,y,x));
+/* Kamke 6.95  */ 
+(pn_(95),ans:contrib_ode(eqn:2*(-x^k+4*x^3)*('diff(y,x,2)+y*'diff(y,x)-y^3)-(k*x^(k-1)-12*x^2)*(3*'diff(y,x)+y^2)+a*x*y+b=0,y,x));
+/* Kamke 6.96  */ 
+(pn_(96),ans:contrib_ode(eqn:x^4*'diff(y,x,2)+a^2*y^n=0,y,x));
+/* Kamke 6.97  */ 
+(pn_(97),ans:contrib_ode(eqn:x^4*'diff(y,x,2)-x*(x^2+2*y)*'diff(y,x)+4*y^2=0,y,x));
+/* Kamke 6.98  */ 
+(pn_(98),ans:contrib_ode(eqn:x^4*'diff(y,x,2)-x^2*(x+'diff(y,x))*'diff(y,x)+4*y^2=0,y,x));
+/* Kamke 6.99  */ 
+(pn_(99),ans:contrib_ode(eqn:x^4*'diff(y,x,2)+(x*'diff(y,x)-y)^3=0,y,x));
+/* Kamke 6.100 */ 
+(pn_(100),ans:contrib_ode(eqn:'diff(y,x,2)*x^(1/2)-y^(3/2)=0,y,x));
+/* */
+/* Kamke 6.101 */ 
+(pn_(101),ans:contrib_ode(eqn:(c+b*x+a*x^2)^(3/2)*'diff(y,x,2)-F(y/(c+b*x+a*x^2)^(1/2))=0,y,x));
+/* Kamke 6.102 */ 
+(pn_(102),ans:contrib_ode(eqn:x^(n/(n+1))*'diff(y,x,2)-y^((2*n+1)/(n+1))=0,y,x));
+/* Kamke 6.103 */ 
+(pn_(103),ans:contrib_ode(eqn:f(x)^2*'diff(y,x,2)+f(x)*'diff(f(x),x)*'diff(y,x)-h(y,f(x)*'diff(y,x))=0,y,x));
+/* Kamke 6.104 */ 
+(pn_(104),ans:contrib_ode(eqn:'diff(y,x,2)*y-a=0,y,x));
+/* Kamke 6.105 */ 
+(pn_(105),ans:contrib_ode(eqn:'diff(y,x,2)*y-a*x=0,y,x));
+/* Kamke 6.106 */ 
+(pn_(106),ans:contrib_ode(eqn:'diff(y,x,2)*y-a*x^2=0,y,x));
+/* Kamke 6.107 */ 
+(pn_(107),ans:contrib_ode(eqn:'diff(y,x,2)*y+'diff(y,x)^2-a=0,y,x));
+/* Kamke 6.108 */ 
+(pn_(108),ans:contrib_ode(eqn:'diff(y,x,2)*y+y^2-a*x-b=0,y,x));
+/* Kamke 6.109 */ 
+(pn_(109),ans:contrib_ode(eqn:'diff(y,x,2)*y+'diff(y,x)^2-'diff(y,x)=0,y,x));
+/* Kamke 6.110 */ 
+(pn_(110),ans:contrib_ode(eqn:'diff(y,x,2)*y-'diff(y,x)^2+1=0,y,x));
+/* */
+/* Kamke 6.111 */ 
+(pn_(111),ans:contrib_ode(eqn:'diff(y,x,2)*y-'diff(y,x)^2-1=0,y,x));
+/* Kamke 6.112 */ 
+(pn_(112),ans:contrib_ode(eqn:'diff(y,x,2)*y-'diff(y,x)^2+exp(x)*y*(c*y^2+d)+exp(2*x)*(b+a*y^4)=0,y,x));
+/* Kamke 6.113 */ 
+(pn_(113),ans:contrib_ode(eqn:'diff(y,x,2)*y-'diff(y,x)^2-y^2*ln(y)=0,y,x));
+/* Kamke 6.114 */ 
+(pn_(114),ans:contrib_ode(eqn:'diff(y,x,2)*y-'diff(y,x)^2-'diff(y,x)+f(x)*y^3+y^2*'diff(  'diff(f(x),x)/f(x),x)=0,y,x));
+/* Kamke 6.115 */ 
+(pn_(115),ans:contrib_ode(eqn:'diff(y,x,2)*y-'diff(y,x)^2+f(x)*'diff(y,x)-'diff(f(x),x)*y-y^3=0,y,x));
+/* Kamke 6.116 */ 
+(pn_(116),ans:contrib_ode(eqn:'diff(y,x,2)*y-'diff(y,x)^2+'diff(f(x),x)*'diff(y,x)-'diff(f(x),x,x)*y+f(x)*y^3-y^4=0,y,x));
+/* Kamke 6.117 */ 
+(pn_(117),ans:contrib_ode(eqn:'diff(y,x,2)*y-'diff(y,x)^2+a*y*'diff(y,x)+b*y^2=0,y,x));
+/* Kamke 6.118 */ 
+(pn_(118),ans:contrib_ode(eqn:'diff(y,x,2)*y-'diff(y,x)^2+a*y*'diff(y,x)-2*a*y^2+b*y^3=0,y,x));
+/* Kamke 6.119 */ 
+(pn_(119),ans:contrib_ode(eqn:'diff(y,x,2)*y-'diff(y,x)^2-(a*y-1)*'diff(y,x)+2*a^2*y^2-2*b^2*y^3+a*y=0,y,x));
+/* Kamke 6.120 */ 
+(pn_(120),ans:contrib_ode(eqn:'diff(y,x,2)*y-'diff(y,x)^2+(a*y-1)*'diff(y,x)-y*(y+1)*(b^2*y^2-a^2)=0,y,x));
+/* */
+/* Kamke 6.121 */ 
+(pn_(121),ans:contrib_ode(eqn:'diff(y,x,2)*y-'diff(y,x)^2+(tan(x)+cot(x))*y*'diff(y,x)+(cos(x)^2-n^2*cot(x)^2)*y^2*ln(y)=0,y,x));
+/* Kamke 6.122 */ 
+(pn_(122),ans:contrib_ode(eqn:'diff(y,x,2)*y-'diff(y,x)^2-f(x)*y*'diff(y,x)-g(x)*y^2=0,y,x));
+/* Kamke 6.123 */ 
+(pn_(123),ans:contrib_ode(eqn:'diff(y,x,2)*y-'diff(y,x)^2+(g(x)+f(x)*y^2)*'diff(y,x)-y*('diff(g(x),x)-'diff(f(x),x)*y^2)=0,y,x));
+/* Kamke 6.124 */ 
+(pn_(124),ans:contrib_ode(eqn:'diff(y,x,2)*y-3*'diff(y,x)^2+3*y*'diff(y,x)-y^2=0,y,x));
+/* Kamke 6.125 */ 
+(pn_(125),ans:contrib_ode(eqn:'diff(y,x,2)*y-a*'diff(y,x)^2=0,y,x));
+/* Kamke 6.126 */ 
+(pn_(126),ans:contrib_ode(eqn:'diff(y,x,2)*y+a*('diff(y,x)^2+1)=0,y,x));
+/* Kamke 6.127 */ 
+(pn_(127),ans:contrib_ode(eqn:'diff(y,x,2)*y+a*'diff(y,x)^2+b*y^3=0,y,x));
+/* Kamke 6.128 */ 
+(pn_(128),ans:contrib_ode(eqn:'diff(y,x,2)*y+a*'diff(y,x)^2+b*y*'diff(y,x)+c*y^2+d*y^(-a+1)=0,y,x));
+/* Kamke 6.129 */ 
+(pn_(129),ans:contrib_ode(eqn:'diff(y,x,2)*y+a*'diff(y,x)^2+f(x)*y*'diff(y,x)+g(x)*y^2=0,y,x));
+/* Kamke 6.130 */ 
+(pn_(130),ans:contrib_ode(eqn:'diff(y,x,2)*y+a*'diff(y,x)^2+b*y^2*'diff(y,x)+c*y^4=0,y,x));
+/* */
+/* Kamke 6.131 */ 
+(pn_(131),ans:contrib_ode(eqn:'diff(y,x,2)*y-((a-1)/a)*'diff(y,x)^2-f(x)*y^2*'diff(y,x)+(a/(a+2)^2)*f(x)^2*y^4-(a/(a+2))*'diff(f(x),x)*y^3=0,y,x));
+/* Kamke 6.132 */ 
+(pn_(132),ans:contrib_ode(eqn:'diff(y,x,2)*y-('diff(y,x)^2+1)-2*a*y*('diff(y,x)^2+1)^(3/2)=0,y,x));
+/* Kamke 6.133 */ 
+(pn_(133),ans:contrib_ode(eqn:'diff(y,x,2)*(x+y)+'diff(y,x)^2-'diff(y,x)=0,y,x));
+/* Kamke 6.134 */ 
+(pn_(134),ans:contrib_ode(eqn:'diff(y,x,2)*(x-y)+2*'diff(y,x)*(1+'diff(y,x))=0,y,x));
+/* Kamke 6.135 */ 
+(pn_(135),ans:contrib_ode(eqn:'diff(y,x,2)*(x-y)-(1+'diff(y,x))*(1+'diff(y,x)^2)=0,y,x));
+/* Kamke 6.136 */ 
+(pn_(136),ans:contrib_ode(eqn:'diff(y,x,2)*(x-y)-h('diff(y,x))=0,y,x));
+/* Kamke 6.137 */ 
+(pn_(137),ans:contrib_ode(eqn:2*y*'diff(y,x,2)+'diff(y,x)^2+1=0,y,x));
+/* Kamke 6.138 */ 
+(pn_(138),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-'diff(y,x)^2+a=0,y,x));
+/* Kamke 6.139 */ 
+(pn_(139),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-'diff(y,x)^2+f(x)*y^2+a=0,y,x));
+/* Kamke 6.140 */ 
+(pn_(140),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-'diff(y,x)^2-8*y^3=0,y,x));
+/* */
+/* Kamke 6.141 */ 
+(pn_(141),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-'diff(y,x)^2-8*y^3-4*y^2=0,y,x));
+/* Kamke 6.142 */ 
+(pn_(142),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-'diff(y,x)^2-4*(x+2*y)*y^2=0,y,x));
+/* Kamke 6.143 */ 
+(pn_(143),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-'diff(y,x)^2+(b+a*y)*y^2=0,y,x));
+/* Kamke 6.144 */ 
+(pn_(144),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-'diff(y,x)^2+1+2*x*y^2+a*y^3=0,y,x));
+/* Kamke 6.145 */ 
+(pn_(145),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-'diff(y,x)^2+(a*y+b*x)*y^2=0,y,x));
+/* Kamke 6.146 */ 
+(pn_(146),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-'diff(y,x)^2-3*y^4=0,y,x));
+/* Kamke 6.147 */ 
+(pn_(147),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-'diff(y,x)^2+b-4*(x^2+a)*y^2-8*x*y^3-3*y^4=0,y,x));
+/* Kamke 6.148 */ 
+(pn_(148),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-'diff(y,x)^2+3*f(x)*y*'diff(y,x)+2*('diff(f(x),x)+f(x)^2)*y^2-8*y^3=0,y,x));
+/* Kamke 6.149 */ 
+(pn_(149),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-'diff(y,x)^2+4*y^2*'diff(y,x)+1+f(x)*y^2+y^4=0,y,x));
+/* Kamke 6.150 */ 
+(pn_(150),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-3*'diff(y,x)^2=0,y,x));
+/* */
+/* Kamke 6.151 */ 
+(pn_(151),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-3*'diff(y,x)^2-4*y^2=0,y,x));
+/* Kamke 6.152 */ 
+(pn_(152),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-3*'diff(y,x)^2+f(x)*y^2=0,y,x));
+/* Kamke 6.153 */ 
+(pn_(153),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-6*'diff(y,x)^2+(1+a*y^3)*y^2=0,y,x));
+/* Kamke 6.154 */ 
+(pn_(154),ans:contrib_ode(eqn:2*y*'diff(y,x,2)-'diff(y,x)^2*(1+'diff(y,x)^2)=0,y,x));
+/* Kamke 6.155 */ 
+(pn_(155),ans:contrib_ode(eqn:2*(y-a)*'diff(y,x,2)+(1+'diff(y,x)^2)=0,y,x));
+/* Kamke 6.156 */ 
+(pn_(156),ans:contrib_ode(eqn:3*y*'diff(y,x,2)-2*'diff(y,x)^2-a*x^2-b*x-c=0,y,x));
+/* Kamke 6.157 */ 
+(pn_(157),ans:contrib_ode(eqn:3*y*'diff(y,x,2)-5*'diff(y,x)^2=0,y,x));
+/* Kamke 6.158 */ 
+(pn_(158),ans:contrib_ode(eqn:4*y*'diff(y,x,2)-3*'diff(y,x)^2+4*y=0,y,x));
+/* Kamke 6.159 */ 
+(pn_(159),ans:contrib_ode(eqn:4*y*'diff(y,x,2)-3*'diff(y,x)^2-12*y^3=0,y,x));
+/* Kamke 6.160 */ 
+(pn_(160),ans:contrib_ode(eqn:4*y*'diff(y,x,2)-3*'diff(y,x)^2+a*y^3+b*y^2+c*y=0,y,x));
+/* */
+/* Kamke 6.161 */ 
+(pn_(161),ans:contrib_ode(eqn:4*y*'diff(y,x,2)-3*'diff(y,x)^2+(6*y^2-2*('diff(f(x),x)/f(x))*y)*'diff(y,x)+y^4-2*('diff(y,x)/y)*y^3+g(x)*y^2+f(x)*y=0,y,x));
+/* Kamke 6.162 */ 
+(pn_(162),ans:contrib_ode(eqn:4*y*'diff(y,x,2)-5*'diff(y,x)^2+a*y^2=0,y,x));
+/* Kamke 6.163 */ 
+(pn_(163),ans:contrib_ode(eqn:12*y*'diff(y,x,2)-15*'diff(y,x)^2+8*y^3=0,y,x));
+/* Kamke 6.164 */ 
+(pn_(164),ans:contrib_ode(eqn:n*y*'diff(y,x,2)-(n-1)*'diff(y,x)^2=0,y,x));
+/* Kamke 6.165 */ 
+(pn_(165),ans:contrib_ode(eqn:a*y*'diff(y,x,2)+b*'diff(y,x)^2+c4*y^4+c3*y^3+c2*y^2+c1*y+c0=0,y,x));
+/* Kamke 6.166 */ 
+(pn_(166),ans:contrib_ode(eqn:a*y*'diff(y,x,2)+b*'diff(y,x)^2-y*'diff(y,x)/sqrt(x^2+c^2)=0,y,x));
+/* Kamke 6.167 */ 
+(pn_(167),ans:contrib_ode(eqn:a*y*'diff(y,x,2)-(a-1)*'diff(y,x)^2+(a+2)*f(x)*y^2*'diff(y,x)+f(x)^2*y^4+a*'diff(f(x),x)*y^3=0,y,x));
+/* Kamke 6.168 */ 
+(pn_(168),ans:contrib_ode(eqn:(a*y+b)*'diff(y,x,2)+c*'diff(y,x)^2=0,y,x));
+/* Kamke 6.169 */ 
+(pn_(169),ans:contrib_ode(eqn:x*y*'diff(y,x,2)+x*'diff(y,x)^2-y*'diff(y,x)=0,y,x));
+/* Kamke 6.170 */ 
+(pn_(170),ans:contrib_ode(eqn:x*y*'diff(y,x,2)+x*'diff(y,x)^2+a*y*'diff(y,x)+f(x)=0,y,x));
+/* */
+/* Kamke 6.171 */ 
+(pn_(171),ans:contrib_ode(eqn:x*y*'diff(y,x,2)-x*'diff(y,x)^2+y*'diff(y,x)+x*(d+a*y^4)+y*(c+b*y^2)=0,y,x));
+/* Kamke 6.172 */ 
+(pn_(172),ans:contrib_ode(eqn:x*y*'diff(y,x,2)-x*'diff(y,x)^2+a*y*'diff(y,x)+b*x*y^3=0,y,x));
+/* Kamke 6.173 */ 
+(pn_(173),ans:contrib_ode(eqn:x*y*'diff(y,x,2)+2*x*'diff(y,x)^2+a*y*'diff(y,x)=0,y,x));
+/* Kamke 6.174 */ 
+(pn_(174),ans:contrib_ode(eqn:x*y*'diff(y,x,2)-2*x*'diff(y,x)^2+(1+y)*'diff(y,x)=0,y,x));
+/* Kamke 6.175 */ 
+(pn_(175),ans:contrib_ode(eqn:x*y*'diff(y,x,2)-2*x*'diff(y,x)^2+a*y*'diff(y,x)=0,y,x));
+/* Kamke 6.176 */ 
+(pn_(176),ans:contrib_ode(eqn:x*y*'diff(y,x,2)-4*x*'diff(y,x)^2+4*y*'diff(y,x)=0,y,x));
+/* Kamke 6.177 */ 
+(pn_(177),ans:contrib_ode(eqn:x*y*'diff(y,x,2)+(a*x/sqrt(b^2-x^2)-x)*'diff(y,x)^2-y*'diff(y,x)=0,y,x));
+/* Kamke 6.178 */ 
+(pn_(178),ans:contrib_ode(eqn:x*(x+y)*'diff(y,x,2)+x*'diff(y,x)^2+(x-y)*'diff(y,x)-y=0,y,x));
+/* Kamke 6.179 */ 
+(pn_(179),ans:contrib_ode(eqn:2*x*y*'diff(y,x,2)-x*'diff(y,x)^2+y*'diff(y,x)=0,y,x)); 
+/* Kamke 6.180 */ 
+(pn_(180),ans:contrib_ode(eqn:x^2*(y-1)*'diff(y,x,2)-2*x^2*'diff(y,x)^2-2*x*(y-1)*'diff(y,x)-2*y*(y-1)^2=0,y,x));
+/* */
+/* Kamke 6.181 */ 
+(pn_(181),ans:contrib_ode(eqn:x^2*(x+y)*'diff(y,x,2)-(x*'diff(y,x)-y)^2=0,y,x));
+/* Kamke 6.182 */ 
+(pn_(182),ans:contrib_ode(eqn:x^2*(x-y)*'diff(y,x,2)+a*(x*'diff(y,x)-y)^2=0,y,x));
+/* Kamke 6.183 */ 
+(pn_(183),ans:contrib_ode(eqn:2*x^2*y*'diff(y,x,2)-x^2*('diff(y,x)^2+1)+y^2=0,y,x));
+/* Kamke 6.184 */ 
+(pn_(184),ans:contrib_ode(eqn:a*x^2*y*'diff(y,x,2)+b*x^2*'diff(y,x)^2+c*x*y*'diff(y,x)+d*y^2=0,y,x));
+/* Kamke 6.185 */ 
+(pn_(185),ans:contrib_ode(eqn:x*(1+x)^2*y*'diff(y,x,2)-x*(1+x)^2*'diff(y,x)^2+2*(1+x)^2*y*'diff(y,x)-a*(2+x)*y^2=0,y,x));
+/* Kamke 6.186 */ 
+(pn_(186),ans:contrib_ode(eqn:8*(1-x^3)*y*'diff(y,x,2)-4*(1-x^3)*'diff(y,x)^2-12*x^2*y*'diff(y,x)+3*x*y^2=0,y,x));
+/* Kamke 6.187 */ 
+(pn_(187),ans:contrib_ode(eqn:f0(x)*y*'diff(y,x,2)+f1(x)*'diff(y,x)^2+f2(x)*y*'diff(y,x)+f3(x)*y^2=0,y,x));
+/* Kamke 6.188 */ 
+(pn_(188),ans:contrib_ode(eqn:y^2*'diff(y,x,2)-a=0,y,x));
+/* Kamke 6.189 */ 
+(pn_(189),ans:contrib_ode(eqn:y^2*'diff(y,x,2)+y*'diff(y,x)^2+a*x=0,y,x));
+/* Kamke 6.190 */ 
+(pn_(190),ans:contrib_ode(eqn:y^2*'diff(y,x,2)+y*'diff(y,x)^2-a*x-b=0,y,x));
+/* */
+/* Kamke 6.191 */ 
+(pn_(191),ans:contrib_ode(eqn:(1+y^2)*'diff(y,x,2)+(1-2*y)*'diff(y,x)^2=0,y,x));
+/* Kamke 6.192 */ 
+(pn_(192),ans:contrib_ode(eqn:(1+y^2)*'diff(y,x,2)-3*y*'diff(y,x)^2=0,y,x));
+/* Kamke 6.193 */ 
+(pn_(193),ans:contrib_ode(eqn:(x+y^2)*'diff(y,x,2)-2*(x-y^2)*'diff(y,x)^3+'diff(y,x)*(1+4*y*'diff(y,x))=0,y,x));
+/* Kamke 6.194 */ 
+(pn_(194),ans:contrib_ode(eqn:(x^2+y^2)*'diff(y,x,2)-(1+'diff(y,x)^2)*(x*'diff(y,x)-y)=0,y,x));
+/* Kamke 6.195 */ 
+(pn_(195),ans:contrib_ode(eqn:(x^2+y^2)*'diff(y,x,2)-2*(1+'diff(y,x)^2)*(x*'diff(y,x)-y)=0,y,x));
+/* Kamke 6.196 */ 
+(pn_(196),ans:contrib_ode(eqn:2*y*(1-y)*'diff(y,x,2)-(1-2*y)*'diff(y,x)^2+y*(1-y)*'diff(y,x)*f(x)=0,y,x));
+/* Kamke 6.197 */ 
+(pn_(197),ans:contrib_ode(eqn:2*y*(1-y)*'diff(y,x,2)-(1-3*y)*'diff(y,x)^2+h(y)=0,y,x));
+/* Kamke 6.198 */ 
+(pn_(198),ans:contrib_ode(eqn:2*y*(y-1)*'diff(y,x,2)-(3*y-1)*'diff(y,x)^2+4*y*'diff(y,x)*(f(x)*y+g(x))+4*y^2*(y-1)*(g(x)^2-f(x)^2-'diff(g(x),x)-'diff(f(x),x))=0,y,x));
+/* Kamke 6.199 */ 
+(pn_(199),ans:contrib_ode(eqn:-2*y*(1-y)*'diff(y,x,2)+(1-3*y)*'diff(y,x)^2-4*y*(f(x)*y+g(x))*'diff(y,x)+(1-y)^3*(f0(x)^2*y^2-f1(x)^2)+4*y^2*(1-y)*(f(x)^2-g(x)^2-'diff(g(x),x)-'diff(f(x),x))=0,y,x));
+/* Kamke 6.200 */ 
+(pn_(200),ans:contrib_ode(eqn:3*y*(1-y)*'diff(y,x,2)-2*(1-2*y)*'diff(y,x)^2-h(y)=0,y,x));
+/* */ 
+/* Kamke 6.201 */ 
+(pn_(201),ans:contrib_ode(eqn:(1-y)*'diff(y,x,2)-3*(1-2*y)*'diff(y,x)^2-h(y)=0,y,x));
+/* Kamke 6.202 */ 
+(pn_(202),ans:contrib_ode(eqn:a*y*(y-1)*'diff(y,x,2)+(b*y+c)*'diff(y,x)^2+h(y)=0,y,x));
+/* Kamke 6.203 */ 
+(pn_(203),ans:contrib_ode(eqn:a*y*(y-1)*'diff(y,x,2)-(a-1)*(2*y-1)*'diff(y,x)^2+f(x)*y*(y-1)*'diff(y,x)=0,y,x));
+/* Kamke 6.204 */ 
+(pn_(204),ans:contrib_ode(eqn:a*b*y*(y-1)*'diff(y,x,2)-((2*a*b-a-b)*y+(1-a)*b)*'diff(y,x)^2+f(x)*y*(y-1)*'diff(y,x)=0,y,x));
+/* Kamke 6.205 */ 
+(pn_(205),ans:contrib_ode(eqn:x*y^2*'diff(y,x,2)-a=0,y,x));
+/* Kamke 6.206 */ 
+(pn_(206),ans:contrib_ode(eqn:(a^2-x^2)*(a^2-y^2)*'diff(y,x,2)+(a^2-x^2)*y*'diff(y,x)^2-x*(a^2-y^2)*'diff(y,x)=0,y,x));
+/* Kamke 6.207 */ 
+(pn_(207),ans:contrib_ode(eqn:2*x^2*y*(y-1)*'diff(y,x,2)-x^2*(3*y-1)*'diff(y,x)^2+2*x*y*(y-1)*'diff(y,x)+(a*y^2+b)*(y-1)^3+c*x*y^2*(y-1)+d*x^2*y^2*(1+y)=0,y,x));
+/* Kamke 6.208 */ 
+(pn_(208),ans:contrib_ode(eqn:x^3*y^2*'diff(y,x,2)+(x+y)*(x*'diff(y,x)-y)^3=0,y,x));
+/* Kamke 6.209 */ 
+(pn_(209),ans:contrib_ode(eqn:y^3*'diff(y,x,2)-a=0,y,x));
+/* Kamke 6.210 */ 
+(pn_(210),ans:contrib_ode(eqn:y*(1+y^2)*'diff(y,x,2)+(1-3*y^2)*'diff(y,x)^2=0,y,x));
+/* */
+/* Kamke 6.211 */ 
+(pn_(211),ans:contrib_ode(eqn:2*y^3*'diff(y,x,2)+y^4-a^2*x*y^2-1=0,y,x));
+/* Kamke 6.212 */ 
+(pn_(212),ans:contrib_ode(eqn:2*y^3*'diff(y,x,2)+y^2*'diff(y,x)^2-a*x^2-b*x-c=0,y,x));
+/* Kamke 6.213 */ 
+(pn_(213),ans:contrib_ode(eqn:2*(c-y)*(b-y)*(a-y)*'diff(y,x,2)+((a-y)*(b-y)+(c-y)*(a-y)+(b-y)*(c-y))*'diff(y,x)^2-(a0*(c-y)^2*(b-y)^2*(a-y)^2+a1*(b-y)^2*(c-y)^2+a2*(c-y)^2*(a-y)^2+a3*(b-y)^2*(a-y)^2)=0,y,x));
+/* Kamke 6.214 */ 
+(pn_(214),ans:contrib_ode(eqn:(4*y^3-a*y-b)*'diff(y,x,2)-(6*y^2-a/2)*'diff(y,x)^2=0,y,x));
+/* Kamke 6.215 */ 
+(pn_(215),ans:contrib_ode(eqn:(4*y^3-a*y-b)*('diff(y,x,2)+f(x)*'diff(y,x))-(6*y^2-a/2)*'diff(y,x)^2=0,y,x));
+/* Kamke 6.216 */ 
+(pn_(216),ans:contrib_ode(eqn:-2*x*y*(1-x)*(1-y)*(x-y)*'diff(y,x,2)+x*(1-x)*(x-2*x*y-2*y+3*y^2)*'diff(y,x)^2+2*y*(1-y)*(x^2+y-2*x*y)*'diff(y,x)-y^2*(1-y)^2-f(x)(y*(y-1)*(y-x))^(3/2)=0,y,x));
+/* Kamke 6.217 */ 
+(pn_(217),ans:contrib_ode(eqn:2*x^2*y*(1-x)^2*(1-y)*(x-y)*'diff(y,x,2)-x^2*(1-x)^2*(x-2*x*y-2*y+3*y^2)*'diff(y,x)^2-2*x*y*(1-x)*(1-y)*(x^2+y-2*x*y)*'diff(y,x)+b*x*(1-y)^2*(x-y)^2-c*(1-x)*y^2*(x-y)^2-d*x*y^2*(1-x)*(1-y)^2+a*y^2*(x-y)^2*(1-y)^2=0,y,x));
+/* Kamke 6.218 */ 
+(pn_(218),ans:contrib_ode(eqn:(y^2-1)*(a^2*y^2-1)*'diff(y,x,2)+b*sqrt((1-y^2)*(1-a^2*y^2))*'diff(y,x)^2+(1+a^2-2*a^2*y^2)*y*'diff(y,x)^2=0,y,x));
+/* Kamke 6.219 */ 
+(pn_(219),ans:contrib_ode(eqn:(c+2*b*x+a*x^2+y^2)^2*'diff(y,x,2)+d*y=0,y,x));
+/* Kamke 6.220 */ 
+(pn_(220),ans:contrib_ode(eqn:sqrt(y)*'diff(y,x,2)-a=0,y,x));
+/* */
+/* Kamke 6.221 */ 
+(pn_(221),ans:contrib_ode(eqn:sqrt(y^2+x^2)*'diff(y,x,2)-a*('diff(y,x)^2+1)^(3/2)=0,y,x));
+/* Kamke 6.222 */ 
+(pn_(222),ans:contrib_ode(eqn:y*(1-ln(y))*'diff(y,x,2)+(1+ln(y))*'diff(y,x)^2=0,y,x));
+/* Kamke 6.223 */ 
+(pn_(223),ans:contrib_ode(eqn:(b+a*sin(y)^2)*'diff(y,x,2)+a*'diff(y,x)^2*cos(y)*sin(y)+A*y*(c+a*sin(y)^2)=0,y,x));
+/* Kamke 6.224 */ 
+(pn_(224),ans:contrib_ode(eqn:h(y)*'diff(y,x,2)+a*(D(h)(y))*'diff(y,x)^2+j(y)=0,y,x));
+/* Kamke 6.225 */ 
+(pn_(225),ans:contrib_ode(eqn:h(y)*'diff(y,x,2)-(D(h)(y))*'diff(y,x)^2-h(y)^2*j(x,'diff(y,x)/h(y))=0,y,x));
+/* Kamke 6.226 */ 
+(pn_(226),ans:contrib_ode(eqn:'diff(y,x)*'diff(y,x,2)-x^2*y*'diff(y,x)-x*y^2=0,y,x));
+/* Kamke 6.227 */ 
+(pn_(227),ans:contrib_ode(eqn:(x*'diff(y,x)-y)*'diff(y,x,2)+4*'diff(y,x)^2=0,y,x));
+/* Kamke 6.228 */ 
+(pn_(228),ans:contrib_ode(eqn:(x*'diff(y,x)-y)*'diff(y,x,2)-(1+'diff(y,x)^2)^2=0,y,x));
+/* Kamke 6.229 */ 
+(pn_(229),ans:contrib_ode(eqn:a*x^3*'diff(y,x)*'diff(y,x,2)+b*y^2=0,y,x));
+/* Kamke 6.230 */ 
+(pn_(230),ans:contrib_ode(eqn:(f1*'diff(y,x)+f2*y)*'diff(y,x,2)+f3*'diff(y,x)^2+f4(x)*y*'diff(y,x)+f5(x)*y^2=0,y,x));
+/* */
+/* Kamke 6.231 */ 
+(pn_(231),ans:contrib_ode(eqn:(2*y^2*'diff(y,x)+x^2)*'diff(y,x,2)+2*y*'diff(y,x)^3+3*x*'diff(y,x)+y=0,y,x));
+/* Kamke 6.232 */ 
+(pn_(232),ans:contrib_ode(eqn:(y^2+'diff(y,x)^2)*'diff(y,x,2)+y^3=0,y,x));
+/* Kamke 6.233 */ 
+(pn_(233),ans:contrib_ode(eqn:('diff(y,x)^2+a*(x*'diff(y,x)-y))*'diff(y,x,2)-b=0,y,x));
+/* Kamke 6.234 */ 
+(pn_(234),ans:contrib_ode(eqn:(a*sqrt(1+'diff(y,x)^2)-x*'diff(y,x))*'diff(y,x,2)-'diff(y,x)^2-1=0,y,x));
+/* Kamke 6.235 */ 
+(pn_(235),ans:contrib_ode(eqn:h('diff(y,x))*'diff(y,x,2)+j(y)*'diff(y,x)+f(x)=0,y,x));
+/* Kamke 6.236 */ 
+(pn_(236),ans:contrib_ode(eqn: 'diff(y,x,2)^2-a*y-b=0,y,x));
+/* Kamke 6.237 */ 
+(pn_(237),ans:contrib_ode(eqn:a^2*'diff(y,x,2)^2-2*a*x*'diff(y,x,2)+'diff(y,x)=0,y,x));
+/* Kamke 6.238 */ 
+(pn_(238),ans:contrib_ode(eqn:2*(1+x^2)*'diff(y,x,2)^2-x*'diff(y,xi,2)*(x+4*'diff(y,x))+2*(x+'diff(y,x))*'diff(y,x)-2*y=0,y,x));
+/* Kamke 6.239 */ 
+(pn_(239),ans:contrib_ode(eqn:3*x^2*'diff(y,x,2)^2-2*(3*x*'diff(y,x)+y)*'diff(y,x,2)+4*'diff(y,x)^2=0,y,x));
+/* Kamke 6.240 */ 
+(pn_(240),ans:contrib_ode(eqn:x^2*(2-9*x)*'diff(y,x,2)^2-6*x*(1-6*x)*'diff(y,x)*'diff(y,x,2)+6*y*'diff(y,x,2)-36*x*'diff(y,x)^2=0,y,x));
+/* */
+/* Kamke 6.241 */ 
+(pn_(241),ans:contrib_ode(eqn:F[1,1](x)*'diff(y,x)^2+((F[2,1](x)+F[1,2](x))*'diff(y,x,2) +y*(F[1,0](x)+F[0,1](x)))*'diff(y,x)+F[2,2](x)*'diff(y,x$2)^2+y*(F[2,0](x)+F[0,2](x))*'diff(y,x$2)+F[0,0](x)*y^2=0,y,x)); 
+/* Kamke 6.242 */ 
+(pn_(242),ans:contrib_ode(eqn:y*'diff(y,x,2)^2-a*exp(2*x)=0,y,x));
+/* Kamke 6.243 */ 
+(pn_(243),ans:contrib_ode(eqn:(a^2*y^2-b^2)*'diff(y,x,2)^2-2*a^2*y*'diff(y,x)^2*'diff(y,x,2)+(a^2*'diff(y,x)^2-1)*'diff(y,x)^2=0,y,x));
+/* Kamke 6.244 */ 
+(pn_(244),ans:contrib_ode(eqn:(y^2-x^2*'diff(y,x)^2+x^2*y*'diff(y,x,2))^2-4*x*y*(x*'diff(y,x)-y)^3=0,y,x));
+/* Kamke 6.245 */ 
+(pn_(245),ans:contrib_ode(eqn:(2*y*'diff(y,x,2)-'diff(y,x)^2)^3+32*'diff(y,x$2)*(x*'diff(y,x$2)-'diff(y,x))^3=0,y,x));
+/* Kamke 6.246 */ 
+(pn_(246),ans:contrib_ode(eqn:sqrt(a*'diff(y,x,2)^2+b*'diff(y,x)^2)+c*y*'diff(y,x$2)+d*'diff(y,x)^2=0,y,x));
+/* 247*/
+/* 248*/
+/* 249*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
