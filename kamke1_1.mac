@@ -1,0 +1,1195 @@
+/* ODE tests - Equations 1-100
+
+  Reference:
+    E Kamke, Differentialgleichungen Losungsmethoden und Losungen, 
+    Vol 1, Geest & Portig, Leipzig, 1961
+
+    E. S. Cheb-Terrab, T. Koloknikov,  First Order ODEs, 
+    Symmetries and Linear Transformations, European Journal of 
+    Applied Mathematics, Vol. 14, No. 2, pp. 231-246 (2003). 
+    (http://lie.uwaterloo.ca/papers/ode_iv.pdf)
+*/
+
+kamke1: [
+/* 1 */
+'diff(y,x)-(a4*x^4+a3*x^3+a2*x^2+a1*x+a0)^(-1/2),
+/* 2 */
+'diff(y,x)+a*y-c*exp(b*x),
+/* 3 */
+'diff(y,x)+a*y-b*sin(c*x),
+/* 4 */
+'diff(y,x)+2*x*y-x*exp(-x^2),
+/* 5 */
+'diff(y,x)+y*cos(x)-exp(2*x),
+/* 6 */
+'diff(y,x)+y*cos(x)-sin(2*x)/2,
+/* 7 */
+'diff(y,x)+y*cos(x)-exp(-sin(x)),
+/* 8 */
+'diff(y,x) + y*tan(x) - sin(2*x),
+/* 9 */
+'diff(y,x)-(sin(log(x))+cos(log(x))+a)*y,
+/* 10 */
+'diff(y,x) + 'diff(f(x),x)*y - f(x)*'diff(f(x),x),
+/* 11 */
+'diff(y,x)  + f(x)*y - g(x),
+/* 12 */
+'diff(y,x) + y^2 - 1,
+/* 13 */
+'diff(y,x) + y^2 - a*x - b,
+/* 14 */
+'diff(y,x) + y^2 + a*x^m,
+/* 15 */
+'diff(y,x) + y^2 - 2*x^2*y + x^4 -2*x-1,
+/* 16 */
+'diff(y,x) + y^2 +(x*y-1)*f(x),
+/* 17 */
+'diff(y,x) - y^2 -3*y + 4,
+/* 18 */
+'diff(y,x)-y^2-x*y-x+1,
+/* 19 */
+'diff(y,x) - (y + x)^2,
+/* 20 */
+'diff(y,x)-y^2+(x^2+1)*y-2*x,
+/* 21 */
+'diff(y,x)-y^2+y*sin(x)-cos(x),
+/* 22 */
+'diff(y,x)-y^2-y*sin(2*x)-cos(2*x),
+/* 23 */
+'diff(y,x) + a*y^2 - b,
+/* 24 */
+'diff(y,x) + a*y^2 - b*x^nu,
+/* 25 */
+'diff(y,x)+a*y^2-b*x^(2*nu)-c*x^(nu-1),
+/* 26 */
+'diff(y,x)-(A*y- a)*(B*y-b),
+/* 27 */
+'diff(y,x) + a*y*(y-x) - 1,
+/* 28 */
+'diff(y,x)+x*y^2-x^3*y-2*x,
+/* 29 */
+'diff(y,x) - x*y^2 - 3*x*y,
+/* 30 */
+'diff(y,x)+x^(-a-1)*y^2-x^a,
+/* 31 */
+'diff(y,x) - a*x^n*(y^2+1), /* only if n # -1 */
+/* 32 */
+'diff(y,x) + y^2*sin(x) - 2*sin(x)/cos(x)^2,
+/* 33 */
+'diff(y,x)-y^2*'diff(f(x),x)/g(x)+'diff(g(x),x)/f(x),
+/* 34 */
+'diff(y,x)+f(x)*y^2+g(x)*y,
+/* 35 */
+'diff(y,x)+f(x)*(y^2+2*a*y+b),
+/* 36 */
+'diff(y,x) + y^3 + a*x*y^2,
+/* 37 */
+'diff(y,x)-y^3-a*exp(x)*y^2,
+/* 38 */
+'diff(y,x) - a*y^3 - b*x^(-3/2),
+/* 39 */
+'diff(y,x)-a3*y^3-a2*y^2-a1*y-a0,
+/* 40 */
+'diff(y,x)+3*a*y^3+6*a*x*y^2,
+/* 41 */
+'diff(y,x)+a*x*y^3+b*y^2,
+/* 42 */
+'diff(y,x)-x*(x+2)*y^3-(x+3)*y^2,
+/* 43 */
+'diff(y,x)+(3*a*x^2+4*a^2*x+b)*y^3+3*x*y^2,
+/* 44 */
+'diff(y,x)+2*a*x^3*y^3+2*x*y,
+/* 45 */
+'diff(y,x)+2*(a^2*x^3-b^2*x)*y^3+3*b*y^2,
+/* 46 */
+'diff(y,x)- x^a*y^3+3*y^2-x^(-a)*y-x^(-2*a)+ a*x^(-a-1),
+/* 47 - Too general - E S Cheb-Terrab and T Kolokolnikov */
+/*'diff(y,x) - a*(x^n - x)*y^3 - y^2,*/
+0,
+/* 48 - Too general - E S Cheb-Terrab and T Kolokolnikov */
+/*'diff(y,x) - (a*x^n+b*x)*y^3 - c*y^2, */
+0,
+/* 49 (nijso removed quote) nijso removed ode because it is actually a Weierstrass equation */
+'diff(y,x) - a*diff(f(x),x)*y^3 - 6*a*f(x)*y^2 - (2*a+1)*(diff(f(x),x,2)/diff(f(x),x))*y - 2*(a+1),
+/* 50 - Too general - E S Cheb-Terrab and T Kolokolnikov */
+/*'diff(y,x) = f3(x)*y^3 + f2(x)*y^2 + f1(x)*y+f0(x),*/
+0,
+/* 51 */
+'diff(y,x) = (y-f(x))*(y-g(x))*(y-(a*f(x)+b*g(x))/(a+b))*h(x) + (y-g(x))/(f(x)-g(x))*diff(f(x),x)+(y-f(x))/(g(x)-f(x))*diff(g(x),x),
+/* 52 Asks if n is integer */
+'diff(y,x)-a*y^n-b*x^(n/(1-n)),
+/* 53 */
+'diff(y,x)-f(x)^(1-n)*'diff(g(x),x)*y^n/(a*g(x)+b)^n-'diff(f(x),x)*y/f(x)-f(x)*'diff(g(x),x),
+/* 54 */
+'diff(y,x)-a^n*f(x)^(1-n)*'diff(g(x),x)*y^n-'diff(f(x),x)*y/f(x)-f(x)*'diff(g(x),x),
+/* 55 - Too general - E S Cheb-Terrab and T Kolokolnikov */
+/*'diff(y,x) = f(x)*y^n + g(x)*y + h(x),*/
+0,
+/* 56 - Too general - E S Cheb-Terrab and T Kolokolnikov */
+/*'diff(y,x)+f(x)*y^a + g(x)*y^b,*/
+0,
+/* 57 */
+'diff(y,x)-sqrt(abs(y)),
+/* 58 */
+'diff(y,x)-a*sqrt(y)-b*x,
+/* 59 */
+'diff(y,x)-a*sqrt(y^2+1)-b,
+/* 60 */
+'diff(y,x)-sqrt(y^2-1)/sqrt(x^2-1),
+/* 61 */
+'diff(y,x)-sqrt(x^2-1)/sqrt(y^2-1),
+/* 62 */
+'diff(y,x)=(y-x^2*sqrt(x^2-y^2))/(x*y*sqrt(x^2-y^2)+x),
+/* 63 NOTE: no abs-sign here! */
+'diff(y,x)-(1+ y^2)/((y+sqrt(1+y))*sqrt(1+x)^3),
+/* 64 */
+'diff(y,x)-sqrt((a*y^2+b*y+c)/(a*x^2+b*x+c)),
+/* 65 */
+'diff(y,x)-sqrt(y^3+1)/sqrt(x^3+1),
+/* 66 NOTE: no abs sign here!*/
+/*'diff(y,x)-sqrt(abs(y*(1-y)*(1-a*y)))/sqrt(abs(x*(1-x)*(1-a*x))),*/
+'diff(y,x)-(sqrt(y*(1-y)*(1-a*y)))/(sqrt(x*(1-x)*(1-a*x))),
+/* 67 */
+'diff(y,x)-sqrt(1-y^4)/sqrt(1-x^4),
+/* 68 */
+'diff(y,x)-sqrt((a*y^4+b*y^2+1)/(a*x^4+b*x^2+1)),
+/* 69 */ /* nijso bug: missing a0,b0 */
+'diff(y,x)=sqrt((a0 + a1*x^1 + a2*x^2 + a3*x^3 + a4*x^4)*(b0 +b1*y^1+b2*y^2+b3*y^3+b4*y^4)),
+/* 70 */ /* nijso bug: missing a0,b0 */
+'diff(y,x)=sqrt((a0 + a1*x^1 + a2*x^2 + a3*x^3 + a4*x^4)/(b0 + b1*y^1+b2*y^2+b3*y^3+b4*y^4)),
+/* 71 */ /* *nijso BUG: missing b0,a0 */
+'diff(y,x)=sqrt((b0 + b1*y^1 + b2*y^2 + b3*y^3 + b4*y^4)/(a0 + a1*x^1+b2*x^2+b3*x^3+b4*x^4)),
+/* 72  y'=R1(x,sqrt(X))*R2(y,sqrt(Y)) with R1,R2 rational functions, here an example */
+'diff(y,x)=(y/sqrt(b1*y^1 + b2*y^2 + b3*y^3 + b4*y^4))*(x/sqrt(a1*x^1+b2*x^2+b3*x^3+b4*x^4)),
+/* 73 */ /* nijso bug added a0,b0, removed b4,a4*/
+'diff(y,x)=(b0 + b1*y^1+b2*y^2+b3*y^3)^(2/3)/(a0 + a1*x^1 + a2*x^2 + a3*x^3)^(2/3),
+/* 74 - Too general - E S Cheb-Terrab and T Kolokolnikov */
+/*'diff(y,x)=f(x)*(y-g(x))*sqrt((y-a)*(y-b)),*/
+0,
+/* 75 */
+'diff(y,x)-exp(x-y)+exp(x),
+/* 76 */
+'diff(y,x)-a*cos(y)+b,
+/* 77 */
+'diff(y,x)=cos(a*y+b*x),
+/* 78 */
+'diff(y,x)+a*sin(a1*y+b1*x)+b,
+/* 79 - Too general - E S Cheb-Terrab and T Kolokolnikov */
+/*'diff(y,x)+f(x)*cos(a*y)+g(x)*sin(a*y)+h(x),*/
+0,
+/* 80 */
+'diff(y,x)+f(x)*sin(y)+(1-'diff(f(x),x))*cos(y)-'diff(f(x),x)-1,
+/* 81 */
+'diff(y,x)+2*tan(y)*tan(x),
+/* 82 - Too general - E S Cheb-Terrab and T Kolokolnikov (I am also not sure if atan(x) is meant here) */
+/*'diff(y,x)=a*(1+tan(y)^2) + tan(y)*atan(x),*/
+0,
+/* 83 */
+'diff(y,x)-tan(x*y),
+/* 84 */
+'diff(y,x)-f(a*x+b*y),
+/* 85 */
+'diff(y,x)=x^(a-1)*y^(1-b)*f(x^a/a + y^b/b),
+/* 86 */
+'diff(y,x)=(y-x*f(x^2+a*y^2))/(x+a*y*f(x^2+a*y^2)),
+/* 87 */
+'diff(y,x)=(y/x)*(a*f(x^c*y)+c*x^a*y^b)/(b*f(x^c*y)-x^a*y^b),
+/* 88 */
+2*'diff(y,x)-3*y^2-4*a*y-b-c*exp(-2*a*x),
+/* 89 */
+ x*'diff(y,x)-sqrt(a^2-x^2),
+/* 90 */
+x*'diff(y,x)+y-x*sin(x),
+/* 91 */
+x*'diff(y,x)-y-x/log(x),
+/* 92 */
+x*'diff(y,x)-y-x^2*sin(x),
+/* 93 */
+x*'diff(y,x)-y-x*cos(log(log(x)))/log(x),
+/* 94 */
+x*'diff(y,x)+a*y+b*x^n,
+/* 95 */
+x*'diff(y,x)+y^2+x^2,
+/* 96 */
+x*'diff(y,x)-y^2+1,
+/* 97 */
+x*'diff(y,x)+a*y^2-y+b*x^2,
+/* 98 */ 
+x*'diff(y,x)+a*y^2-b*y+c*x^(2*b),
+/* 99 */
+x*'diff(y,x)+a*y^2-b*y-c*x^Beta,
+/* 100 */
+x*'diff(y,x)+x*y^2+a,
+/* 101 */
+x*'diff(y,x)+x*y^2-y,
+/* 102 */
+x*'diff(y,x)+x*y^2-y-a*x^3,
+/* 103  (nijso: minus sign error in database)*/
+x*'diff(y,x)-x*y^2-(2*x^2+1)*y-x^3,
+/* 104 */
+x*'diff(y,x)+a*x*y^2+2*y+b*x,
+/* 105 */
+x*'diff(y,x)+a*x*y^2+b*y+c*x+d,
+/* 106 */
+x*'diff(y,x)+x^a*y^2+(a-b)*y/2+x^b,
+/* 107 */
+x*'diff(y,x)+a*x^Alpha*y^2+b*y-c*x^Beta,
+/* 108 */
+x*'diff(y,x)-y^2*log(x)+y,
+/* 109 */
+x*'diff(y,x)-y*(2*y*log(x)-1),
+/* 110 */
+x*'diff(y,x)+ f(x)*(y^2-x^2)-y,
+/* 111 */
+x*'diff(y,x) + y^3 + 3*x*y^2,
+/* 112 */
+x*'diff(y,x)-sqrt(y^2+x^2)-y,
+/* 113 */
+x*'diff(y,x)+a*sqrt(y^2+x^2)-y,
+/* 114 */
+x*'diff(y,x)-x*sqrt(y^2+x^2)-y,
+/* 115 */
+x*'diff(y,x)-x*(y-x)*sqrt(y^2+x^2)-y,
+/* 116 */
+x*'diff(y,x)-x*sqrt((y^2-x^2)*(y^2-4*x^2))-y, 
+/* 117 */
+x*'diff(y,x)-x*exp(y/x)-y-x,
+/* 118 */
+x*'diff(y,x)-y*log(y),
+/* 119 */
+x*'diff(y,x)-y*(log(x*y)-1),
+/* 120  */
+x*'diff(y,x)-y*(x*log(x^2/y)+2),
+/* 121 */ 
+x*'diff(y,x)+sin(y-x),
+/* 122 */
+x*'diff(y,x)+(sin(y)-3*x^2*cos(y))*cos(y),
+/* 123 */
+x*'diff(y,x)-x*sin(y/x)-y,
+/* 124 */
+x*'diff(y,x)+x*cos(y/x)-y+x,
+/* 125 */
+x*'diff(y,x)+x*tan(y/x)-y,
+/* 126 */
+x*'diff(y,x)-y*f(x*y),
+/* 127  */
+x*'diff(y,x)-y*f(x^a*y^b),
+/* 128  */
+x*'diff(y,x)+a*y-f(x)*g(x^a*y),
+/* 129 */
+(x+1)*'diff(y,x)+y*(y-x),
+/* 130 */
+2*x*'diff(y,x)-y-2*x^3,
+/*  131  */ 
+(2*x+1)*'diff(y,x,1)-4*%e^-y+2,
+/*  132  */ 
+3*x*'diff(y,x,1)-3*x*log(x)*y^4-y,
+/*  133  */ 
+x^2*'diff(y,x,1)+y-x,
+/*  134  */ 
+x^2*'diff(y,x,1)-y+x^2*%e^(x-1/x),
+/*  135  */ 
+x^2*'diff(y,x,1)-(x-1)*y,
+/*  136  */ 
+x^2*'diff(y,x,1)+y^2+x*y+x^2,
+/*  137  */ 
+x^2*'diff(y,x,1)-y^2-x*y,
+/*  138  */ 
+x^2*'diff(y,x,1)-y^2-x*y-x^2,
+/*  139  */ 
+x^2*('diff(y,x,1)+y^2)+a*x^k-(b-1)*b,
+/*  140  */ 
+x^2*('diff(y,x,1)+y^2)+4*x*y+2,
+/*  141  */ 
+x^2*('diff(y,x,1)+y^2)+a*x*y+b,
+/*  142  */ 
+x^2*('diff(y,x,1)-y^2)-a*x^2*y+a*x+2,
+/*  143  */ 
+x^2*('diff(y,x,1)+a*y^2)-b,
+/*  144  */ 
+x^2*('diff(y,x,1)+a*y^2)+b*x^Alpha+c,
+/*  145  */ 
+x^2*'diff(y,x,1)+a*y^3-a*x^2*y^2,
+/*  146  */ 
+x^2*'diff(y,x,1)+x*y^3+a*y^2,
+/*  147  */ 
+x^2*'diff(y,x,1)+a*x^2*y^3+b*y^2,
+/*  148  */ 
+(x^2+1)*'diff(y,x,1)+x*y-1,
+/*  149  */ 
+(x^2+1)*'diff(y,x,1)+x*y-x*(x^2+1),
+/*  150  */ 
+(x^2+1)*'diff(y,x,1)+2*x*y-2*x^2,
+/*  151  */ 
+(x^2+1)*'diff(y,x,1)+(2*x*y-1)*(y^2+1),
+/*  152  */ 
+(x^2+1)*'diff(y,x,1)+x*cos(y)*sin(y)-x*(x^2+1)*cos(y)^2,
+/*  153  */ 
+(x^2-1)*'diff(y,x,1)-x*y+a,
+/*  154  */ 
+(x^2-1)*'diff(y,x,1)+2*x*y-cos(x),
+/*  155  */ 
+(x^2-1)*'diff(y,x,1)+y^2-2*x*y+1,
+/*  156  */ 
+(x^2-1)*'diff(y,x,1)-y*(y-x),
+/*  157  */ 
+(x^2-1)*'diff(y,x,1)+a*(y^2-2*x*y+1),
+/*  158  */ 
+(x^2-1)*'diff(y,x,1)+a*x*y^2+x*y,
+/*  159  */ 
+(x^2-1)*'diff(y,x,1)-2*x*y*log(y),
+/*  160  */ 
+(x^2-4)*'diff(y,x,1)+(x+2)*y^2-4*y,
+/*  161  */ 
+(x^2-5*x+6)*'diff(y,x,1)+3*x*y-8*y+x^2,
+/*  162  */ 
+(x-a)*(x-b)*'diff(y,x,1)+y^2+k*(y+x-a)*(y+x-b),
+/*  163  */
+2*x^2*'diff(y,x,1)-2*y^2-x*y+2*a^2*x,
+/*  164  */ 
+2*x^2*'diff(y,x,1)-2*y^2-3*x*y+2*a^2*x,
+/*  165  */ 
+x*(2*x-1)*'diff(y,x,1)+y^2+(-4*x-1)*y+4*x,
+/*  166  */ 
+2*(x-1)*x*'diff(y,x,1)+(x-1)*y^2-x,
+/*  167  */ 
+3*x^2*'diff(y,x,1)-7*y^2-3*x*y-x^2,
+/*  168  */ 
+3*(x^2-4)*'diff(y,x,1)+y^2-x*y-3,
+/*  169  */ 
+(a*x+b)^2*'diff(y,x,1)+(a*x+b)*y^3+c*y^2,
+/*  170  */ 
+x^3*'diff(y,x,1)-y^2-x^4,
+/*  171  */ 
+x^3*'diff(y,x,1)-y^2-x^2*y,
+/*  172  */ 
+x^3*'diff(y,x,1)-x^4*y^2+x^2*y+20,
+/*  173  */ 
+x^3*'diff(y,x,1)-x^6*y^2+(3-2*x)*x^2*y+3,
+/*  174  */ 
+x*(x^2+1)*'diff(y,x,1)+x^2*y,
+/*  175  */ 
+x*(x^2-1)*'diff(y,x,1)-(2*x^2-1)*y+a*x^3,
+/*  176  */ 
+x*(x^2-1)*'diff(y,x,1)+(x^2-1)*y^2-x^2,
+/*  177  */ 
+(x-1)*x^2*'diff(y,x,1)-y^2-(x-2)*x*y,
+/*  178  */ 
+2*x*(x^2-1)*'diff(y,x,1)+2*(x^2-1)*y^2+(5-3*x^2)*y+x^2-3,
+/*  179  */ 
+3*x*(x^2-1)*'diff(y,x,1)+x*y^2+(-x^2-1)*y-3*x,
+/*  180  */ 
+(a*x^2+b*x+c)*(x*'diff(y,x,1)-y)-y^2+x^2,
+/*  181  */ 
+x^4*('diff(y,x,1)+y^2)+a,
+/*  182  */ 
+x*(x^3-1)*'diff(y,x,1)-2*x*y^2+y+x^2,
+/*  183  */ 
+(2*x^4-x)*'diff(y,x,1)-2*(x^3-1)*y,
+/* 184 */
+(a*x^2+b*x+c)^2*('diff(y,x,1)+y^2)+A,
+/*  185  */ 
+x^7*'diff(y,x,1)+2*(x^2+1)*y^3+5*x^3*y^2 , 
+/*  186  */ 
+x^n*'diff(y,x,1)+y^2+(1-n)*x^(n-1)*y+x^(2*n-2),
+/*  187  */ 
+x^n*'diff(y,x,1)-a*y^2-b*x^(2*n-2),
+/* 188  Abel eqn
+  Some choices that are integrable include
+    (3, b:1, a:n+b);   => K = -27/4
+    (7, b:2, a:n+b);   => K = -343/36
+*/
+x^(2*n+1)*'diff(y,x)-a*y^3-b*x^(3*n),
+/*  189  */ 
+x^(n+m*(n-1))*'diff(y,x,1)-a*y^n-b*x^((m+1)*n) , 
+/*  190  */ 
+sqrt(x^2-1)*'diff(y,x,1)-sqrt(y^2-1),
+/*  191  */ 
+sqrt(1-x^2)*'diff(y,x,1)-y*sqrt(y^2-1),
+/*  192  */ 
+sqrt(x^2+a^2)*'diff(y,x,1)+y-sqrt(x^2+a^2)+x,
+/*  193  */ 
+x*log(x)*'diff(y,x,1)+y-a*x*(log(x)+1),
+/*  194  */ 
+x*log(x)*'diff(y,x,1)-log(x)*y^2+(-2*log(x)^2-1)*y-log(x)^3,
+/*  195  */ 
+sin(x)*'diff(y,x,1)-sin(x)^2*y^2+(cos(x)-3*sin(x))*y+4,
+/*  196  */ 
+cos(x)*'diff(y,x,1)+y+cos(x)*(sin(x)+1),
+/*  197  */ 
+cos(x)*'diff(y,x,1)-y^4-sin(x)*y,
+/*  198  */
+cos(x)*sin(x)*'diff(y,x,1)-y-sin(x)^3,
+/*  199  - also Murphy 1.129 */ 
+sin(2*y)+sin(2*x)*'diff(y,x,1),
+/*  200  */ 
+(a*sin(x)^2+b)*'diff(y,x,1)+a*sin(2*x)*y+A*x*(a*sin(x)^2+c),
+/*  201  */ 
+2*f(x)*'diff(y,x,1)+2*f(x)*y^2-'diff(f(x),x,1)*y-2*f(x)^2,
+/*  202  - Too general - E S Cheb-Terrab and T Kolokolnikov */
+/*f(x)*'diff(y,x)+g(x)*tan(y)+h(x),*/
+0,
+/*  203  */ 
+y*'diff(y,x,1)+y+x^3,
+/*  204  */ 
+y*'diff(y,x,1)+a*y+x,
+/*  205  - Too general - E S Cheb-Terrab and T Kolokolnikov */ 
+/*y*'diff(y,x,1)+a*y+b*x^n+(a^2-1)*x/4 ,  */
+0,
+/*  206  - Too general - E S Cheb-Terrab and T Kolokolnikov */ 
+/*y*'diff(y,x,1)+a*y+b*%e^x-2*a ,  */
+0,
+/*  207  */ 
+y*'diff(y,x,1)+y^2+4*x*(x+1),
+/*  208  */ 
+y*'diff(y,x,1)+a*y^2-b*cos(x+c),
+/*  209  */ 
+y*'diff(y,x,1)-sqrt(a*y^2+b),
+/*  210  */ 
+y*'diff(y,x,1)+x*y^2-4*x,
+/*  211  */ 
+y*'diff(y,x,1)-x*%e^(x/y),
+/*  212  */ 
+g(x)*f(y^2+x^2)+y*'diff(y,x,1)+x ,  
+/*  213  */ 
+(y+1)*'diff(y,x)=y+x,
+/*  214  */ 
+(y+x-1)*'diff(y,x)-y+2*x+3,
+/*  215  */ 
+(y+2*x-2)*'diff(y,x)-y+x+1,
+/*  216  */ 
+(y-2*x+1)*'diff(y,x)+y+x,
+/*  217  */ 
+(y-x^2)*'diff(y,x)=x,
+/*  218  */ 
+(y-x^2)*'diff(y,x)+4*x*y,
+/*  219  - Too general - E S Cheb-Terrab and T Kolokolnikov */ 
+/*(y+g(x))*'diff(y,x,1)-f2(x)*y^2-f1(x)*y-f0(x) ,  */
+0,
+/*  220  */ 
+2*y*'diff(y,x)-x*y^2-x^3,
+/*  221  */ 
+(2*y+x+1)*'diff(y,x)-(2*y+x-1),
+/*  222  */ 
+(2*y+x+7)*'diff(y,x,1)-y+2*x+4,
+/*  223  */ 
+(2*y-x)*'diff(y,x,1)-y-2*x,
+/*  224  */ 
+(2*y-6*x)*'diff(y,x,1)-y+3*x+2,
+/*  225  */ 
+(4*y+2*x+3)*'diff(y,x,1)-2*y-x-1,
+/*  226  */ 
+(4*y-2*x-3)*'diff(y,x,1)+2*y-x-1,
+/*  227  */ 
+(4*y-3*x-5)*'diff(y,x,1)-3*y+7*x+2,
+/*  228  */ 
+(4*y+11*x-11)*'diff(y,x,1)-25*y-8*x+62,
+/*  229  */ 
+(12*y-5*x-8)*'diff(y,x,1)-5*y+2*x+3,
+/*  230  */ 
+a*y*'diff(y,x,1)+b*y^2+f(x),
+/*  231  */ 
+Gamma+(a*y+b*x+c)*'diff(y,x,1)+Alpha*y+Beta*x ,  
+/*  232  */ 
+x*y*'diff(y,x,1)+y^2+x^2,
+/*  233  */ 
+x*y*'diff(y,x,1)-y^2+a*x^3*cos(x) ,
+/*  234  - Too general - E S Cheb-Terrab and T Kolokolnikov */ 
+/*x*y*'diff(y,x,1)-y^2+x*y+x^3-2*x^2 ,  */
+0,
+/*  235  - Too general - E S Cheb-Terrab and T Kolokolnikov */ 
+/*(x*y+a)*'diff(y,x,1)+b*y ,  */
+0,
+/*  236  */ 
+x*(y+4)*'diff(y,x,1)-y^2-2*y-2*x ,
+/*  237  - Too general - E S Cheb-Terrab and T Kolokolnikov */ 
+/*x*(y+a)*'diff(y,x,1)+b*y+c*x ,  */
+0,
+/*  238  */ 
+(x*(y+x)+a)*'diff(y,x,1)-y*(y+x)-b ,  
+/*  239  */ 
+(x*y-x^2)*'diff(y,x,1)+y^2-3*x*y-2*x^2,
+/*  240  */ 
+2*x*y*'diff(y,x,1)-y^2+a*x,
+/*  241  */ 
+2*x*y*'diff(y,x,1)-y^2+a*x^2,
+/*  242  */ 
+2*x*y*'diff(y,x,1)+2*y^2+1,
+/*  243  */ 
+x*(2*y+x-1)*'diff(y,x,1)-y*(y+2*x+1),
+/*  244  */ 
+x*(2*y-x-1)*'diff(y,x,1)+(-y+2*x-1)*y,
+/*  245  */ 
+(2*x*y+4*x^3)*'diff(y,x,1)+y^2+112*x^2*y,
+/*  246  */ 
+x*(3*y+2*x)*'diff(y,x,1)+3*(y+x)^2,
+/*  247  */ 
+(3*x+2)*(y-2*x-1)*'diff(y,x,1)-y^2+x*y-7*x^2-9*x-3,
+/*  248  */ 
+ (6*x*y+x^2+3)*'diff(y,x,1)+3*y^2+2*x*y+2*x ,  
+/*  249  */ 
+ (a*x*y+b*x^n)*'diff(y,x,1)+Alpha*y^3+Beta*y^2 ,  
+/*  250  - Too general - E S Cheb-Terrab and T Kolokolnikov */ 
+/* gamma+(B*x*y+b*y+A*x^2+a*x+c)*'diff(y,x,1)+A*x*y+beta*y-B*g(x)^2+alpha*x ,  */
+0,
+/*  251  */ 
+(x^2*y-1)*'diff(y,x,1)+x*y^2-1,
+/*  252  */ 
+(x^2*y-1)*'diff(y,x,1)-x*y^2+1,
+/*  253  - Too general - E S Cheb-Terrab and T Kolokolnikov */ 
+/*(x^2*y-1)*'diff(y,x,1)+8*(x*y^2-1) ,  */
+0,
+/*  254  */ 
+x*(x*y-2)*'diff(y,x,1)+x^2*y^3+x*y^2-2*y,
+/*  255  */ 
+x*(x*y-3)*'diff(y,x,1)+x*y^2-y,
+/*  256  */ 
+x^2*(y-1)*'diff(y,x,1)+(x-1)*y,
+/*  257  */ 
+x*(x*y+x^4-1)*'diff(y,x,1)-y*(x*y-x^4-1),
+/*  258  */ 
+2*x^2*y*'diff(y,x,1)+y^2-2*x^3-x^2,
+/*  259  */ 
+2*x^2*y*'diff(y,x,1)-y^2-x^2*%e^(x-1/x),
+/*  260  */ 
+(2*x^2*y+x)*'diff(y,x,1)-x^2*y^3+2*x*y^2+y,
+/*  261  */ 
+(2*x^2*y-x)*'diff(y,x,1)-2*x*y^2-y,
+/*  262  */ 
+(2*x^2*y-x^3)*'diff(y,x,1)+y^3-4*x*y^2+2*x^3,
+/*  263  */ /* nijso fixed ode */
+2*x^3*y*'diff(y,x,1)+3*x^2*y^2+7,
+/*  264  */ 
+2*x*(x^3*y+1)*'diff(y,x,1)+y*(3*x^3*y-1),
+/*  265  - Too general - E S Cheb-Terrab and T Kolokolnikov */ 
+/*(x^(n*(n+1))*y-1)*'diff(y,x,1)+2*(n+1)^2*x^(n-1)*(x^n^2*y^2-1) ,  */
+0,
+/*  266  */ 
+sqrt(x^2+1)*(y-x)*'diff(y,x,1)-a*(y^2+1)^(3/2) ,
+/*  267  */ 
+sin(x)^2*y*'diff(y,x,1)+cos(x)*sin(x)*y^2-1,
+/*  268  */ 
+f(x)*y*'diff(y,x,1)+g(x)*y^2+h(x),
+/*  269  - Too general - E S Cheb-Terrab and T Kolokolnikov */ 
+/*(bessel_i(1,x)*%e^-x*y+bessel_i(0,x)*%e^-x)*'diff(y,x,1)-f3(x)*y^3-f2(x)*y^2-f1(x)*y-f0(x) ,  */
+0,
+/*  270  */ 
+(y^2-x)*'diff(y,x,1)-y+x^2,
+/*  271  */ 
+(y^2+x^2)*'diff(y,x,1)+2*x*(y+2*x),
+/*  272  */ 
+(y^2+x^2)*'diff(y,x,1)-y^2,
+/*  273  */ 
+(y^2+x^2+a)*'diff(y,x,1)+2*x*y,
+/*  274  */ 
+(y^2+x^2+a)*'diff(y,x,1)+2*x*y+x^2+b,
+/*  275  */ 
+(y^2+x^2+x)*'diff(y,x,1)-y,
+/*  276  */ 
+(y^2-x^2)*'diff(y,x,1)+2*x*y,
+/*  277  */ 
+(y^2+x^4)*'diff(y,x,1)-4*x^3*y,
+/*  278  */ 
+(y^2+4*sin(x))*'diff(y,x,1)-cos(x),
+/*  279  */ 
+(y^2+2*y+x)*'diff(y,x,1)+y^2*(y+x)^2+y*(y+1) ,
+/*  280  */ 
+(y+x)^2*'diff(y,x,1)-a^2,
+/*  281  */ 
+(y^2+2*x*y-x^2)*'diff(y,x,1)-y^2+2*x*y+x^2,
+/*  282  */ 
+(y+3*x-1)^2*'diff(y,x,1)-(2*y-1)*(4*y+6*x-3),
+/*  283  */ 
+3*(y^2-x^2)*'diff(y,x,1)+2*y^3-6*x*(x+1)*y-3*%e^x,
+/*  284  */ 
+(4*y^2+x^2)*'diff(y,x,1)-x*y,
+/*  285  */ 
+(4*y^2+2*x*y+3*x^2)*'diff(y,x,1)+y^2+6*x*y+2*x^2,
+/*  286  */ 
+(2*y-3*x+1)^2*'diff(y,x,1)-(3*y-2*x-4)^2,
+/*  287  */ 
+(2*y-4*x+1)^2*'diff(y,x,1)-(y-2*x)^2,
+/*  288  */ 
+(6*y^2-3*x^2*y+1)*'diff(y,x,1)-3*x*y^2+x,
+/*  289  */ 
+(6*y-x)^2*'diff(y,x,1)-6*y^2+2*x*y+a,
+/*  290  */ 
+(a*y^2+2*b*x*y+c*x^2)*'diff(y,x,1)+b*y^2+2*c*x*y+d*x^2,
+/*  291  */ 
+(b*(Beta*y+Alpha*x)^2-Beta*(b*y+a*x))*'diff(y,x,1)+a*(Beta*y+Alpha*x)^2-Alpha*(b*y+a*x) ,
+/*  292  */ 
+(Gamma+Alpha*y+Beta*x)^2+(a*y+b*x+c)^2*'diff(y,x,1) ,  
+/*  293  */ 
+x*(y^2-3*x)*'diff(y,x,1)+2*y^3-5*x*y,
+/*  294  */ 
+x*(y^2+x^2-a)*'diff(y,x,1)-y*(y^2+x^2+a),
+/*  295  */ 
+x*(y^2+x*y-x^2)*'diff(y,x,1)-y^3+x*y^2+x^2*y,
+/*  296  */ 
+x*(y^2+x^2*y+x^2)*'diff(y,x,1)-2*y^3-2*x^2*y^2+x^4 ,  
+/*  297  */ 
+2*x*(y^2+5*x^2)*'diff(y,x,1)+y^3-x^2*y,
+/*  298  */ 
+3*x*y^2*'diff(y,x,1)+y^3-2*x,
+/*  299  */ 
+(3*x*y^2-x^2)*'diff(y,x,1)+y^3-2*x*y,
+/*  300  */ 
+6*x*y^2*'diff(y,x,1)+2*y^3+x,
+/*  301  */ 
+(6*x*y^2+x^2)*'diff(y,x,1)-y*(3*y^2-x),
+/*  302  */ 
+(x^2*y^2+x)*'diff(y,x,1)+y,
+/*  303  */ 
+x*(x*y-1)^2*'diff(y,x,1)+y*(x^2*y^2+1),
+/*  304  */ 
+(10*x^3*y^2+x^2*y+2*x)*'diff(y,x,1)+5*x^2*y^3+x*y^2,
+/*  305  */ 
+(y^3-3*x)*'diff(y,x,1)-3*y+x^2,
+/*  306  */ 
+(y^3-x^3)*'diff(y,x,1)-x^2*y,
+/*  307  */ 
+y*(y^2+x^2+a)*'diff(y,x,1)+x*(y^2+x^2-a),
+/*  308  */ 
+2*y^3*'diff(y,x,1)+x*y^2,
+/*  309  */ 
+(2*y^3+y)*'diff(y,x,1)-2*x^3-x,
+/*  310  */ 
+(2*y^3+5*x^2*y)*'diff(y,x,1)+5*x*y^2+x^3,
+/*  311  */ 
+(20*y^3-3*x*y^2+6*x^2*y+3*x^3)*'diff(y,x,1)-y^3+6*x*y^2+9*x^2*y+4*x^3,
+/*  312  */ 
+(y^2/b+x^2/a)*(y*'diff(y,x,1)+x)+(a-b)*(y*'diff(y,x,1)-x)/(b+a) , 
+/*  313  */ 
+ (2*a*y^3+3*a*x*y^2-b*x^3+c*x^2)*'diff(y,x,1)-a*y^3+c*y^2+3*b*x^2*y+2*b*x^3 , 
+/*  314  */ 
+x*y^3*'diff(y,x,1)+y^4-x*sin(x),
+/*  315  */ 
+(2*x*y^3-x^4)*'diff(y,x,1)-y^4+2*x^3*y,
+/*  316  */ /* nijso: -4 forgotten in database!*/ 
+(2*x*y^3+y)*'diff(y,x,1)+2*y^2-4,
+/*  317  */ 
+ (2*x*y^3+x*y+x^2)*'diff(y,x,1)+y^2-x*y ,  
+/*  318  */ 
+(3*x*y^3-4*x*y+y)*'diff(y,x,1)+y^2*(y^2-2),
+/*  319  */ 
+(7*x*y^3+y-5*x)*'diff(y,x,1)+y^4-5*y,
+/*  320  */ 
+(x^2*y^3+x*y)*'diff(y,x,1)-1,
+/*  321  */ 
+ (2*x^2*y^3+x^2*y^2-2*x)*'diff(y,x,1)-2*y-1 , 
+/*  322  */ 
+(10*x^2*y^3-3*y^2-2)*'diff(y,x,1)+5*x*y^4+x,
+/*  323  */ 
+ x*(a*x*y^3+c)*'diff(y,x,1)+y*(b*x^3*y+c) , 
+/*  324  */ 
+ (2*x^3*y^3-x)*'diff(y,x,1)+2*x^3*y^3-y , 
+/*  325  */ 
+y*(y^3-2*x^3)*'diff(y,x,1)+x*(2*y^3-x^3),
+/*  326  */ 
+y*((a*y+b*x)^3+b*x^3)*'diff(y,x,1)+x*((a*y+b*x)^3+a*y^3),
+/*  327  */ 
+ (x*y^4+2*x^2*y^3+2*y+x)*'diff(y,x,1)+y^5+y , 
+/*  328  */ 
+a*x^2*y^n*'diff(y,x,1)-2*x*'diff(y,x,1)+y,
+/*  329  */ 
+x^n*y^m*(a*x*'diff(y,x,1)+b*y)+Alpha*x*'diff(y,x,1)+Beta*y,
+/*  330  */ 
+ 'diff(y,x,1)*(f(y+x)+1)+f(y+x) , 
+/*  331 - Too general - E S Cheb-Terrab and T Kolokolnikov */ 
+0 ,  
+/*  332  */ 
+x*(sqrt(x*y)-1)*'diff(y,x,1)-y*(sqrt(x*y)+1),
+/*  333  */ 
+ (2*x^(5/2)*y^(3/2)+x^2*y-x)*'diff(y,x,1)-x^(3/2)*y^(5/2)+x*y^2-y ,  
+/*  334  */ 
+ (sqrt(y+x)+1)*'diff(y,x,1)+1 , 
+/*  335  */ 
+sqrt(y^2-1)*'diff(y,x,1)-sqrt(x^2-1),
+/*  336  */ 
+(sqrt(y^2+1)+a*x)*'diff(y,x,1)+a*y+sqrt(x^2+1),
+/*  337  */ 
+ (sqrt(y^2+x^2)+x)*'diff(y,x,1)-y ,  
+/*  338  */ 
+ (y*sqrt(y^2+x^2)+sin(Alpha)*(y^2-x^2)-2*cos(Alpha)*x*y)*'diff(y,x,1)+x*sqrt(y^2+x^2)+cos(Alpha)*(y^2-x^2)+2*sin(Alpha)*x*y , 
+/*  339  */ 
+ (x*sqrt(y^2+x^2+1)-y*(y^2+x^2))*'diff(y,x,1)-y*sqrt(y^2+x^2+1)-x*(y^2+x^2) , 
+/*  340  */ 
+(e1*(x+a)/(y^2+(x+a)^2)^(3/2)+e2*(x-a)/(y^2+(x-a)^2)^(3/2))*'diff(y,x,1)-y*(e1/(y^2+(x+a)^2)^(3/2)+e2/(y^2+(x-a)^2)^(3/2)),
+/*  341  */ 
+(x*%e^y+%e^x)*'diff(y,x,1)+%e^y+%e^x*y,
+/*  342  */ 
+x*(3*%e^(x*y)+2*%e^-(x*y))*(x*'diff(y,x,1)+y)+1,
+/*  343  */ 
+(log(y)+x)*'diff(y,x,1)-1,
+/*  344  */ 
+(log(y)+2*x-1)*'diff(y,x,1)-2*y,
+/*  345  */ 
+x*(2*x^2*y*log(y)+1)*'diff(y,x,1)-2*y,
+/*  346  */ 
+ x*'diff(y,x,1)*(y*log(x*y)+y-a*x)-y*(a*x*log(x*y)-y+a*x) , 
+/*  347  */ 
+(sin(x)+1)*sin(y)*'diff(y,x,1)+cos(x)*(cos(y)-1),
+/*  348  */ 
+(x*cos(y)+sin(x))*'diff(y,x,1)+sin(y)+cos(x)*y,
+/*  349  */ 
+2*x*sin(y/x)+x*'diff(y,x,1)*cot(y/x)-y*cot(y/x),
+/*  350  */ 
+cos(y)*'diff(y,x,1)-cos(x)*sin(y)^2-sin(y),
+/*  351  */ 
+ cos(y)*'diff(y,x,1)-sin(y)^3+x*cos(y)^2*sin(y) , 
+/*  352  */ 
+cos(y)*(cos(y)-sin(Alpha)*sin(x))*'diff(y,x,1)+cos(x)*(cos(x)-sin(Alpha)*sin(y)),
+/*  353  */ 
+x*cos(y)*'diff(y,x,1)+sin(y),
+/*  354  */ 
+(x*sin(y)-1)*'diff(y,x,1)+cos(y),
+/*  355  */ 
+(x*cos(y)+cos(x))*'diff(y,x,1)+sin(y)-sin(x)*y,
+/*  356  */ 
+(x^2*cos(y)+2*sin(x)*y)*'diff(y,x,1)+2*x*sin(y)+cos(x)*y^2,
+/*  357  */ 
+x*log(x)*sin(y)*'diff(y,x,1)+cos(y)*(1-x*cos(y)),
+/*  358  */ 
+cos(x)*sin(y)*'diff(y,x,1)+sin(x)*cos(y),
+/*  359  */ /* nijso fixed wrong ode*/
+3*sin(x)*sin(y)*'diff(y,x,1)+5*cos(x)*cos(y)^3,
+/*  360  */ 
+'diff(y,x,1)*cos(a*y)-b*(1-c*cos(a*y))*sqrt(cos(a*y)^2+c*cos(a*y)-1),
+/*  361  */ 
+'diff(y,x,1)*(cos(y+x)+x*sin(x*y)-sin(y))+cos(y+x)+y*sin(x*y)+cos(x),
+/*  362  */ 
+'diff(y,x,1)*(x^2*y*sin(x*y)-4*x)+x*y^2*sin(x*y)-y,
+/*  363  */ 
+(x*'diff(y,x,1)-y)*cos(y/x)^2+x,
+/*  364  */ 
+x*'diff(y,x,1)*(y*sin(y/x)-x*cos(y/x))-y*(y*sin(y/x)+x*cos(y/x)),
+/*  365  */ 
+'diff(y,x,1)*(y*f(y^2+x^2)-x)+x*f(y^2+x^2)+y , 
+/*  366  */ 
+(a*y*'diff(y,x,1)+x)*f(a*y^2+x^2)-x*'diff(y,x,1)-y,
+/*  367  */ 
+(b*x*'diff(y,x,1)-a)*f(x^c*y)-x^a*y^b*(x*'diff(y,x,1)+c*y) , 
+/* ***** ***** */
+/*  368  */ 
+('diff(y,x,1))^2+a*y+b*x^2 , 
+/*  369  */
+('diff(y,x,1))^2+y^2-a^2,
+/*  370   This equation too general - E S Cheb-Terrab and T Kolokolnikov */ 
+/*('diff(y,x,1))^2+y^2-f(x)^2 ,  */
+0,
+/*  371  */ 
+('diff(y,x,1))^2-y^3+y^2 ,  
+/*  372  */ 
+('diff(y,x,1))^2-4*y^3+a*y+b , 
+/*  373  */ 
+('diff(y,x,1))^2+a^2*y^2*(log(y)^2-1) , 
+/*  374  */ 
+('diff(y,x,1))^2-2*'diff(y,x,1)-y^2 , 
+/*  375  */ 
+('diff(y,x,1))^2+a*'diff(y,x,1)+b*x,
+/*  376  */ 
+('diff(y,x,1))^2+a*'diff(y,x,1)+b*y,
+/*  377  */ 
+('diff(y,x,1))^2+(x-2)*'diff(y,x,1)-y+1,
+/*  378  */ 
+('diff(y,x,1))^2+(x+a)*'diff(y,x,1)-y,
+/*  379  */ 
+('diff(y,x,1))^2-(x+1)*'diff(y,x,1)+y,
+/*  380  */ 
+('diff(y,x,1))^2+2*x*'diff(y,x,1)-y,
+/*  381  */ 
+('diff(y,x,1))^2-2*x*'diff(y,x,1)+y,
+/*  382  */ 
+('diff(y,x,1))^2+a*x*'diff(y,x,1)-b*x^2-c,
+/*  383  */ 
+('diff(y,x,1))^2+a*x*'diff(y,x,1)+b*y+c*x^2 ,  
+/*  384  */ 
+('diff(y,x,1))^2+(a*x+b)*'diff(y,x,1)-a*y+c,
+/*  385  */ 
+ ('diff(y,x,1))^2-2*x^2*'diff(y,x,1)+2*x*y , 
+/*  386  */ 
+('diff(y,x,1))^2+a*x^3*'diff(y,x,1)-2*a*x^2*y,
+/*  387 */ 
+('diff(y,x,1))^2+%e^x*('diff(y,x,1)-y),
+/*  388  */ 
+('diff(y,x,1))^2-2*y*'diff(y,x,1)-2*x,
+/*  389  */ 
+('diff(y,x,1))^2-(4*y+1)*'diff(y,x,1)+y*(4*y+1),
+/*  390  */ 
+('diff(y,x,1))^2+a*y*'diff(y,x,1)-b*x-c,
+/*  391  */ 
+('diff(y,x,1))^2+(a*y+b*x)*'diff(y,x,1)+a*b*x*y,
+/*  392  */ 
+y^2*log(a*y)+('diff(y,x,1))^2-x*y*'diff(y,x,1),
+/*  393  */ 
+('diff(y,x,1))^2+2*cot(x)*y*'diff(y,x,1)-y^2 , 
+/*  394  */ 
+false,
+/*  395  */ 
+('diff(y,x,1))^2+2*f(x)*y*'diff(y,x,1)+g(x)*y^2+h(x) ,  
+/*  396  */ 
+('diff(y,x,1))^2+y*(y-x)*'diff(y,x,1)-x*y^3,
+/*  397  */ 
+('diff(y,x,1))^2-2*x^3*y^2*'diff(y,x,1)-4*x^2*y^3 ,  
+/*  398  */ 
+('diff(y,x,1))^2-3*x*y^(2/3)*'diff(y,x,1)+9*y^(5/3) , 
+/*  399  */ 
+2*('diff(y,x,1))^2+(x-1)*'diff(y,x,1)-y,
+/*  400  */ 
+2*('diff(y,x,1))^2-2*x^2*'diff(y,x,1)+3*x*y,
+/*  401  */ 
+3*('diff(y,x,1))^2-2*x*'diff(y,x,1)+y,
+/*  402  */ 
+3*('diff(y,x,1))^2+4*x*'diff(y,x,1)-y+x^2,
+/*  403  */ 
+a*('diff(y,x,1))^2+b*'diff(y,x,1)-y,
+/*  404  */ 
+ a*('diff(y,x,1))^2+b*x^2*'diff(y,x,1)+c*x*y ,  
+/*  405  */ 
+a*('diff(y,x,1))^2+y*'diff(y,x,1)-x,
+/*  406  */ 
+a*('diff(y,x,1))^2-y*'diff(y,x,1)-x,
+/*  407  */ 
+x*('diff(y,x,1))^2-y,
+/*  408  */ 
+ x*('diff(y,x,1))^2-2*y+x ,
+/*  409  */ 
+ x*('diff(y,x,1))^2-2*'diff(y,x,1)-y ,
+/*  410  */ 
+x*('diff(y,x,1))^2+4*'diff(y,x,1)-2*y , 
+/*  411  */ 
+x*('diff(y,x,1))^2+x*'diff(y,x,1)-y ,
+/*  412  */ 
+x*('diff(y,x,1))^2+y*'diff(y,x,1)+a,
+/*  413  */
+x*('diff(y,x,1))^2+y*'diff(y,x,1)-x^2,
+/*  414  */
+x*('diff(y,x,1))^2+y*'diff(y,x,1)+x^3,
+/*  415  */ 
+x*('diff(y,x,1))^2+y*'diff(y,x,1)-y^4,
+/*  416  */ 
+x*('diff(y,x,1))^2+(y-3*x)*'diff(y,x,1)+y,
+/*  417  */ 
+x*('diff(y,x,1))^2-y*'diff(y,x,1)+a,
+/*  418  */ 
+x*('diff(y,x,1))^2-y*'diff(y,x,1)+a*y,
+/*  419  */ 
+x*('diff(y,x,1))^2+2*y*'diff(y,x,1)-x,
+/*  420  */ 
+x*('diff(y,x,1))^2-2*y*'diff(y,x,1)+a,
+/*  421  */ 
+x*('diff(y,x,1))^2-2*y*'diff(y,x,1)-x,
+/*  422  */ 
+x*('diff(y,x,1))^2-2*y*'diff(y,x,1)+4*x,
+/*  423  */ 
+x*('diff(y,x,1))^2-2*y*'diff(y,x,1)+2*y+x,
+/*  424  */ 
+x*('diff(y,x,1))^2+a*y*'diff(y,x,1)+b*x,
+/*  425  */ 
+ (x+1)*('diff(y,x,1))^2-(y+x)*'diff(y,x,1)+y ,
+/*  426  */ 
+(3*x+1)*('diff(y,x,1))^2-3*(y+2)*'diff(y,x,1)+9 ,
+/*  427  */  
+ (3*x+5)*('diff(y,x,1))^2-(3*y+x)*'diff(y,x,1)+y ,
+/*  428  */ 
+a*x*('diff(y,x,1))^2+(-a*y+b*x+c)*'diff(y,x,1)-b*y ,
+/*  429  */ 
+ a*x*('diff(y,x,1))^2-(a*y+b*x-b-a)*'diff(y,x,1)+b*y ,
+/*  430  */ 
+ (a2*x+c_2)*('diff(y,x,1))^2+(b1*y+a1*x+c_1)*'diff(y,x,1)+b0*y+a0*x+c_0 ,  
+/*  431  */ 
+ x^2*('diff(y,x,1))^2-y^4+y^2 ,  
+/*  432  */ 
+ (x*'diff(y,x,1)+a)^2-2*a*y+x^2 , 
+/*  433  */ 
+(x*'diff(y,x,1)+y+2*x)^2-4*(x*y+x^2+a),
+/*  434  */ 
+x^2*('diff(y,x,1))^2-2*x*y*'diff(y,x,1)-x^2,
+/*  435  */ 
+ x^2*('diff(y,x,1))^2-2*x*y*'diff(y,x,1)+y*(y+1)-x ,  
+/*  436  */ 
+x^2*('diff(y,x,1))^2-2*x*y*'diff(y,x,1)+(1-x^2)*y^2-x^4,
+/*  437  */ 
+x^2*('diff(y,x,1))^2-(2*x*y+a)*'diff(y,x,1)+y^2,
+/*  438  */ 
+x^2*('diff(y,x,1))^2+3*x*y*'diff(y,x,1)+2*y^2,
+/*  439  */ 
+x^2*('diff(y,x,1))^2+3*x*y*'diff(y,x,1)+3*y^2,
+/*  440  */ 
+x^2*('diff(y,x,1))^2+4*x*y*'diff(y,x,1)-5*y^2,
+/*  441  */ 
+x^2*('diff(y,x,1))^2-4*x*(y+2)*'diff(y,x,1)+4*y*(y+2),
+/*  442  */ 
+x^2*('diff(y,x,1))^2+(x^2*y-2*x*y+x^3)*'diff(y,x,1)+(1-x)*(y^2-x^2*y),
+/*  443  */ 
+x*(x*'diff(y,x,1)-y)^2-'diff(y,x,1),
+/*  444  */ 
+x^2*('diff(y,x,1))^2-y*(y-2*x)*'diff(y,x,1)+y^2 , 
+/*  445  */ 
+x^2*('diff(y,x,1))^2+(a*x^2*y^3+b)*'diff(y,x,1)+a*b*y^3,
+/*  446  */ 
+(x^2+1)*('diff(y,x,1))^2-2*x*y*'diff(y,x,1)+y^2-1,
+/*  447  */ 
+(x^2-1)*('diff(y,x,1))^2-1,
+/*  448  */ 
+ (x^2-1)*('diff(y,x,1))^2-y^2+1 ,  
+/*  449  */ 
+(x^2-a^2)*('diff(y,x,1))^2+2*x*y*'diff(y,x,1)+y^2,
+/*  450  */ 
+(x^2-a^2)*('diff(y,x,1))^2-2*x*y*'diff(y,x,1)-x^2,
+/*  451  */ 
+(x^2+a)*('diff(y,x,1))^2-2*x*y*'diff(y,x,1)+y^2+b,
+/*  452  */ 
+ (2*x^2+1)*('diff(y,x,1))^2+(y^2+2*x*y+x^2+2)*'diff(y,x,1)+2*y^2+1 ,  
+/*  453 */
+(a^2-1)*x^2*('diff(y,x,1))^2+2*x*y*'diff(y,x,1)-y^2+a^2*x^2,
+/*  454  */ 
+0,
+/*  455  */ 
+ x^3*('diff(y,x,1))^2+x^2*y*'diff(y,x,1)+a , 
+/*  456  */ 
+ x*(x^2-1)*('diff(y,x,1))^2+2*(1-x^2)*y*'diff(y,x,1)+x*y^2-x ,
+/*  457 */ 
+x^4*('diff(y,x,1))^2-x*'diff(y,x,1)-y,
+/*  458 */
+x^2*(x^2-a^2)*('diff(y,x,1))^2-1,
+/*  459  */ 
+%e^-(2*x)*('diff(y,x,1))^2-('diff(y,x,1)-1)^2+%e^-(2*y),
+/*  460  */ 
+cos(x)^4*(('diff(y,x,1))^2+y^2)-a^2,
+/*  461  */ 
+/* This equation too general - E S Cheb-Terrab and T Kolokolnikov */ 
+/* A(x)*('diff(y,x,1))^2+2*B(x)*y*'diff(y,x,1)+2*DD(x)*'diff(y,x,1)+C(x)*y^2+2*EE(x)*y+F(x) ,  */
+0,
+/*  462  */ 
+y*('diff(y,x,1))^2-1,
+/*  463  */ 
+y*('diff(y,x,1))^2-%e^(2*x),  
+/*  464  */ 
+y*('diff(y,x,1))^2+2*x*'diff(y,x,1)-y,
+/*  465  */ 
+y*('diff(y,x,1))^2+2*x*'diff(y,x,1)-9*y, 
+/*  466  */ 
+y*('diff(y,x,1))^2-2*x*'diff(y,x,1)+y,
+/*  467  */ 
+y*('diff(y,x,1))^2-4*x*'diff(y,x,1)+y,
+/*  468  */ 
+y*('diff(y,x,1))^2-4*a^2*x*'diff(y,x,1)+a^2*y,
+/*  469  */ 
+y*('diff(y,x,1))^2+a*x*'diff(y,x,1)+b*y,
+/*  470  */ 
+y*('diff(y,x,1))^2+x^3*'diff(y,x,1)-x^2*y,
+/*  471  */ 
+y*('diff(y,x,1))^2-(y-x)*'diff(y,x,1)-x,
+/*  472  */ 
+(y+x)*('diff(y,x,1))^2+2*x*'diff(y,x,1)-y,
+/*  473  */ 
+ (y-2*x)*('diff(y,x,1))^2-2*(x-1)*'diff(y,x,1)+y-2 ,  
+/*  474  */ 
+ 2*y*('diff(y,x,1))^2-(4*x-5)*'diff(y,x,1)+2*y ,  
+/*  475  */ 
+ 4*y*('diff(y,x,1))^2+2*x*'diff(y,x,1)-y ,
+/*  476  */ 
+9*y*('diff(y,x,1))^2+4*x^3*'diff(y,x,1)-4*x^2*y,
+/*  477  */ 
+ a*y*('diff(y,x,1))^2+(2*x-b)*'diff(y,x,1)-y ,  
+/*  478  */ 
+(a*y+b)*(('diff(y,x,1))^2+1)-c,
+/*  479  */ 
+ (b2*y+a2*x+c_2)*('diff(y,x,1))^2+(b1*y+a1*x+c_1)*'diff(y,x,1)+b0*y+a0*x+c_0 ,  
+/*  480  */ 
+(a*y-x^2)*('diff(y,x,1))^2+2*x*y*('diff(y,x,1))^2-y^2,
+/*  481  */ 
+x*y*('diff(y,x,1))^2+(y^2+x^2)*'diff(y,x,1)+x*y,
+/*  482  */ 
+ x*y*('diff(y,x,1))^2+(-y^2+x^2+a)*'diff(y,x,1)-x*y ,  
+/*  483  */ 
+ (2*x*y-x^2)*('diff(y,x,1))^2+2*x*y*'diff(y,x,1)-y^2+2*x*y ,  
+/*  484  */ 
+ (2*x*y-x^2)*('diff(y,x,1))^2-6*x*y*'diff(y,x,1)-y^2+2*x*y ,  
+/*  485  */ 
+ a*x*y*('diff(y,x,1))^2-(a*y^2+b*x^2+c)*'diff(y,x,1)+b*x*y ,  
+/*  486  */ 
+ y^2*('diff(y,x,1))^2+y^2-a^2 ,
+/*  487 */ 
+y^2*('diff(y,x,1))^2-6*x^3*'diff(y,x,1)+4*x^2*y,
+/*  488  */ 
+ y^2*('diff(y,x,1))^2-4*a*y*'diff(y,x,1)+y^2-4*a*x+4*a^2 ,  
+/*  489  */ 
+ y^2*('diff(y,x,1))^2+2*x*y*'diff(y,x,1)+a*y^2+b*x+c , 
+/*  490  */ 
+ y^2*('diff(y,x,1))^2-2*x*y*'diff(y,x,1)+2*y^2-x^2+a , 
+/*  491  */ 
+ y^2*('diff(y,x,1))^2+2*a*x*y*'diff(y,x,1)+(1-a)*y^2+a*x^2+(a-1)*b , 
+/*  492  */ 
+ (y^2-a^2)*('diff(y,x,1))^2+y^2 ,
+/*  493  */ 
+ (y^2-2*a*x+a^2)*('diff(y,x,1))^2+2*a*y*'diff(y,x,1)+y^2 , 
+/*  494  */ 
+ (y^2-a^2*x^2)*('diff(y,x,1))^2+2*x*y*'diff(y,x,1)+(1-a^2)*x^2 , 
+/*  495  */ 
+ (y^2+(1-a)*x^2)*('diff(y,x,1))^2+2*a*x*y*'diff(y,x,1)+(1-a)*y^2+x^2 , 
+/*  496  */ 
+ (y-x)^2*(('diff(y,x,1))^2+1)-a^2*('diff(y,x,1)+1)^2 , 
+/*  497  */ 
+ 3*y^2*('diff(y,x,1))^2-2*x*y*'diff(y,x,1)+4*y^2-x^2 ,  
+/*  498  */ 
+(3*y-2)*('diff(y,x,1))^2+4*(y-1),
+/*  499  */ 
+ (1-a^2)*y^2*('diff(y,x,1))^2-2*a^2*x*y*'diff(y,x,1)+y^2-a^2*x^2 , 
+/*  500  */ 
+ (a-b)*y^2*('diff(y,x,1))^2-2*b*x*y*'diff(y,x,1)+a*y^2-b*x^2-a*b , 
+/*  501  */ 
+ (a*y^2+b*x+c)*('diff(y,x,1))^2-b*y*'diff(y,x,1)+d*y^2 ,  
+/*  502  */ 
+(a*y-b*x)^2*(a^2*('diff(y,x,1))^2+b^2)-c^2*(a*'diff(y,x,1)+b)^2 ,  
+/*  503  - Too general - E S Cheb-Terrab and T Kolokolnikov */ 
+/* (b2*y+a2*x+c2)^2*('diff(y,x,1))^2+(b1*y+a1*x+c1)*'diff(y,x,1)+b0*y+c0+a0 ,  */
+/*  504  */ 
+ x*y^2*('diff(y,x,1))^2-(y^3+x^3-a)*'diff(y,x,1)+x^2*y ,  
+/*  505  */ 
+x*y^2*('diff(y,x,1))^2-2*y^3*'diff(y,x,1)+2*x*y^2-x^3,
+/*  506  */ 
+ x^2*(x*y^2-1)*('diff(y,x,1))^2+2*x^2*y^2*(y-x)*'diff(y,x,1)-y^2*(x^2*y-1) ,  
+/*  507  */ 
+ (y^4-a^2*x^2)*('diff(y,x,1))^2+2*a^2*x*y*'diff(y,x,1)+y^2*(y^2-a^2) ,  
+/*  508  */ 
+ (y^4+x^2*y^2-x^2)*('diff(y,x,1))^2+2*x*y*'diff(y,x,1)-y^2 ,  
+/*  509  */ 
+9*(x^2-1)*y^4*('diff(y,x,1))^2-6*x*y^5*'diff(y,x,1)-4*x^2,
+/*  510  */ 
+ x^2*(x^2*y^4-1)*('diff(y,x,1))^2+2*x^3*y^3*(y^2-x^2)*'diff(y,x,1)-y^2*(x^4*y^2-1) ,  
+/*  511  */ 
+ (a^2*sqrt(y^2+x^2)-x^2)*('diff(y,x,1))^2+2*x*y*'diff(y,x,1)+a^2*sqrt(y^2+x^2)-y^2 ,  
+/*  512  */ 
+ (a*(y^2+x^2)^(3/2)-x^2)*('diff(y,x,1))^2+2*x*y*'diff(y,x,1)+a*(y^2+x^2)^(3/2)-y^2 ,  
+/*  513  */ 
+ sin(y)*('diff(y,x,1))^2+2*x*cos(y)^3*'diff(y,x,1)-cos(y)^4*sin(y) ,  
+/*  514  */ 
+(a*cos(y)+b)*('diff(y,x,1))^2-c*cos(y)+d,
+/*  515  */ 
+ (('diff(y,x,1))^2+1)*f(y^2+x^2)-(x*'diff(y,x,1)-y)^2 ,  
+/*  516  */ 
+ (y^2+x^2)*(('diff(y,x,1))^2+1)*f(x/sqrt(y^2+x^2))-(x*'diff(y,x,1)-y)^2 ,  
+/*  517  */ 
+ (y^2+x^2)*(('diff(y,x,1))^2+1)*f(y/sqrt(y^2+x^2))-(x*'diff(y,x,1)-y)^2 ,  
+/*  518  */ 
+('diff(y,x,1))^3-(y-a)^2*(y-b)^2,
+/*  519  */ 
+ ('diff(y,x,1))^3-f(x)*(a*y^2+b*y+c)^2 ,  
+/*  520  */ 
+ ('diff(y,x,1))^3+'diff(y,x,1)-y ,
+/*  521  */ 
+('diff(y,x,1))^3+x*'diff(y,x,1)-y,
+/*  522  */ 
+('diff(y,x,1))^3-(x+5)*'diff(y,x,1)+y,
+/*  523  */ 
+ ('diff(y,x,1))^3-a*x*'diff(y,x,1)+x^3 ,  
+/*  524  */
+('diff(y,x,1))^3-2*y*'diff(y,x,1)+y^2, 
+/*  525  */ 
+ ('diff(y,x,1))^2-a*x*y*'diff(y,x,1)+2*a*y^2 ,  
+/*  526  */ 
+('diff(y,x,1))^3-(y^2+x*y+x^2)*('diff(y,x,1))^2+(x*y^3+x^2*y^2+x^3*y)*'diff(y,x,1)-x^3*y^3,
+/*  527  */ 
+ ('diff(y,x,1))^3-x*y^4*'diff(y,x,1)-y^5 ,  
+/*  528  */ 
+ ('diff(y,x,1))^3+a*('diff(y,x,1))^2+b*y+a*b*x ,  
+/*  529  */ 
+('diff(y,x,1))^3+x*('diff(y,x,1))^2-y ,
+/*  530  */
+('diff(y,x,1))^3-y*('diff(y,x,1))^2+y^2,
+/*  531  */ 
+('diff(y,x,1))^3-(y^4+x*y^2+x^2)*('diff(y,x,1))^2+(x*y^6+x^2*y^4+x^3*y^2)*'diff(y,x,1)-x^3*y^6,
+/*  532  */ 
+a*('diff(y,x,1))^3+b*('diff(y,x,1))^2+c*'diff(y,x,1)-y-d,
+/*  533  */ 
+x*('diff(y,x,1))^3-y*('diff(y,x,1))^2+a,
+/*  534  */ 
+4*x*('diff(y,x,1))^3-6*y*('diff(y,x,1))^2+3*y-x,
+/*  535  */ 
+8*x*('diff(y,x,1))^3-12*y*('diff(y,x,1))^2+9*y,
+/*  536  */ 
+(x^2-a^2)*('diff(y,x,1))^3+b*x*(x^2-a^2)*('diff(y,x,1))^2+'diff(y,x,1)+b*x,
+/*  537  */ 
+ x^3*('diff(y,x,1))^3-3*x^2*y*('diff(y,x,1))^2+(3*x*y^2+x^6)*'diff(y,x,1)-y^3-2*x^5*y ,  
+/*  538  */ 
+ 2*(x*'diff(y,x,1)+y)^3-y*'diff(y,x,1) ,  
+/*  539  */ 
+sin(x)*('diff(y,x,1))^3-(sin(x)*y-cos(x)^2)*('diff(y,x,1))^2+(-cos(x)^2*y-sin(x))*'diff(y,x,1)+sin(x)*y,
+/*  540  */ 
+2*y*('diff(y,x,1))^3-y*('diff(y,x,1))^2+2*x*'diff(y,x,1)-x,
+/*  541  */ 
+ y^2*('diff(y,x,1))^3+2*x*'diff(y,x,1)-y ,  
+/*  542  */ 
+ 16*y^2*('diff(y,x,1))^3+2*x*'diff(y,x,1)-y ,  
+/*  543  */ 
+ x*y^2*('diff(y,x,1))^3-y^3*('diff(y,x,1))^2+x*(x^2+1)*'diff(y,x,1)-x^2*y ,  
+/*  544  */ 
+ x^7*y^2*('diff(y,x,1))^3-(3*x^6*y^3-1)*('diff(y,x,1))^2+3*x^5*y^4*'diff(y,x,1)-x^4*y^5 ,  
+/*  545  */ 
+ ('diff(y,x,1))^4-(y-a)^3*(y-b)^2 ,  
+/*  546  */ 
+ ('diff(y,x,1))^4+3*(x-1)*('diff(y,x,1))^2-3*(2*y-1)*'diff(y,x,1)+3*x ,  
+/*  547  */ 
+ ('diff(y,x,1))^4-4*y*(x*'diff(y,x,1)-2*y)^2 ,  
+/*  548  */ 
+ ('diff(y,x,1))^6-(y-a)^4*(y-b)^3 ,  
+/*  549  */ 
+x^2*(('diff(y,x,1))^2+1)^3-a^2,
+/*  550  */ 
+ ('diff(y,x,1))^r-a*y^s-b*x^(r*s/(r-s)) ,  
+/*  551  */ 
+ ('diff(y,x,1))^n-f(x)^n*(y-a)^(n+1)*(y-b)^(n-1) ,  
+/*  552  */ 
+ ('diff(y,x,1))^n-f(x)*g(y) ,  
+/*  553  */ 
+b*('diff(y,x,1))^n+a*('diff(y,x,1))^m-y,
+/*  554  */ 
+x^(n-1)*('diff(y,x,1))^n-n*x*'diff(y,x,1)+y,
+/*  555  */ 
+sqrt(('diff(y,x,1))^2+1)+x*'diff(y,x,1)-y,
+/*  556  */ 
+sqrt(('diff(y,x,1))^2+1)+x*('diff(y,x,1))^2+y,
+/*  557  */ 
+x*(sqrt(('diff(y,x,1))^2+1)+'diff(y,x,1))-y,
+/*  558  */ 
+a*x*sqrt(('diff(y,x,1))^2+1)+x*'diff(y,x,1)-y,
+/*  559  */ 
+ y*sqrt(('diff(y,x,1))^2+1)-a*y*'diff(y,x,1)-a*x ,  
+/*  560  */ 
+a*y*sqrt(('diff(y,x,1))^2+1)-2*x*y*'diff(y,x,1)+y^2-x^2,
+/*  561  */ 
+sqrt(('diff(y,x,1))^2+1)*f(y^2+x^2)-x*'diff(y,x,1)+y,
+/*  562  */ 
+a*(('diff(y,x,1))^3+1)^(1/3)+b*x*'diff(y,x,1)-y,
+/*  563  */ 
+log('diff(y,x,1))+x*'diff(y,x,1)+a*y+b,
+/*  564  */ 
+log('diff(y,x,1))+a*(x*'diff(y,x,1)-y),
+/*  565  */ 
+y*log('diff(y,x,1))+'diff(y,x,1)-y*log(y)-x*y,
+/*  566  */ 
+sin('diff(y,x,1))+'diff(y,x,1)-x,
+/*  567  */ 
+a*cos('diff(y,x,1))+b*'diff(y,x,1)+x,
+/*  568  */ 
+('diff(y,x,1))^2*sin('diff(y,x,1))-y,
+/*  569  */ 
+(('diff(y,x,1))^2+1)*sin(x*'diff(y,x,1)-y)^2-1,
+/*  570  */ 
+(('diff(y,x,1))^2+1)*(arctan('diff(y,x,1))+a*x)+'diff(y,x,1),
+/*  571  */ 
+a*x^n*f('diff(y,x,1))+x*'diff(y,x,1)-y,
+/*  572  */ 
+x*h('diff(y,x,1))+y*g('diff(y,x,1))+(x*'diff(y,x,1)-y)^n*f('diff(y,x,1)),
+/*  573  */ 
+f(x*('diff(y,x,1))^2)+2*x*'diff(y,x,1)-y,
+/*  574  */ 
+f(x-3*('diff(y,x,1))^2/2)+('diff(y,x,1))^3-y,
+/*  575  */ 
+'diff(y,x,1)*f(x*y*'diff(y,x,1)-y^2)-x^2*'diff(y,x,1)+x*y,
+/*  576  - Too general - E S Cheb-Terrab and T Kolokolnikov */ 
+/* phi(f(x,y,'diff(y,x,1)),g(x,y,'diff(y,x,1))) */
+0
+]$

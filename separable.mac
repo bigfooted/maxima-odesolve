@@ -427,7 +427,6 @@ constant_factors(_expr,_varlist) := block([inflag:true,_constantfactors:1,_oldra
   _oldratvars : ratvars,
   ratvars : _varlist, /* this was done globally elsewhere, should we do it only locally? */
   _expr : ratsimp(_expr),
-  
 
   if lfreeof(_varlist,_expr) then
     _constantfactors:_expr

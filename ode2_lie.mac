@@ -74,6 +74,7 @@ ode2_lie(_expr,_y,_x) := block(
   /* ***************************************************** */
   /* ***** 2. check if missing y                     ***** */
   /* ***************************************************** */
+
   dprint(3,"*** check if ode is of type 'ode2, missing y' "),
   if freeof(_y,_phi) then (
     dprint(2,"ode is of type: missing y"),
@@ -84,12 +85,14 @@ ode2_lie(_expr,_y,_x) := block(
   ),
   dprint(3,"ode is not of type: missing y"),
 
+
   /* ***************************************************** */
   /* ***** 3. check if missing x                     ***** */
   /* ***************************************************** */
+
   dprint(3,"*** check if ode is of type 'ode2, missing x' "),
   if freeof(_x,rhs(_ode)) then (
-    dprint(2,"ode is of type: missing x"),
+    dprint(1,"ode is of type: missing x"),
     /*_xi : 1, _eta : 0,*/
     _sol : subst(['diff(_y,_x,2)='diff(w,_y,1)*w,'diff(_y,_x)=w],_ode),
     _sol : solve(_sol,'diff(w,_y,1))[1], 
@@ -121,11 +124,13 @@ ode2_lie(_expr,_y,_x) := block(
     ) else (
       /* this is the integrating factor of the transformed ode. now change back */
       _mu : _mu * 'diff(_y,_x)^2,
-      dprint(3,"2. integrating factor = ",_mu),
+      dprint(5,"2. integrating factor = ",_mu),
       _mu : subst('diff(_y,_x)=_dy,_mu),
       _mu : subst(_x=_y,_mu),
       _mu : subst(_dy=1/'diff(_y,_x),_mu),
-      dprint(3,"3. integrating factor = ",_mu)
+      dprint(5,"3. integrating factor = ",_mu),
+      dprint(3,"integrating factor = ",_mu),
+      return(_mu/constant_factors(_mu,[_x,_y])) 
     )
   ) else (
     dprint(3,"integrating factor = ",_mu),
@@ -173,6 +178,9 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
         _a,_b,_c,_Y,_ax,_by,_phi1,_nu,_gamma,_expr,_gamma_y,_F,_p_prime,_H,_W,_beta,_gam,_dp,_ddp,_dddp],
 
   /* transform ode*/
+  /* we need to make sure that dy inherits assume operations from 'diff(y,x) */
+  for _l in facts() do assume(subst('diff(_y,_x)=_dy,_l)), 
+
   _ode : subst(['diff(_y,_x)=_dy,'diff(_y,_x,2)=_ddy],_ode), 
   _phi : subst(['diff(_y,_x)=_dy],rhs(_ode)), 
 
@@ -204,6 +212,8 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
       dprint(5,"gamma = ",_gamma),
       if ((ratsimp(diff(_gamma,_y) - _ax) =0) and (ratsimp(diff(_gamma,_x)+_phi1 + _b*_gamma - _gamma*_gamma) =0)) then (
         _mu : exp(integrate((-_gamma+diff(integrate(_a,_y),_x)),_x) - integrate(_a,_y)),
+
+        for _l in facts() do if not freeof(_dy,_l) then forget( subst('diff(_y,_x)=_dy,_l) ),
         return(_mu) 
       ) 
       else (
@@ -221,6 +231,7 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
       if (ratsimp(diff(_ax,_x) - _ax*_b - diff(_phi1,_y))=0) then (
         _nu: ["solution of A(x)*nu' + B(x)*nu"], /* TODO */
         _mu : _nu*exp(-integrate(_a,_y)),
+        for _l in facts() do if not freeof(_dy,_l) then forget( subst('diff(_y,_x)=_dy,_l) ),
         return(_mu)
       ) else (
         dprint(4,"no integrating factor of form mu(x,y)")
@@ -248,6 +259,7 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
   /* can _a also be a constant? or a function of x? */
   if freeof(_y,_c) and freeof(_y,_b) and (_a=0) then (
     _mu : 'diff(_y,_x)/_b,
+        for _l in facts() do if not freeof(_dy,_l) then forget( subst('diff(_y,_x)=_dy,_l) ),
     return(_mu) 
   ) else (
     dprint(4,"ode is not a linear second order ode with symmetries of the form mu(x,y')")
@@ -268,42 +280,47 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
   _gamma_y : diff(_gamma,_y),                /*  */
   _gamma_y : ratsimp(_gamma_y),
   dprint(5,"gamma_y = ",_gamma_y),
-   
-  _expr : ratsimp(diff(_gamma_y/_gamma,_dy)),
-  dprint(5,"expr = ",_expr),
-  _expr : ratsimp(factor(num(_expr))/factor(denom(_expr))),
-  dprint(5,"expr = ",_expr),
-  if (_expr#0) then (
+  if (_gamma # 0) then ( 
+    _expr : ratsimp(diff(_gamma_y/_gamma,_dy)),
+    dprint(5,"expr = ",_expr),
+    _expr : ratsimp(factor(num(_expr))/factor(denom(_expr))),
+    dprint(5,"expr = ",_expr),
+    if (_expr#0) then (
     
-    dprint(4,"we need the factors of gamma depending on y' but not on y itself"),
-    dprint(4,"factors = ",factor_list(_gamma)),
-    /* keep the factors that contain y' but not y*/
-    _F:sublist(factor_list(_gamma),lambda([_xx],not(freeof(_dy,_xx)) and freeof(_y,_xx) )),
-    dprint(4,"F = ",_F), 
-    /*if (_F#[]) then (*/  /* todo only when not empty ???*/
-    if (true) then ( 
-      /* todo only when not empty, F=1 for 6.37 */
-      /* F is the integrating factor, up to a factor depending on x,
-         F(x,y') = mu(x,y') / mu_tilde(x)
-       */
-      _F : 1/apply("*",_F), /* reciprocal of the factors of Gamma */
-      dprint(4,"F = ",_F),
-      _mu_tilde : mu_tilde(_phi,_F,_x,_y,_dy),
-      dprint(4,"mu_tilde=",_mu_tilde),
-      if (_mu_tilde # false) then (
-        _mu : ratsimp(subst(_dy='diff(_y,_x),_F*_mu_tilde)),
-        dprint(4,"integrating factor mu(x,y') = ",_mu),
-        return(_mu)
-      ) else (
-        dprint(4,"no integrating factor of this form, mu_tilde(x) depends on y or dy")
-      )
-    ) 
-  )
-  else (  
-    /* expr = 0 */ 
-    /* *** case B *** */
-    /* assume G_xy = 0 or G_yy=0*/
-    /* */
+      dprint(4,"we need the factors of gamma depending on y' but not on y itself"),
+      dprint(4,"factors = ",factor_list(_gamma)),
+      /* keep the factors that contain y' but not y*/
+      _F:sublist(factor_list(_gamma),lambda([_xx],not(freeof(_dy,_xx)) and freeof(_y,_xx) )),
+      dprint(4,"F = ",_F), 
+      /*if (_F#[]) then (*/  /* todo only when not empty ???*/
+      if (true) then ( 
+        /* todo only when not empty, F=1 for 6.37 */
+        /* F is the integrating factor, up to a factor depending on x,
+           F(x,y') = mu(x,y') / mu_tilde(x)
+         */
+        _F : 1/apply("*",_F), /* reciprocal of the factors of Gamma */
+        dprint(4,"F = ",_F),
+        _mu_tilde : mu_tilde(_phi,_F,_x,_y,_dy),
+        dprint(4,"mu_tilde=",_mu_tilde),
+        if (_mu_tilde # false) then (
+          _mu : ratsimp(subst(_dy='diff(_y,_x),_F*_mu_tilde)),
+          dprint(4,"integrating factor mu(x,y') = ",_mu),
+          for _l in facts() do if not freeof(_dy,_l) then forget( subst('diff(_y,_x)=_dy,_l) ),
+          return(_mu)
+        ) else (
+          dprint(4,"no integrating factor of this form, mu_tilde(x) depends on y or dy")
+        )
+      ) 
+    )
+    else (  
+      /* expr = 0 */ 
+      /* *** case B *** */
+      /* assume G_xy = 0 or G_yy=0*/
+      /* */
+      dprint(5,"do nothing")
+    )
+  ) else (
+    /* gamma=0 */
     dprint(5,"do nothing")
   ),
   /* ... */
@@ -316,51 +333,55 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
   /* case A: Gxy/Gyy depends on y */
   _gamma_y : diff(_gamma,_y),                /*  */
   dprint(5,"gamma_y = ",_gamma_y),
-   
-  _expr : ratsimp(diff(_gamma_y/_gamma,_dy)), /* eq. 2.36 */
-  dprint(5,"expr = ",_expr),
-  if (_expr=0) and (_gamma_y #0) then (
+  if (_gamma # 0) then ( 
+    _expr : ratsimp(diff(_gamma_y/_gamma,_dy)), /* eq. 2.36 */
+    dprint(5,"expr = ",_expr),
+    if (_expr=0) and (_gamma_y #0) then (
     
-    dprint(4,"we need the factors of gamma depending on y but not on y' itself"),
-    dprint(5,"factors = ",factor_list(_gamma)),
-    /* keep the factors that contain y but not y' */
-    _W:sublist(factor_list(_gamma),lambda([_xx],(freeof(_dy,_xx)) and not(freeof(_y,_xx)) )),
-    dprint(5,"W = ",_W),
+      dprint(4,"we need the factors of gamma depending on y but not on y' itself"),
+      dprint(5,"factors = ",factor_list(_gamma)),
+      /* keep the factors that contain y but not y' */
+      _W:sublist(factor_list(_gamma),lambda([_xx],(freeof(_dy,_xx)) and not(freeof(_y,_xx)) )),
+      dprint(5,"W = ",_W),
  
-    _W : apply("*",_W), /* factors of Gamma */
-    dprint(5,"W = ",_W),
+      _W : apply("*",_W), /* factors of Gamma */
+      dprint(5,"W = ",_W),
 
-    if (ratsimp(diff(diff(log(_W),_y),_x) * diff(diff(log(_W),_y),_y))=0) then (
-      /* too strict for kamke 6.51 */
-      dprint(1,"Warning: criterion for w not met in case C")
-    ) 
-    else (
+      if (ratsimp(diff(diff(log(_W),_y),_x) * diff(diff(log(_W),_y),_y))=0) then (
+        /* too strict for kamke 6.51 */
+        dprint(2,"criterion for w not met in case C")
+      ) 
+      else (
 
-      _H : diff(log(_W),_y),
-      dprint(5,"H = ",_H),
+        _H : diff(log(_W),_y),
+        dprint(5,"H = ",_H),
 
-      /* */
-      if (ratsimp(diff(_H,_y))#0) then (
-      /*  if not freeof(_y,_H) then (*/
-        _p_prime : ratsimp(diff(_H,_x) / diff(_H,_y)),
-        dprint(5,"p_prime = ",_p_prime), 
-        _F : (_p_prime + _dy)*_W / _gamma,
-        _F : ratsimp(_F),
-        dprint(5,"F = ",_F),
-        _mu_tilde : mu_tilde(_phi,_F,_x,_y,_dy),
-        dprint(5,"mu_tilde=",_mu_tilde),
+        /* */
+        if (ratsimp(diff(_H,_y))#0) then (
+        /*  if not freeof(_y,_H) then (*/
+          _p_prime : ratsimp(diff(_H,_x) / diff(_H,_y)),
+          dprint(5,"p_prime = ",_p_prime), 
+          _F : (_p_prime + _dy)*_W / _gamma,
+          _F : ratsimp(_F),
+          dprint(5,"F = ",_F),
+          _mu_tilde : mu_tilde(_phi,_F,_x,_y,_dy),
+          dprint(5,"mu_tilde=",_mu_tilde),
 
-        if (_mu_tilde # false) then (
-          _mu : ratsimp(subst(_dy='diff(_y,_x),_F*_mu_tilde)),
-          dprint(4,"integrating factor mu(x,y') = ",_mu),
-          return(_mu)
-        ) else (
-          dprint(4,"no integrating factor of this form, mu_tilde(x) depends on y or dy")
+          if (_mu_tilde # false) then (
+            _mu : ratsimp(subst(_dy='diff(_y,_x),_F*_mu_tilde)),
+            dprint(4,"integrating factor mu(x,y') = ",_mu),
+            for _l in facts() do if not freeof(_dy,_l) then forget( subst('diff(_y,_x)=_dy,_l) ),
+            return(_mu)
+          ) else (
+            dprint(4,"no integrating factor of this form, mu_tilde(x) depends on y or dy")
+          )
         )
       )
     )
-  ),  
-
+  )  
+  else (
+   dprint(5,"gamma=0")
+  ),
 
   /* case D: H=0 */  /* TODO */
   dprint(4,"***    case D "), 
@@ -419,6 +440,7 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
           _mu : subst(_dy='diff(_y,_x),_F*_mu_tilde),
           _mu : ratsimp(_mu),
           dprint(4,"integrating factor mu(x,y') = ",_mu),
+          for _l in facts() do if not freeof(_dy,_l) then forget( subst('diff(_y,_x)=_dy,_l) ),
           return(_mu)
         ) else (
           dprint(4,"no integrating factor of this form, mu_tilde(x) depends on y or dy")
@@ -441,6 +463,7 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
               _mu : subst(_dy='diff(_y,_x),_F*_mu_tilde),
               _mu : ratsimp(_mu),
               dprint(4,"integrating factor mu(x,y') = ",_mu),
+              /*for _l in facts() do if not freeof(_dy,_l) then forget( subst('diff(_y,_x)=_dy,_l) ),*/
               return(_mu)
             ) else (
               dprint(4,"no integrating factor of this form, mu_tilde(x) depends on y or dy")
@@ -480,7 +503,7 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
     _Lambda_xdy : diff(_Lambda_dy,_x),
 
     _Psi : ratsimp(_phi * _Lambda - _C1*exp(_y*_C1)) , /* eq. 2.61*/
-    print("psi = ",_Psi),
+    dprint(5,"psi = ",_Psi),
     _Psi_dy : diff(_Psi,_dy),
     _Psi_dydy : diff(_Psi_dy,_dy),
 
@@ -490,7 +513,7 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
     _eq_283 : (_ddp + _dp^2*_C1)*_Lambda_dy + _dp*(_dy*_Lambda_dy*_C1 + _Lambda*_C1 + _Lambda_xdy + _Psi_dydy) + 
          2*_Psi_dy + _Lambda_x + _dy*_Lambda_xdy +_dy*_Psi_dydy=0, /* eq. 2.83 */
     _eq_283 : ratsimp(_eq_283),
-    print("eq : ",_eq_283),
+    dprint(5,"eq : ",_eq_283),
 
     /* case lambda_dy = 0*/
     if (_Lambda_dy=0) then (
@@ -522,6 +545,7 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
     if (_mu_tilde # false) then (
       _mu : ratsimp(subst(_dy='diff(_y,_x),_F*_mu_tilde)),
       dprint(4,"integrating factor mu(x,y') = ",_mu),
+      for _l in facts() do if not freeof(_dy,_l) then forget( subst('diff(_y,_x)=_dy,_l) ),
       return(_mu)
     ) else (
       dprint(4,"no integrating factor of this form, mu_tilde(x) depends on y or dy")
@@ -760,7 +784,11 @@ isFirstIntegral(_I,_expr,_y,_x):=block([_phi,_DI,_FI],
   _FI :   subst(['diff(_y,_x)=_dy,'diff(_y,_x,2)=_ddy],_I), 
   _FI : lhs(_FI) - rhs(_FI),
   dprint(5,"I = ",_FI),
-
+  dprint(5,"_dy = ",_dy),
+  dprint(5,"_ddy = ",_ddy),
+  dprint(5,"dFdx = ",diff(_FI,_x)),
+  dprint(5,"dFdy = ",diff(_FI,_y)),
+  dprint(5,"dFddy = ",_ddy*diff(_FI,_dy)),
   _DI : ratsimp(diff(_FI,_x) + _dy*diff(_FI,_y) + _ddy*diff(_FI,_dy)),
   dprint(5,"DI = ",_DI),
   dprint(3,"is first integral: DI-ode = ",ratsimp(_DI-_ode)),
@@ -868,10 +896,14 @@ firstIntegral(_expr,_y,_x):=block([_ode,_lambda,_mu,_isMu,_phi,_dI1,I1,_dI2,_I2,
   _lI : unique(flatten(_lI)),
 
   _I : apply("+",_lI),
-  _I : ratsimp(_I),
+  _I : ratsimp(_I) + concat(integration_constant,integration_constant_counter),  /* we introduce the integration constant here */
+
+/*
   dprint(3,"I1+I2+I3 = ",_I),
   dprint(3,"I1+I2+I3 = ",grind(_I)),
+*/
   
+  /*
   _DI : subst('diff(_y,_x)=_dy,diff(_I,_x) + _dy*diff(_I,_y) + _ddy*diff(_I,_dy)),
   dprint(5,"DI = ",_DI),
   _DI : diff(_I,_x),
@@ -882,23 +914,17 @@ firstIntegral(_expr,_y,_x):=block([_ode,_lambda,_mu,_isMu,_phi,_dI1,I1,_dI2,_I2,
   dprint(5,"DIdy = ",_DI),
   dprint(5,"mu = ",_mu),
   dprint(5,"expr = ",_expr),
-
+  */
   /* note that mu*ode = Dx(I) */
-  dprint(3,"is first integral:",isFirstIntegral(_I,ratexpand(_mu*(lhs(_ode)-rhs(_ode))),_y,_x)),
+  /*dprint(1,"is first integral:",isFirstIntegral(_I,ratexpand(_mu*(lhs(_ode)-rhs(_ode))),_y,_x)),*/
 
-  /* note: introduce integration constant here !!!*/
-  dprint(3,"I1+I2+I3 = ",_I),
-  _ode1 : solve(_I,_dy), /* we might lose information here, like the solution y=C from eq. 6.109*/
-  dprint(5,"reduced first order ode = ",_ode1),
-  _ode1 : subst(_dy='diff(_y,_x),_ode1),
-  dprint(3,"reduced first order ode = ",_ode1),
-  dprint(3,"mu = ",_mu),
-  dprint(5,"original expression = ",_expr),
+  /*_ode1 : solve(_I,_dy),*/ /* we might lose information here, like the solution y=C from eq. 6.109*/
+  _I : subst(_dy='diff(_y,_x),_I),
 
   /* note that mu makes the explicit second order ode exact */
   dprint(3,"exact:",isExact(_mu*('diff(_y,_x,2)-_phi),_y,_x)),
 
-  return(_ode1)
+  return(_I)
 )$
 
 /* ************************************************************************** */
