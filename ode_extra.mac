@@ -1,0 +1,195 @@
+DEBUGFLAG : 1$
+/* ************************************************************************* */
+/* ***** print expr only when flag<DEBUGFLAG                           ***** */
+/* ************************************************************************* */
+dprint(flag,[_expr])::= if flag <= DEBUGFLAG then buildq ([_expr], print (splice (_expr)))$
+/* ************************************************************************* */
+
+
+/*****************************************************************************************************/
+/* ----- creates a list of user defined functions from expr. the functions should not have any properties
+         with the possible exception of noun                                                   ----- */
+/*****************************************************************************************************/
+listUDF(_expr):= block( [ _counter:0,listUDF:[]],
+        listUDFPriv (_expr, []),
+        return(unique(listUDF))
+)$
+
+listUDFPriv(_expr, _opList) :=
+ block ( [_x, _args, _newList],
+        if atom(_expr) then ( 
+           _opList 
+        )
+        else if udf(_expr) then (
+          listUDF: cons(_expr,listUDF) 
+        )
+        else ( 
+          _x:    op(_expr),
+          _args: args(_expr),
+          /* add the operators to the opList */
+          _newList: cons(_x, _opList),
+          for _arg in _args do _newList: listUDFPriv(_arg, _newList),
+          _newList
+        )
+)$
+
+
+listUDFGeneral(_expr):= block( [ _counter:0,listUDF:[]],
+        listUDFGeneralPriv (_expr, []),
+        return(unique(listUDF))
+)$
+
+listUDFGeneralPriv(_expr, _opList) :=
+ block ( [_x, _args, _newList],
+        if atom(_expr) then ( 
+           _opList 
+        )
+        else if udfGeneral(_expr) then (
+          listUDF: cons(_expr,listUDF) 
+        )
+        else (
+          _x:    op(_expr),
+          _args: args(_expr),
+          /* add the operators to the opList */
+          _newList: cons(_x, _opList),
+          for _arg in _args do _newList: listUDFGeneralPriv(_arg, _newList),
+          _newList
+        )
+)$
+
+simplifyingp(_f):= symbolp(_f) and is(?get(_f,?operators)=false)$
+
+/*udf(_f):=not(stringp(op(_f)) or symbolp(op(_f)) or (simplifyingp(op(_f))))$*/
+/* a user defined function is: 
+     not a a string, just like sin(x), but not like x 
+     a symbolp, like sin(x), but not like x
+     a function with no properties
+*/
+
+
+/*udf(_f):=not(stringp(op(_f))) and (symbolp(op(_f))) and (apply(properties,[op(_f)])=[] or apply(properties,[op(_f)])=[noun])$*/
+/* returns true if it is a udf*/
+udf(_f):=not(stringp(op(_f))) and (symbolp(op(_f))) and simplifyingp(op(_f)) and not ?fboundp(op(_f)) $
+
+/* general functions, including sin(a*x+b*y) */
+/* we do not want diff() stuff here, they are usually udf and we do not support unevaluated diffs for known functions */
+udfGeneral(_f):=not(stringp(op(_f))) and (symbolp(op(_f))) and not ?fboundp(op(_f)) and not(op(_f)=op(diff(__f1(__x),__x)))$
+
+listGDF(_expr,_y,_x):= block( [ _counter:0,listGDF:[]],
+        listGDFPriv (_expr, _y,_x, []),
+        return(unique(listGDF))
+)$
+
+listGDFPriv(_expr, _y,_x, _opList) :=
+ block ( [_op, _args, _newList],
+        if atom(_expr) then ( 
+           _opList 
+        )
+        else if gdfGeneral1(_expr,_y,_x) then (
+          listGDF: cons(_expr,listGDF) 
+        )
+        else (
+          _op:    op(_expr),
+          _args: args(_expr),
+          /* add the operators to the opList */
+          _newList: cons(_op, _opList),
+          for _arg in _args do _newList: listGDFPriv(_arg,_y,_x, _newList),
+          _newList
+        )
+)$
+
+/* c^f(x,y)  or f(x,y)^c  or sqrt(f(x,y))*/
+gdfGeneral1(_f,_y,_x):=(op(_f)="^" and (
+                         ((atom(args(_f)[1]) and freeof(_x,_y,args(_f)[1])) and not(freeof(_x,args(_f)[2])) and not(freeof(_y,args(_f)[2])) ) 
+                         or 
+                         ((atom(args(_f)[2]) and freeof(_x,_y,args(_f)[2])) and not(freeof(_x,args(_f)[1])) and not(freeof(_y,args(_f)[1])) )
+                         )) 
+                      or (op(_f)=sqrt and not(freeof(_x,args(_f)[1])) and not(freeof(_y,args(_f)[1])) )
+$
+
+
+/* ************************************************************************** */
+/* we introduce dependencies and gradefs for the ode                          */
+/* ************************************************************************** */
+explicit_form_to_dependencies_form1(_ode) :=block([_udfargs], 
+/* ************************************************************************** */
+  /* get a list of user defined functions */
+  _dependencylist : copy(dependencies),
+ 
+  _listudf : listUDF(rhs(_ode)),
+  _listudf : sublist(_listudf,lambda([_i], not(length(args(_i))=1 and atom(args(_i)[1])))),
+  _udf_op : map(op,_listudf),
+  _udf_args : flatten(map(args,_listudf)), 
+
+  /* get a list of generally defined functions */ 
+  _listgdf : listUDFGeneral(rhs(_ode)),
+  _listgdf : sublist(_listgdf,lambda([_i], not(length(args(_i))=1 and atom(args(_i)[1])))),
+  _listgdf : append(_listgdf,listGDF(rhs(_ode),_y,_x)),
+  /* remove everything that is already in listudf */
+  _listgdf : unique(sublist(_listgdf,lambda([_i],not(member(_i,_listudf))))),
+  _gdf_op : map(op,_listgdf),
+  _gdf_args : unique(flatten(map(args,_listgdf))),
+
+  /* for the udf, we need to introduce new variables      */
+  /* note that we remove gradefs by removing dependencies */
+  _varlist:makelist(concat(%g,_i),_i,1,length(_udf_args)),
+  dprint(5,"varlist = ",_varlist), 
+   depends(_varlist,[x,y]),
+   _udfargs : _udf_args,  
+   for _g in _varlist do (
+      apply('gradef,[_g,_x,diff(first(_udfargs),_x)]),   
+      apply('gradef,[_g,_y,diff(first(_udfargs),_y)]),
+      _udfargs:rest(_udfargs)    
+   ), 
+
+  /* replace all udfs with their operators: f(ax+by)  -> f */
+  _ode : subst(map("=",_listudf,_udf_op),_ode),
+
+  /* only dependencies for the udf, not for the general free functions */
+  map(depends,_udf_op,_varlist),   
+
+  dprint(5,"canonical form of ode, replaced long arguments = ",_ode),
+  dprint(5,"dependencies=",dependencies),
+  dprint(5,"listudf = ",_listudf), 
+  dprint(5,"udf_op = ",_udf_op), 
+  dprint(5,"udf_args = ",_udf_args), 
+  dprint(5,"listgdf = ",_listgdf), 
+  dprint(5,"gdf_op = ",_gdf_op), 
+  dprint(5,"gdf_args = ",_gdf_args), 
+  /* ***** ************************************************* ***** */
+  return(_ode)
+)$
+/* ************************************************************************** */
+
+
+
+
+
+/*****************************************************************************************************/
+/* ----- calculates the number of operators in the expression ----- */
+/* ----- this is a simple measure of complexity               ----- */
+/*****************************************************************************************************/
+/* note: this is incredibly slow */
+nrOps(_expression):=
+ block( [ _counter:0],
+        dprint(6,"expression:",_expression),
+        nrOpsPriv (_expression, [])
+       )$
+
+nrOpsPriv(_expression, _opList) :=
+ block ( [_x, _args, _newList],
+        /* if expression is an atom, then we return opList */
+        if atom(_expression)
+           then _opList
+           else (
+              _x:    op(_expression),
+              _args: args(_expression),
+              /* add the operators to the opList */
+              _newList: cons(_x, _opList),
+              for _arg in _args do
+                /* also expand all the subexpressions and count the operators */
+                _newList: nrOpsPriv(_arg, _newList),
+              _newList
+             )
+        )$
+

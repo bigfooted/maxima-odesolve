@@ -1,0 +1,3352 @@
+/* ************************************************************************** */
+/* *****     ode1_lie                                                   ***** */
+/* *****                                                                ***** */
+/* *****     Author: Nijso Beishuizen                                   ***** */
+/* *****                                                                ***** */
+/* ***** Description: routines to solve first order ode's               ***** */
+/* ***** Based on the paper by Cheb-terrab and Kolokolnikov             ***** */
+/* ***** First-Order ordinary differential equations, symmetries and    ***** */
+/* ***** linear transformations, European Journal of Applied Mathematics***** */ 
+/* ***** 14 (2003) pp. 231-246                                          ***** */
+/* ***** Cheb-terrab, Duarte, da Mota, Computer algebra solving of      ***** */
+/* ***** first order odes using symmetry methods                        ***** */                                
+/* ***** Computer Physics Communications                                ***** */
+/* ***** Cheb-Terrab and Roche - Symmetries and first order ODE         ***** */
+/* ***** patterns, Computer Physics Communications 113 (1998)           ***** */                                      
+/* ***** F. Schwarz - Abel ode paper(moved to ode1_abel.mac)            ***** */ 
+/* ************************************************************************** */
+
+/*
+todo: 
+
+- differential invariants
+- capture special riccati
+- capture riccati with nonliouvillian functions
+- equivalence transformation to bernoulli using cartan method
+
+construct most general ode with symmetry
+construct integrating factor with symmetry
+transform ode using transformation
+transform symmetry using transformation
+
+TODO: this should work: depends(u,x)
+TODO: extend the work on general integration_constants 
+*/
+
+/* ************************************************************************** */
+
+batch("/home/nijso/mathematics/maxima_files/separable.mac");
+batch("/home/nijso/mathematics/maxima_files/ode_extra.mac");
+batch("/home/nijso/mathematics/maxima_files/ode1_abel.mac");
+
+/* will help when we have more complicated implicit functions with lambert_w solutions for instance */
+/*load(to_poly_solve);*/
+
+
+/* maxima keywords*/
+
+/* set domain to complex, so sqrt(x^2) is not simplified to abs(x). This will prevent some expressions to be 
+   converted into expressions containing atan() or %i  */
+/* leads to problems for some ode's*/
+/*domain:complex;*/
+
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+put('ode1_Lie,001,'version)$
+/* ************************************************************************** */
+load(lrats)$
+/* ***** ode solver method used ***** */
+method : "none"$
+/* ***** reason for failure ***** */
+reason : "none"$
+/* ***** print all statements with flag lower than DEBUGFLAG           ***** */
+DEBUGFLAG:2$ /* default: 2, values 0..5 */
+/* RULES for printing messages */
+/* DEBUGFLAG=0 : fatal errors */
+/* DEBUGFLAG=1 : warnings     */
+/* DEBUGFLAG=2 : main routine */
+/* DEBUGFLAG=3 : additional intermediate results */
+/* DEBUGFLAG=4 : intermediate evaluation outputs */
+/* DEBUGFLAG=5 : intermediate evaluation outputs, least important, lot of output */
+
+/* use a fixed value for the constant of integration, which is integration_constant (usually %c) */
+FIX_INTEGRATION_CONSTANT:true$ /* default: true */
+/* return symmetries as part of the solution*/
+returnSymmetries:false$  /* default: false */
+/* return integrating factor as part of the solution*/
+returnIntegratingFactor:false$ /* default: false */
+/* return the solution */
+returnSolution:true$  /* default: true */
+/* return the solution in explicit form */
+returnExplicit:true$ /* default: true*/
+
+/* return an implicit solution when multiple solutions are found, even when returnExplicit=true */
+/*returnImplicitforMultipleSolutions:true$*/ /* default: true*/
+
+/* try to find a solution by using the inverse ode (will rarely result in a solution that is not found by another method) */
+tryInverse:false$ /* default: false*/
+
+/* degree of multivariate polynomial symmetries used in method of undetermined coefficients in symmetry5 (default:2, more than 4 will be extremely time consuming) */
+SYM5DEGREE : 2$
+SYM5RAT:false$ /* look for general rational-polynomial symmetries of the form [Q1/P1,Q2/P2] */
+
+/* check solution of symmetry, integrating factor and solution */
+CHECKSYM : true$ /* default: false */ 
+ 
+/* list of all available methods (some of them are aliases, like riccati/Riccati and symmetry5/muc) */
+ODEMETHODS:["all","quadrature","fx","fy","exact","separable","riccati","Riccati","abel","Abel","linear","inverse-linear","bernoulli","Bernoulli","symmetry1","symmetry2","symmetry3","symmetry4","symmetry4b","symmetry5","symmetry","muc"]$
+
+/* TODO look at the effect of logabs, and logarc*/
+/* leads to issues.. */
+/*logarc : true$*/
+
+
+
+/*
+Diff(_f,_x):=block([indepvar:args(_f)[1],depvar:op(_f)],
+  print("indepvar =",indepvar),
+  print("depvar=",depvar),
+  print("diff=",diff(_f,_x)*diff(indepvar,_x)),
+  return(diff(_f,_x)*diff(indepvar,_x))
+)$
+*/
+
+/* freeof, including dependencies */
+free_of(_x,_expr):=(block[_substlist],
+    _substlist: map("=",map(op,dependencies),dependencies),
+    _expr : subst(substlist,_expr),
+
+    return(freeof(_x,_expr))
+)$
+
+/* we can have y= ax + b, with a and b zero */
+matchdeclare (_la, freeof(_x), _lb, freeof(_x))$
+defmatch (linearp, _la*_x + _lb, _x)$
+/*
+matchdeclare (_lax, lambda([_e], not freeof(_x,_e)), _lbx, freeof(_x))$
+defmatch (fxplusc, _lax + _lbx, _x)$
+*/
+/* Riccati equation*/
+matchdeclare (_f2, lambda ([_e], _e#0 and freeof(_y, _e)), _f1, freeof(_y),_f0,freeof(_y))$
+defmatch (riccatip, _f2*_y^2 + _f1*_y+_f0, _y)$
+
+/* checks if an expression is of the form f(x) + g(y) */
+matchdeclare (_fx, lambda ([_f], _f#0 and freeof(_y, _f)), _gy, lambda([_g],_g#0 and freeof(_x,_g)),_h,freeof(_x,_y) )$
+defmatch(fxplusgyplush,_fx + _gy + _h,_x,_y)$
+
+/* find a and b in the expression a(x) + b(x,y) */
+matchdeclare(_A,freeof(_y),_B,lambda([_e], _e#0 and not(freeof(_y,_e))));
+defmatch (AplusBF, _A + _B, _x,_y);
+
+/* expression is of the form C + f(x,y) */
+matchdeclare(_C1,lambda([_e1],_e1#0 and freeof(_y,_e1) and freeof(_x,_e1)),_fxy,lambda([_e], _e#0 and (not(freeof(_x,_e)) or not(freeof(_y,_e)))));
+defmatch (cplusfxy, _C1 + _fxy, _x,_y);
+
+/* detect p1*sqrt(p2/q2) and split into sqrt(p2) and sqrt(q2) */
+matchdeclare(_p1,lambda([_e1],_e1#0),_p2,lambda([_e3],_e3#0),_q2,lambda([_e4],_e4#1));
+defmatch(sqrtOfFraction,_p1*sqrt(_p2/_q2));
+
+/* *some global variables*/
+_varlist : [];
+
+/* some shortcuts for ode1solve */
+/* shortcut that returns only symmetries */
+ode1Symmetries(_ode,_y,_x):=       ode1solve(_ode,_y,_x,'returnSymmetries=true, 'returnIntegratingFactor=false,'returnSolution=false)$
+/* shortcut that returns only symmetries */
+ode1IntegratingFactor(_ode,_y,_x):=ode1solve(_ode,_y,_x,'returnSymmetries=false,'returnIntegratingFactor=true, 'returnSolution=false)$
+/* shortcut that returns only solutions */
+ode1Solution(_ode,_y,_x):=         ode1solve(_ode,_y,_x,'returnSymmetries=false,'returnIntegratingFactor=false,'returnSolution=true )$
+
+
+
+/* ************************************************************************** */
+/* ***** MAIN ROUTINE                                                   ***** */
+/* ***** solves a first order ode by trying to find point symmetries    ***** */ 
+/* ************************************************************************** */
+ode1solve(_ode,_y,_x,[options]) := block(
+[_xi:false, _eta:false,_mu,_P,_Q,dependencies_changed,_exactode,
+ dc,_dependencies_copy,d,d1,d2,symmetriesfound:false,ReasonFailure:"failed",_freefunctions:[],_dependencylist:dependencies,_solution:[],_undet_xi,_undet_eta,_undet_polydegree,_returnExplicit,_returnSymmetries,_returnIntegratingFactor,_returnSolution,_odeCanonical],
+  _returnSymmetries       : assoc('returnSymmetries,options,returnSymmetries),               /* if true, compute symmetries X and return [X]=[[xi,eta]] */
+  _returnIntegratingFactor: assoc('returnIntegratingFactor,options,returnIntegratingFactor), /* if true, compute X and integrating factor mu, return [[mu]] */
+  _returnSolution         : assoc('returnSolution,options,returnSolution),                   /* if true, compute X, mu and solution and return [solution] */
+  _returnExplicit         : assoc('returnExplicit,options,returnExplicit),                   /* if true, then try to write solution in explicit form */
+  useCanonical           : assoc('useCanonical,options,true),                                /* if true, the ode will be converted into canonical form using several simplification methods. */
+  _tryInverse             : assoc('tryInverse,options,tryInverse),                           /* if true, try to find symmetries of the inverse-ode when no symmetries could be found for the ode */
+  useMethod              : assoc('useMethod,options,"all"),                                  /* choose a specific method for the solver */
+
+
+  /* for the method of undetermined coefficients */
+  /*_undet_var             : assoc('varlist,options, []),                */
+  _undet_xi              : assoc('xi,options, []),                
+  _undet_eta             : assoc('eta,options,[]),
+  _undet_polydegree      : assoc('polydegree,options,[]),            
+  
+
+  dprint(5,"---------- return symmetries?              = ",_returnSymmetries),
+  dprint(5,"---------- return integrating factor?      = ",_returnIntegratingFactor),
+  dprint(5,"---------- return solution?                = ",_returnSolution),
+  dprint(5,"---------- return explicit solution?       = ",_returnExplicit),
+  dprint(5,"---------- using method                    = ",useMethod),
+  dprint(5,"---------- use canonical form              = ",useCanonical),
+  dprint(5,"---------- try inverse linear?             = ",_tryInverse),
+  dprint(5,"---------- polydegree                      = ",_undet_polydegree),
+
+
+
+  /* setting global flags */
+  /*halfangles   : true,*/                              /* if true, converts trigonometric halfangles, i.e. tan(x/2), sin(x/2), etc    */
+  %edispflag   : true,                              /* if true, writes negative powers of %e as a quotient, i.e. %e^-x  ->  1/%e^x */
+  /*exptdispflag : true,  */                        /* if true, writes exponents with negative powers as quotients (true=default)  */
+  ratsimpexpons: true,                              /* ratsimp will also simplify exponents */
+  linsolvewarn:false,                               /* suppresses warning messages from linsolve (dependent equations eliminated) */
+
+
+
+  if useCanonical=false and _tryInverse=true then (
+    dprint(1,"warning: not looking for inverse-symmetries because canonical ode is off"),
+    _tryInverse:false
+  ),
+
+  /* set the global solution method */
+  method:"none",
+  /* make a copy of the dependencies so we can restore them later */
+  _dependencies_copy : copy(dependencies),
+
+  /* 1. check input */
+  /* check if input is a first order ode */
+  type: odeType(_ode,_y,_x,'firstorder),
+  dprint(5,"type = ",type),
+  if type=false then (
+    dprint(0,"error: input is not a valid first order ordinary differential equation"),
+    reason:"invalid ode", 
+    return(false)
+  ),
+
+  /* if ode is of type implicit we exit because we cannot solve them yet */
+  if type[1]="implicit first order ode" then (
+    dprint(0,"error: implicit ODE, not implemented yet, use sym_implicit!"),
+    reason: "implicit ode not implemented",
+    return(false)
+  ),
+
+  /* rewrite the ode to some canonical form */
+  dprint(5,"ode = ",_ode),
+  if useCanonical=true then _ode: ode1CanonicalForm(_ode,_y,_x),
+  dprint(5,"canonical form of ode = ",_ode),
+ 
+  /* if we search for inverse-symmetries, we need the inverse-ode */
+  if (rhs(_ode)#0 and _tryInverse=true) then (
+    dprint(5,"inverse is true"),
+    _inv_ode : 'diff(_y,_x) = simplify(1/(sublis([_x=_y,_y=_x],rhs(_ode)))),
+    if useCanonical=true then _inv_ode : ode1CanonicalForm(_inv_ode,_y,_x),
+    dprint(5,"canonical form of inverse-ode = ",_inv_ode) 
+  ),
+ 
+  _ode_depform : explicit_form_to_dependencies_form(_ode),
+  
+  dprint(5,"odedepform = ",_ode_depform), 
+  dprint(5,"listudf = ",_listudf), 
+  dprint(5,"udf_op = ",_udf_op), 
+  dprint(5,"udf_args = ",_udf_args), 
+  dprint(5,"listgdf = ",_listgdf), 
+  dprint(5,"gdf_op = ",_gdf_op), 
+  dprint(5,"gdf_args = ",_gdf_args), 
+  dprint(5,"dependencies=",dependencies),
+  
+ 
+  /* write as pfaffian ode:  dy/dx = Q/P -> Pdy - Qdx = 0 */
+  [_P,_Q] : ode1PfaffianForm(_ode_depform,_y,_x),
+  dprint(5,"P = ",_P), 
+  dprint(5,"Q = ",_Q),
+
+
+  /* ***************************************************** */
+  /* ***** searching for symmetries                  ***** */
+  /* ***************************************************** */
+  dprint(4,"Checking if ODE has simple symmetries..."),
+
+  useMethodList : flatten([useMethod]), /* make a list of usemethod, loop over all methods given, e.g. ["linear","riccati"] */
+  _X:false,
+  while _X=false and useMethodList#[] do (
+    symMethod : first(useMethodList),useMethodList:rest(useMethodList),
+    _X : findSymmetries(_Q,_P,_y,_x,'useMethod=symMethod,'xi=_undet_xi,'eta=_undet_eta,'polydegree=_undet_polydegree)
+  ),
+  dprint(5,"X = ",_X),
+  if (_X # false) then (
+    dprint(4,"simple symmetries found"),
+    [_xi,_eta] : _X,
+    symmetriesfound : true,
+    dprint(4,"[xi,eta]=[",_xi,",",_eta,"]")
+  )
+  else if _X=false and _tryInverse=true then (
+    /* search for inverse-symmetries if we could not find a symmetry */
+    dprint(2,"** trying inverse ode ** "),
+
+    /* we have to recompute the dependencies */
+    kill(dependencies),
+    if _dependencylist#[] then map(depends, map(op,_dependencylist), map(args,_dependencylist)),
+    _inv_ode : explicit_form_to_dependencies_form(_inv_ode),
+
+    dprint(2,"** trying inverse ode ** "),
+    [_inv_P,_inv_Q] : ode1PfaffianForm(_inv_ode,_y,_x),
+
+    useMethodList : flatten([useMethod]), /* make a list of usemethod */
+    while _X=false and useMethodList#[] do (
+      symMethod : first(useMethodList),useMethodList:rest(useMethodList),
+      _X : findSymmetries(_inv_Q,_inv_P,_y,_x,'useMethod=symMethod,'xi=_undet_xi,'eta=_undet_eta,'polydegree=_undet_polydegree)
+    ),
+
+    dprint(5,"reverse: X = ",_X),
+    if (_X # false) then (
+      dprint(4,"simple symmetries found"),
+      _X : sublis([_x=_y,_y=_x],_X),
+      [_xi,_eta] : _X,
+      symmetriesfound : true,
+      method : concat("inverse-",method),
+      dprint(4,"[xi,eta]=[",_X[1],",",_X[2],"]")
+    )
+  )
+  else (
+    dprint(4,"no simple symmetries found"),
+    /* if the reason it failed was Riccati or Abel, then we cannot solve them currently */
+    /* moreover, the (useless) search for linear symmetries might take a very long time */
+    if _X#false then ReasonFailure : _X[2]
+    /*if (ReasonFailure = "Riccati") or (ReasonFailure="Abel") then return(ReasonFailure)*/
+  ),
+
+  if (symmetriesfound=true) then (
+    /* if the symmetries have the form [%i*xi,%i*eta] or even [a*xi,a*eta] then we can simplify to [xi,eta] */
+    /* so we check if xi,eta have a common constant factor */
+    _xi : simplify(_xi),
+    _eta : simplify(_eta),
+    dprint(4,"simplified [xi,eta]=[",_xi,",",_eta,"]"),
+    _gcd : greatest_constant_divisor(_xi,_eta,[_x,_y]),
+    dprint(3,"simplifying symmetries, found a common constant: ",_gcd),
+    /* we need ratsimp because greatest_common_divisor can return the gcd of a different X*/
+    if (_gcd#0) then (_xi:ratsimp(_xi/_gcd),_eta:ratsimp(_eta/_gcd)),
+    dprint(2,"simplified [xi,eta]=[",_xi,",",_eta,"]"),
+
+    /* do not check result to save time*/
+    /* we check results after we have modified the symmetry*/
+    /*
+    if CHECKSYM then (
+      dprint(2,"checking if it is truly a symmetry:"),
+      isit : is(checkSymmetries([_xi,_eta],_ode_depform,_y,_x)=0),
+      dprint(2,"symmetry=",isit)
+    ), 
+    */
+
+    /* ************************************** */
+    /* often as symmetry with abs(x) has also a symmetry with x */
+    /* we are simplifying abs here. abs leads to huge delays in obtaining the solution. */
+    /* when the gcd is of the form P/Q, we assume that either P or Q has abs(_x)*/
+    _gcd : gcd(_xi,_eta),
+    dprint(3,"simplifying symmetries, found a common constant: ",_gcd),
+    if not freeof(abs,_gcd) then (
+/*      if op(_gcd)=abs then (
+        _xi : simplify( _xi*_gcd/args(_gcd)[1]), 
+       _eta : simplify(_eta*_gcd/args(_gcd)[1])
+      )
+      else (*/
+
+        _absP : num(_gcd),
+        _absQ : denom(_gcd),
+        if not atom(_absP) then (
+          if op(_absP)=abs then (dprint(4,"case 1"),_xi : simplify( _xi*_absP/args(_absP)[1]), _eta : simplify(_eta*_absP/args(_absP)[1])))
+        else 
+        if not atom(_absQ) then (
+          if op(_absQ)=abs then (dprint(4,"case 2"),_xi : simplify( _xi*args(_absQ)[1]/_absQ), _eta : simplify(_eta*args(_absQ)[1]/_absQ)))
+        else
+        if freeof(abs(_x),_absP) then (dprint(4,"case 3"),_xi:simplify(_xi*_x/abs(_x)),_eta:_eta*_x/abs(_x))
+        else
+        if freeof(abs(_x),_absQ) then (dprint(4,"case 4"),_xi:simplify(_xi*abs(_x)/_x),_eta:_eta*abs(_x)/_x),
+/*      ),*/
+      dprint(3,"simplified [xi,eta]=[",_xi,",",_eta,"]"),
+      _X : [_xi,_eta],
+
+     /* second check if the first one fails */
+     if not freeof(abs(_x),_X[1]) and not freeof(abs(_x),_X[2]) then (
+       [_xi,_eta] : subst(abs(_x)=_x,_X),
+       isit : is(checkSymmetries([_xi,_eta],_ode_depform,_y,_x)=0), 
+       if isit then _X:[_xi,_eta]
+     ),
+     /* second check if the first one fails */
+     if not freeof(abs(_y),_X[1]) and not freeof(abs(_y),_X[2]) then (
+       [_xi,_eta] : subst(abs(_y)=_y,_X),
+       isit : is(checkSymmetries([_xi,_eta],_ode_depform,_y,_x)=0), 
+       if isit then _X:[_xi,_eta]
+     ),
+      dprint(4,"simplified [xi,eta]=[",_xi,",",_eta,"]")
+
+/*
+      dprint(1,"gcd with abs, trying to get rid of it... (check your answer!)"),
+      arg_gcd : args(_gcd),
+      op_gcd : op(_gcd),
+      dprint(5,"arg_gcd: ",arg_gcd),
+      dprint(5,"op_gcd: ",op_gcd),
+      if op_gcd # abs then (
+        dprint(1,"warning: operator is not abs, checking if rational"),
+        op_gcd : op(arg_gcd[2]),
+        arg_gcd : 1/args(arg_gcd[2]),
+        dprint(5,"arg_gcd: ",arg_gcd),
+        dprint(5,"op_gcd: ",op_gcd),
+        if op_gcd#abs then dprint(1,"warning: could not remove abs !!!!!")
+      ),
+      if length(arg_gcd)=1 then (
+        dprint(5,"abs term: ",_gcd),
+        dprint(5,"no-abs term: ",arg_gcd),
+        _xi : simplify(_xi*_gcd/arg_gcd[1]),
+        _eta : simplify(_eta*_gcd/arg_gcd[1]),
+        _X : [_xi,_eta],
+      dprint(4,"simplified [xi,eta]=[",_xi,",",_eta,"]")
+      )else (dprint(1,"warning: abs term with more than one argument, cannot simplify!"))
+*/
+
+    ), 
+    /* **************************************** */
+
+    /* do not check result to save time*/
+    if CHECKSYM then (
+      dprint(2,"checking if it is truly a symmetry:"),
+      isit : is(checkSymmetries([_xi,_eta],_ode_depform,_y,_x)=0),
+      dprint(2,"symmetry=",isit)
+    ), 
+    /* ***** Add the symmetries to the result list ***** */
+    /*if (_returnSymmetries=true) and (isit=true) then(*/
+    if (_returnSymmetries=true) then(
+      dprint(4,"returning symmetries..."),
+      _solution:endcons(_X,_solution)
+    ),
+    /* ***** compute the integrating factor ***** */
+    if (_returnIntegratingFactor=true) or (_returnSolution=true) then ( 
+      dprint(4,"returning integrating factor..."),
+      _mu : ODE1_IntegratingFactor(_Q,_P,_xi,_eta),
+      if (_returnIntegratingFactor=true) then 
+        _solution:endcons([_mu],_solution), 
+
+      if _mu=false then (
+        reason:"trivial symmetries found",
+        dprint(0,"error: trivial symmetries used for constructing integrating factor")
+        /*return([false,"trivial symmetries:",_xi,_eta])*/
+      ),
+      dprint(2,"integrating factor = ",_mu),
+      dprint(2,"integrating factor = ",grind(_mu)),
+
+
+
+     /* ----- */
+     /* simplify integrating factor: simplify by contracting square roots, and removing constant factors */
+     if not freeof(sqrt,dispform(_mu,all)) then (
+       if freeof(abs,_mu) then _no_abs:true,
+       dprint(4,"integrating factor contains sqrt, trying to simplify..."),
+       _mu1 : simplify(_mu*_mu),
+
+
+       _cf : constant_factors(_mu1,[_x,_y]),
+       _mu1 : _mu1/_cf,
+
+
+       _cf : constant_factors(_mu,[_x,_y]),
+       if _no_abs and freeof(abs,sqrt(_mu1)) then _mu:sqrt(_mu1) 
+     ), 
+
+      dprint(4,"integrating factor = ",_mu),
+     _cf : constant_factors(_mu,[_x,_y]),
+     if not(freeof(%i,_mu) and not freeof(%i,_cf)) then _mu : _mu/_cf,
+     /* ----- */
+      dprint(4,"integrating factor = ",_mu),
+
+
+
+      /* do not do this to save time */
+      if CHECKSYM then (
+        dprint(2,"checking if it is truly an integrating factor:"),
+        _exactode : diff(_mu*_P,_x) + diff(_mu*_Q,_y), /* extra ratsimp for 1.350 (?)*/
+        _exactode : simplify(_exactode), 
+        dprint(2,"integrating factor=  ",is(_exactode=0))
+      )
+    ),
+
+    if (_returnSolution=true) then ( 
+      /* ***** only return the solution ***** */
+      _sol: ODE1_SolveWithIntegratingFactor(_Q,_P,_mu,_y,_x,_returnExplicit),
+      _solution : endcons(_sol,_solution)
+/*
+      dprint(4,"returning solution..."),
+      if _mu=false then (
+        dprint(0,"error: trivial symmetries used for constructing integrating factor"),
+        return([false,"trivial symmetries"])
+      ),
+      dprint(4,"integrating factor = ",_mu),
+      dprint(4,"integrating factor = ",grind(_mu)),
+      dprint(4,"checking if it is truly an integrating factor:"),
+      _exactode : diff(_mu*_P,_x) + diff(_mu*_Q,_y), /* extra ratsimp for 1.350*/
+      _exactode : simplify(_exactode), 
+      dprint(4,"Does integrating factor make ODE exact?  ",grind(_exactode), " ",is(_exactode=0)),
+
+*/
+    )
+  ) else (reason:"no symmetries found for ode", _solution:false), 
+
+
+
+  /* ************************************* */
+  /* TODO BUG */
+  /* we still need to change this properly: how to substitute dependencies and make d/d%g1 work??? */
+
+   print("dependencies = ",dependencies),  
+   /* substitute dependencies back in */
+   /* note: if the user declared dependencies, what then? */
+   /* -> we need to restore user dependencies */
+   /* we have to respect user dependencies in the solution */
+   for _i:1 thru length(dependencies) do (
+    _solution:subst(dependencies[_i],op(dependencies[_i]),_solution)
+   ),
+  print("solution = ",_solution),
+  if _varlist#[] then _solution : subst(map("=",_varlist,_udf_args),_solution),   
+  print("solution = ",_solution),
+
+
+  /* these might not hold the original dependencies. not necessary to restore them */
+  /*
+  kill(dependencies),
+  if _dependencylist#[] then map(depends, map(op,_dependencylist), map(args,_dependencylist)),
+  */
+  /* ************************************* */
+
+
+
+  /* if we only return a single result (symmetries, integrating factor or solution) then return only a list and not a list of lists */
+  if _solution#false then if length(_solution)=1 then _solution:flatten(_solution), 
+
+
+/* setting global flags */
+/*halfangles   : false,*/                        /* if true, converts trigonometric halfangles, i.e. tan(x/2), sin(x/2), etc    */
+/*    dprint(1,"1.solution=",grind(_solution)),*/
+%edispflag   : false,                            /* if true, writes negative powers of %e as a quotient, i.e. %e^-x  ->  1/%e^x */
+/*exptdispflag : false,*/                        /* if true, writes exponents with negative powers as quotients (true by default) */
+/*    dprint(1,"2.solution=",grind(_solution)),*/
+ratsimpexpons: false,                            /* ratsimp will also simplify exponents */
+/*    dprint(1,"3.solution=",grind(_solution)),*/
+linsolvewarn:true,                               /* suppresses warning messages from linsolve (dependent equations eliminated) */
+
+
+  /* restore dependencies */
+  kill(dependencies),
+  if _dependencies_copy#[] then (
+    dprint(1,"dependencies copy = ",_dependencies_copy),
+    map(depends, map(op,_dependencies_copy), map(args,_dependencies_copy))
+  ),
+  dprint(1,"solution=",grind(_solution)),
+  return(_solution)
+)$
+/* -------------------------------------------------------------- */
+
+
+/* ************************************************************************** */
+/* check for linear symmetries: algorithm of Cheb-terrab and Kolokolnikov */
+/* ************************************************************************** */
+linearSymmetries(_ode,_y,_x):=block(
+[_phi,_phi_y,_phi_yy,_phi_yyy,_A,_A_x,_A_y,_A_yy,_A_yx,_At,_xtrans,_ytrans,_transf,_inv_transf,_I,_I_y,_p,_odenew,_X,_eta,_xi,_u,_t,useMethod],
+
+  dprint(4,"   trying [xi,eta]=[F(x), P(x)*y+Q(x)]"),  
+  dprint(4,"ode=",_ode),
+
+  /* 2. equation (2.9) */
+  _phi    : rhs(_ode),
+  _phi_y  : simplify(diff(_phi,_y)), 
+  _phi_yy : simplify(diff(_phi_y,_y)),
+  _phi_yyy: simplify(diff(_phi_yy,_y)),
+
+  /* it might mean that we have to run either riccati or symmetry3 to get a solution */
+  if (_phi_yyy = 0) then (
+    dprint(4,"most likely a Riccati equation. Use 'useMethod=\"riccati\" or 'useMethod=\"symmetry3\""),
+    return(false)
+  ),
+
+  _A   : simplify(_phi_yy/_phi_yyy),
+  _A_x : simplify(diff(_A,_x)),
+  _A_y : simplify(diff(_A,_y)),
+  _A_yy: simplify(diff(_A_y,_y)),
+  _A_yx: simplify(diff(_A_y,_x)),
+
+  dprint(5,"dependencies=",dependencies),
+
+/* TODO BUG: why did we want to do this again??? */
+
+/*
+  kill(dependencies),
+  if _dependencylist#[] then map(depends, map(op,_dependencylist), map(args,_dependencylist)),
+  dprint(5,"dependencies=",dependencies),
+*/
+  if _A_y=0 then (
+    dprint(4,"case 2.1: A_y = 0"), 
+    /* change variables y=A(x)*u */
+    depends(_u,_t),
+    _At : subst(_x=_t,_A), 
+    _xtrans : _x = _t,
+    _ytrans : solve(_u=_At/_y,_y)[1],
+    if lhs(_ytrans)#_y then (dprint(0,"error:could not separate y :",_ytrans),return(false)),
+    _transf: [_x=_t,_ytrans],
+    _inv_transf : [_t=_x,_u=_A/_y]
+  ) else if (_A_yy=0) then (
+    /* change of variables u  = ln(A)*/
+    /* exp(u) = A                    */
+    /* A must be linear in y */
+    dprint(4,"case 2.2: A_yy = 0, A_y=/=0 "),
+    /* temparily let u depend on t */
+    depends(_u,_t),
+    _At : subst(_x=_t,_A),
+    _xtrans : _x = _t,
+    _ytrans : solve(exp(_u)=_At,_y)[1],
+    if lhs(_ytrans)#_y then (dprint(0,"error:could not separate y :",_ytrans),return(false)),
+    dprint(5,"At=",_At), 
+    dprint(5,"yt=",_ytrans), 
+    _transf: [_x=_t,_ytrans],
+    _inv_transf:[_t=_x,_u=log(_A)], 
+    dprint(5,"transf=",_transf)
+  ) else (
+    dprint(4,"general case, A_yy != 0"), 
+    /* y=u/p, p=exp(int(I_ydx)), I=A_yx/A_yy*/
+    /* dy/dx = d/dx(1/p)*u*/
+    dprint(5,"A_yx = ",_A_yx), 
+    dprint(5,"A_yy = ",_A_yy), 
+    _I : simplify(_A_yx/_A_yy),
+    dprint(5,"I = ",_I), 
+
+    /* I must be linear in y, so the second derivative is zero !! */
+    if (diff(_I,_y,2) = 0) then 
+    (
+      dprint(5,"case 4: I linear in y"),
+      _I_y : diff(_I,_y),
+     
+      /* substitute all dependencies for integration       */ 
+      /* note that we have already stored the dependencies */
+      _p : integrate(_I_y,_x),
+      /* substitute back to dependencies form */
+      _p : radcan(exp(_p)),
+      dprint(5,"p = ",_p),
+      /*_p_x : diff(_p,_x),*/
+
+      depends(_u,_t),
+      _A : 1/_p,
+      _At : subst(_x=_t,_A),
+      _xtrans : _x = _t,
+      _ytrans : _y=_At*_u,
+      dprint(5,"At=",_At), 
+      dprint(5,"yt=",_ytrans), 
+      _transf: [_x=_t,_ytrans],
+      _inv_transf:[_t=_x,_u=_y/_A],
+      dprint(5,"transf=",_transf) 
+    )
+    else 
+    (
+      depends(_u,_t),
+      _xtrans : _x = _t,
+      _ytrans : _y=_u,
+      _transf : [_x=_t,_y=_u], 
+      _inv_transf:[_t=_x,_u=_y],
+      dprint(2,"I is not linear in y. Just trying without transformation ")
+    )    
+  ),
+
+  /* substitute dependencies and to the coordinate transformation */
+  /* ----- */ 
+  dprint(5,"1. ode =",_ode),
+  dprint(5,"dependencies = ",dependencies),
+  dprint(5,"varlist=",_varlist),
+  dprint(5,"udf_args=",_udf_args),
+ 
+  /* step 1: */  
+
+   for _i:1 thru length(dependencies) do (
+    _ode:subst(dependencies[_i],op(dependencies[_i]),_ode)
+   ),
+  print("2. ode =",_ode),
+  
+  /*_ode : dependencies_form_to_explicit_form(_ode)[1],*/
+  if _varlist#[] then _ode : subst(map("=",_varlist,_udf_args),_ode),   
+  print("3. ode =",_ode),
+  /* ----- */ 
+
+
+  /* check the symmetry for the transformed ode */
+  _odenew: subst(_transf,_ode),         
+  _odenew : ev(_odenew,nouns),
+  dprint(5,"new ode =",_odenew),
+  
+  _odenew : solve(_odenew,diff(_u,_t))[1],
+  if lhs(_odenew)#diff(_u,_t) then (dprint(0,"error:could not separate du/dt :",_odenew),return(false)),
+  _odenew : simplify(_odenew),
+  /* after the coordinate transformation, write in dependencies-form */
+  /*_odenew : explicit_form_to_dependencies_form(_odenew),*/
+  /* symmetry3 is the search for symmetries of the form [xi,eta]=[F(x),Q(x)] */
+  /*remove(_u,dependency),*/
+  dprint(5,"solving transformed ode: ",_odenew),
+
+  dc : dependencies,
+  kill(dependencies),
+
+  dprint(5,"ode = ",_odenew),
+
+  _X : ode1_SimpleSymmetries(rhs(_odenew),_u,_t,'useMethod="symmetry3"),
+  /*_X : ode1solve(_odenew,_u,_t,'useMethod="symmetry3",'returnSymmetries=true,'returnIntegratingFactor=false,'returnSolution=false),*/
+
+  map(depends, map(op,dc), map(args,dc)),
+
+  dprint(5,"X = ",_X),
+
+  /* we have to restore the state for the original ode again */
+  /*explicit_form_to_dependencies_form(_ode),*/
+  if _X=false then return(false),
+
+  /* the symmetry was ok, now compute the symmetry for the original ode */
+
+  /* now change back and find the symmetries of the original ode */
+  /* X(u,v) = (X(x,y)*u)*du[.] + (X(x,y)*v)*dv[.] + */
+  /* with X(x,y) = xi*dx[.] + eta*dy[.] */
+  [_xi,_eta] : [_X[1]*diff(rhs(_xtrans),_t) + _X[2]*diff(rhs(_xtrans),_u), _X[1]*diff(rhs(_ytrans),_t) + _X[2]*diff(rhs(_ytrans),_u)],
+  [_xi,_eta] : ev([_xi,_eta],nouns),
+  [_xi,_eta] : subst(_inv_transf,[_xi,_eta]),
+  [_xi,_eta] : simplify([_xi,_eta]),   
+ 
+  /*if _dependencylist#[] then map(depends, map(op,_dependencylist), map(args,_dependencylist))*/
+  /* once we get here, we were successfull. We return the symmetries */ 
+  return([_xi,_eta])
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* Determine integrating factor mu of first order ode y'=phi(x,y) */
+/* given symmetry generators [ xi(x,y), eta(x,y) ]                */
+/* mu = 1/(eta - xi*phi)                                          */
+/* ************************************************************************** */
+ODE1_IntegratingFactor(_Q,_P,_xi,_eta) := block([_denom,_mu],
+/* -------------------------------------------------------------- */
+  _denom : simplify(_xi*_Q-_eta*_P),
+  dprint(4,"denom = ",_denom), 
+  
+  if (_denom=0) then return(false) else (
+    _mu:1/_denom,
+    dprint(4,"mu = ",_mu), 
+    _mu: simplify(_mu),
+    dprint(4,"simplified mu = ",_mu), 
+
+    /* change sign if mu is negative, they are both integrating factors */
+    if signum(_mu)=-1 then _mu:-_mu,
+
+    return(_mu)
+  )
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* Solve the first order ode y'=phi(y,x) when the integration     */
+/* factor is known                                                */
+/* when we have the integration factor mu of the first order ODE  */
+/* we can integrate the ode                                       */
+/* int(mu*dy) - int(mu*phi*dx))                                   */
+/* Note that this is a partial integration, where in the integral */
+/* all variables over which the integration does not take place   */
+/* are considered constant                                        */
+/* Step 1: integrate(mu*dy)+f(x)   -> take the derivative with    */
+/* respect to x:  d/dx(integrate(mu*dy)) + f'(x)                  */
+/* then substitute this into the second integration               */
+/* f'(x) = -integrate(mu*dy)                                      */
+/* ************************************************************************** */
+/*
+newODE1_SolveWithIntegratingFactor(_Q,_P,_mu,_y,_x,_returnExplicit) := block(
+  [_I,_C,_f,sol_explicit,_A,_B,_X,linearconstants],
+
+if FIX_INTEGRATION_CONSTANT=true then
+  _C : integration_constant
+else ( 
+  _C : concat(integration_constant,integration_constant_counter),
+  integration_constant_counter:integration_constant_counter+1
+),
+
+_I : simplify(integrate(-_mu*_Q,_x)), 
+dprint(5,"first integral = ",_I),
+_f : simplify(integrate(_mu*_P - diff(_I,_y),_y)),
+dprint(5,"f = ",_f),
+ _I : simplify(_I + _f)=_C,
+dprint(5,"first integral = ",_I),
+
+  if (_returnExplicit=false) then (
+    dprint(5,"implicit solution"),
+    sol : [_I]
+  )
+  else (
+    dprint(5,"explicit solution"),
+    if not freeof(integrate,_I) then (
+      declare(integrate,linear),
+      sol_explicit:solve(_I,_y),
+      remove(integrate,linear)
+    )
+    else sol_explicit : solve(_I,_y),
+
+    if lhs(sol_explicit)#_y then (dprint(1,"warning:could not separate y :",sol_explicit),return(false))
+
+    sol_explicit : simplify(sol_explicit),
+    dprint(5,"explicit solution =",sol_explicit ),
+    if sol_explicit=[] then (
+      dprint(1,"warning: explicit solution was requested but could not write solution in explicit form")
+    ) else sol:sol_explicit
+  ),
+  dprint (5,"solution = ",sol),
+  dprint (5,"_y = ",_y),
+  dprint (5,"solution = ",lhs(sol[1])),
+  dprint (5,"solution = ",is(lhs(sol[1])=_y) ),
+
+
+  if is(lhs(sol[1])=_y) then (
+    linearconstants:linearp(ratexpand(rhs(sol[1])),integration_constant),
+    dprint(4,"linearconstants=",sol[1]),
+    dprint(4,"linearconstants=",linearconstants),
+
+    if (linearconstants#false) then (
+     _A:rhs(linearconstants[1]),
+     _B:rhs(linearconstants[2]),
+     _X:rhs(linearconstants[3]),
+     dprint(4,_A,", ",_B,", ",_X),
+     if not atom(_B) and (op(_B)="-") then _B: - _B, 
+     if (_B#0) and (freeof(_x,_B)) then _B:1,        
+     sol: [_y = _A + _B*_X] 
+    ) else (
+      dprint(1,"no linear constants")
+    )  
+  ),
+
+  dprint(1,"simpconstinexp"),
+  sol : simpConstInExp(sol,_y,_x),
+  dprint (1,"1.solution = ",sol),
+
+  sol_num : num(rhs(sol)),
+  sol_denom : denom(rhs(sol)),
+  dprint(5,"Q/P = ",sol_num, " ",sol_denom),
+  if freeof(_x,sol_num) and freeof(_y,sol_denom) and freeof(_C,sol_num) then sol : _y = sol_num,
+
+  dprint(5,"solution = ",sol),
+
+  return(sol)
+)$
+*/
+/* ************************************************************************** */
+/* ************************************************************************** */
+/* we have a solution to the ODE,                                             */
+/* simplify it and also try to create a clean integration constant            */
+/* ************************************************************************** */
+cleanupODESolution(expr,_y,_x,_returnExplicit):=block([res1:[],expr1,realexpr:false,expressionBecameComplex:false,logmin1:false,linearconstants,_A,_B,_X,isExplicit:false],
+  %edispflag   : false,                            /* if true, writes negative powers of %e as a quotient, i.e. %e^-x  ->  1/%e^x */
+  dprint(5,"clean up ",grind(expr)),
+  /* first, evaluate all unevaluated noun forms */
+  expr: ev(expr,nouns),
+  dprint(5,"clean up ",expr),
+  expr:simplify(expr),
+  dprint(5,expr),
+   
+ 
+  if freeof(%i,expr) then realexpr:true,
+  dprint(5,"is expression real: ",realexpr),
+
+  /* TODO simplify some logarithms (can put this in the general simplify routine) */
+  if not(freeof(log,expr)) then (
+    dprint(5,"we have logs, trying to simplify..."),
+    expr1:logcontract(radcan(expr)), 
+    if (realexpr=true) and not(freeof(%i,expr1)) then expressionBecameComplex:true,
+    if not(freeof(log(-1),expr1)) then logmin1:true,
+    if expressionBecameComplex=false and logmin1=false then expr:expr1
+  ),
+
+  /* simplify some complex expressions */
+  /*if not(freeof(%i,expr)) and (convertImaginary=true) then expr: rectform(expr), */ /* to convert for instance (-1)^%i */
+  /*if not(freeof(%i,expr)) then (dprint(5,"we have imaginary numbers, trying to simplify..."),expr: rectform(expr)),*/ /* to convert for instance (-1)^%i */
+
+  if _returnExplicit=true then (
+      dprint(5,"we want an explicit solution, trying to solve..."),
+      /* then, try to solve explicitly in terms of the dependent variable. If the solution contains integrals, */
+      if not freeof(integrate,expr) then (
+        declare(integrate,linear),
+        expr1:solve(expr,_y),
+        remove(integrate,linear)
+      ) else expr1:solve(expr,_y),
+
+   /* check if writing explicitly as function of y was successful */ 
+    dprint(5,"5. explicit solution =",expr1 ),
+    if expr1=[] or not(freeof(_y,rhs(expr1[1]))) then (
+      dprint(1,"warning: explicit solution was requested but could not write solution in explicit form"),
+      isExplicit:false
+    ) else
+    if lhs(expr1[1])#_y then (
+      dprint(1,"warning:could not separate y :",expr1),
+      isExplicit:false
+    ) else (expr:expr1,isExplicit:true),
+
+    expr : simplify(expr),
+    dprint(5,"simplified solution : ",expr)
+  ),
+
+  expr : flatten([expr]),
+
+  cleanexpr:[],
+  /* actually, we should do this until the expression does not change anymore */
+  for e in expr do (
+    dprint(5,"expr=",e),
+    cleane: simpConstInFrac(e,_y,_x),
+    dprint(5,"  e=",cleane),
+    cleane: simpConstInLin(cleane,_y,_x),
+    dprint(5,"  e=",cleane),
+    cleane: simpConstInExp(cleane,_y,_x),
+    dprint(5,"  e=",cleane),
+    cleane: simpConstInLog(cleane,_y,_x),
+    dprint(5,"  e=",cleane),
+
+    cleanexpr: endcons(cleane,cleanexpr)
+  ),
+  expr : cleanexpr,
+
+
+  /* for implicit and explicit solutions */
+  dprint(5,"solution : ",expr),
+  /*expr: simpConstInFrac(expr,_y,_x),*/
+  /* do we need to simplify or just ratsimp here?*/
+  /* no, we need simplify, e.g. kamke1.72 (simplification of roots) */
+  expr: simplify(expr), 
+
+  /* */
+  expr: factor(expr),
+  /* When the expression is implicit, we have [f(x,y)=%c].
+     We check if it has a minus sign and remove it */
+  if isExplicit=false then (
+   if op(lhs(expr[1]))="-" then expr:[-lhs(expr[1])=integration_constant]
+  )
+  /* when the expression is explicit, check if %c has a minus sign in front of it */
+  /* note: for multiple %c, we chould check that all %c have a minus sign*/ 
+  else (
+    /* ... */
+    dprint(5,"for explicit=true we do nothing")
+  ),
+
+  /* end trying to write as explicit solution*/
+  dprint(5,"solution : ",expr),
+
+  /* do we need to simplify again? */
+  /*expr : simplify(expr),*/
+  return(flatten([expr]))
+)$
+/* ************************************************************************** */
+
+/* TODO solve ode using  canonical coordinates*/
+ODE1_SolveWithCanoni(_Q,_P,_canoni,_y,_x):=block([_sol],
+
+return(_sol)
+)$
+
+/* TODO solve with differential invariants */
+ODE1_SolveWithDiffInv(_Q,_P,_canoni,_y,_x):=block([_sol],
+
+return(_sol)
+)$
+
+/* ************************************************************************** */
+/* *****  solve an ode using an integrating factor and simplify result  ***** */
+/* ************************************************************************** */
+ODE1_SolveWithIntegratingFactor(_Q,_P,_mu,_y,_x,_returnExplicit):=block([_check,mu_P,mu_Q,exactode,_N,_M,res1,res2,sol],
+
+  /* --- check all the optional arguments --- */
+  /*_mu		   : assoc('integratingFactor,options,[]),                */
+
+  dprint(4,""),
+  dprint(4,"---------- optional arguments : -----------------------------"),
+  dprint(4,"---------- use integrating factor        = ",_mu),
+  dprint(4,""),
+/*
+  if _mu=false then (
+    dprint(0,"only integrating factor is implemented!"),
+    return(false)
+  ),
+*/
+
+
+/* take integration constant counter into account */
+if FIX_INTEGRATION_CONSTANT=true then
+  _C : integration_constant
+else ( 
+  _C : concat(integration_constant,integration_constant_counter),
+  integration_constant_counter:integration_constant_counter+1
+),
+
+  /* TODO is this really necessary? */ 
+  _P : rootscontract(_P),_Q:rootscontract(_Q), /* the simplification to canonical could introduce imaginary numbers when square roots are in the expression */
+
+  dprint(4,"P = ",grind(_P)), 
+  dprint(4,"Q = ",grind(_Q)),
+
+  _mu: simplify(_mu),
+
+  /* ***************************************** */
+  /* when will this piece of code help ???     */
+  /* put imaginary stuff in simplify as well?  */
+  /* rootscontract converts products of roots into roots of products, simplifies an expression like 1/(sqrt(x-%i)sqrt(x+%i)) = 1/(sqrt(x^2+1)) */
+  /* note that abs(x) can also be put into the root when x is real*/
+  _mu: rootscontract(_mu),
+  dprint(4,"MU = ",grind(_mu)),
+
+  /* we try to get rid of imaginary numbers */
+  mu_P : num(_mu),
+  mu_Q : denom(_mu),
+  /*if not freeof(%i,mu_P) and (convertImaginary=true) then (*/
+  if not freeof(%i,mu_P) then (
+    mu_P : rootscontract(mu_P),
+    mu_P : rectform(radcan(mu_P)), /* for simplification of e.g. -1^%i*/
+    mu_P : trigreduce(trigsimp(demoivre(mu_P))) /* if mu=exp(sin(x)) then exponentialize(mu) has exploded this expression and introduced complex numbers */
+  ),
+  /*if not freeof(%i,mu_Q) and (convertImaginary=true) then (*/
+  if not freeof(%i,mu_Q) then (
+    mu_Q : rootscontract(mu_Q),
+    mu_Q : rectform(radcan(mu_Q)), /* for simplification of e.g. -1^%i*/
+    mu_Q : trigreduce(trigsimp(demoivre(mu_Q))) /* if mu=exp(sin(x)) then exponentialize(mu) has exploded this expression and introduced complex numbers */
+   
+  ),
+  dprint(4,"MU = ",mu_P,"/ ",mu_Q),
+
+  _mu : simplify(mu_P / mu_Q),
+  /* ***************************************** */
+
+/*
+    if not freeof(%e,_mu) then 
+      _mu: radcan(exponentialize(_mu)), /* will simplify e.g. exp(log(a*x+b)) */
+*/
+
+  dprint(4,"MU = ",grind(_mu),_y,_x),
+
+  /*exactode : simplify(diff(_mu*_P,_x) + diff(_mu*_Q,_y)),*/ /* extra ratsimp for 1.350*/
+  /*dprint(1,"Does integrating factor make ODE exact?  ",grind(exactode), " ",is(exactode=0)),*/
+  
+  /* dy/dx = Q/P = -M/N */
+  /* we integrate the exact equation. note that we can do that in two ways and we need to choose the easiest one */
+  /* NB: trigsimp helps in simplifying e.g. kamke1.6, speedup from 20s to 1s !!! */
+  /*_N : simplify(-_mu*_P),
+  _M : simplify(_mu*_Q),*/
+  _N : -_mu*_P,
+  _M :  _mu*_Q,
+  dprint(4,"N = ",grind(_N)),
+  dprint(4,"M = ",grind(_M)),
+
+  /*dprint(5,"exact = ",simplify(diff(_N,_x)-diff(_M,_y))),*/
+
+/* *************************** */
+/*  halfangles : false,*/
+/* *************************** */
+
+  _Psi1 : simplify(integrate(_M,_x)),
+  dprint(5,"psi1=",grind(_Psi1)),
+  sol1:false,sol2:false,
+  /* if psi1 is already free of integrate, abs, %i then just use it... */
+  /* atan sometimes leads to large expressions, so if we can prevent that, it's better... */
+  if freeof(integrate,_Psi1) and freeof(abs,_Psi1) and freeof(%i,_Psi1) then( 
+    sol1:true
+  ) 
+  else (
+    
+    dprint(5,"psi1 is not free of integrals,abs,%i, trying psi2"),
+    _Psi2 : simplify(integrate(_N,_y)),
+    dprint(5,"psi2=",grind(_Psi2)),
+    /* can we already determine a preference based on this integral? */  
+    /* free of %i values */
+    if (not freeof(%i,_Psi1+_Psi2)) then (
+      dprint(5,"not free of %i"), 
+      if termcount("%i",_Psi1) >= termcount("%i",_Psi2) then sol2:true else sol1:true
+    ) else
+    /* most important: free of integrals */
+    if (not freeof(integrate,_Psi1+_Psi2)) then (
+      dprint(5,"not free of integrals"), 
+      if termcount("integrate",_Psi1) >= termcount("integrate",_Psi2) then sol2:true else sol1:true
+    ) else
+    /* second most important: free of abs values */
+    if (not freeof(abs,_Psi1+_Psi2)) then (
+      dprint(5,"not free of abs"), 
+      if termcount("abs",_Psi1) >= termcount("abs",_Psi2) then sol2:true else sol1:true
+    ) else
+    /* we could also introduce here: non-liouvillian functions etc... */
+    /* last: the length of the expression */
+    if slength(string(_Psi1)) > slength(string(_Psi2)) then sol2:true else sol1:true
+  ),
+  dprint(5,"sol1=",sol1),
+  dprint(5,"sol2=",sol2),
+
+  if sol1=true then 
+    sol: _Psi1 + integrate(simplify(_N - diff(_Psi1,_y)),_y) = _C /* we need simplify for kamke 1.32*/
+  else
+    sol: _Psi2 + integrate(simplify(_M - diff(_Psi2,_x)),_x) = _C,
+
+  dprint(5,"sol = ",sol),
+
+  /* the first method: */
+/*
+  dprint(5,"computing sol1"),
+  _Psi : integrate(_M,_x),
+    dprint(5,"psi=",_Psi),
+  sol1:  _Psi + integrate(simplify(_N - diff(_Psi,_y)),_y) = _C, /* we need simplify for kamke 1.32*/
+  dprint(5,"sol1=",sol1),
+*/  
+  /* the second method... should we always try the second method or only when we have integrals and abs-terms in the first? */
+/*
+  dprint(5,"computing sol2"),
+  _Psi: integrate(_N,y), /* + h(x) */
+  dprint(5,"psi=",_Psi),
+  sol2: _Psi + integrate(simplify(_M - diff(_Psi,_x)),_x) = _C,
+  dprint(5,"sol2=",sol2),
+*/ 
+ 
+/* *************************** */
+/*   halfangles : true,  */
+/* *************************** */
+
+    /* clean up and try to write in explicit form*/
+/*
+    dprint(5,"clean up sol1"),
+    sol1: simplify(sol1),
+    /*sol1: ratsimp(sol1),*/
+    dprint(5,"sol1=",sol1),
+    dprint(5,"clean up sol2"),
+    sol2: simplify(sol2),
+    /*sol2: ratsimp(sol2),*/
+    dprint(5,"sol2=",sol2),
+*/    
+    /* if we asked for an explicit solution and sol1 was successfull but sol2 not, return sol1 */
+    /*if (_returnExplicit=true) and (freeof(_y,rhs(sol1))) and (not freeof(_y,rhs(sol2))) then sol:sol1 else */ 
+    /* if we asked for an explicit solution and sol2 was successfull but sol1 not, return sol2 */
+    /*if _returnExplicit=true and (freeof(_y,rhs(sol2))) and (not freeof(_y,rhs(sol1))) then sol:sol2 else */
+ 
+    /* compare the two solutions. We do this by counting integrals and by measuring length of expression */
+    /*if termcount("integrate",sol1) >= termcount("integrate",sol2) and slength(string(sol1)) > slength(string(sol2)) then sol:sol2 else*/
+
+    /* most important: free of integrals */
+/*
+    if (not freeof(integrate,sol1+sol2)) then (
+      if termcount("integrate",sol1) >= termcount("integrate",sol2) then sol:sol2 else sol:sol1
+    ) else
+*/
+    /* second most important: free of abs values */
+/*
+    if (not freeof(abs,sol1+sol2)) then (
+      if termcount("abs",sol1) >= termcount("abs",sol2) then sol:sol2 else sol:sol1
+    ) else
+*/
+    /* we could also introduce here: non-liouvillian functions etc... */
+    /* last: the length of the expression */
+/*
+    if slength(string(sol1)) > slength(string(sol2)) then sol:sol2 else sol:sol1,
+*/    
+    /* so which one is better, sol1 or sol2? */
+    dprint(5,"clean up sol"),
+    sol: cleanupODESolution(sol,_y,_x,_returnExplicit),
+
+    /* check if the solutions are the same, or differ only by the sign of the constant */
+    if length(sol)=2 then (
+      dprint(5,"two solutions, check if they are the same"),
+      dprint(5,"sol=",sol),
+      phi1 : rhs(sol[1])-lhs(sol[1]),
+      phi2 : rhs(sol[2])-lhs(sol[2]),
+      phi3 : subst(_C=-_C,phi2),
+
+      if simplify(phi1-phi2) = 0 or simplify(phi1-phi3) = 0 then sol:[sol[1]] 
+    ),
+
+    dprint(5,"sol=",sol),
+    return(sol)
+)$
+/* ************************************************************************** */
+
+/* ************************************************************************** */
+/* simplify constant appearing in implicit solution f(x,y)/C = %c             */
+/* ************************************************************************** */ 
+simpConstInFrac(_expr,_y,_x):=block([_C,_phi,_newexpr:[]],
+  /* just check if the left-hand side has a constant factor and the right-hand side is %c*/
+  dprint(5,"simpconstinfrac:: expr = ",_expr),
+
+    if rhs(e)=integration_constant then (
+      /* implicit solution in first integral-format */
+      _phi : lhs(e),
+      _C : constant_factors(ratsimp(_phi),[_x,_y]),
+      dprint(5,"C=",_C), 
+      
+      return(ratsimp(_phi/_C)=integration_constant)
+    ) 
+    else if lhs(_expr)=_y then (
+      _phi: rhs(_expr), 
+      /* explicit solution */
+      _C : constant_factors(ratsimp(_phi),[_x,_y]),
+      if not freeof(integration_constant,_C) and freeof(integration_constant,_phi) then
+        return(_y=ratsimp(_phi/_C))  
+      else 
+        return(_expr) 
+    ) 
+)$
+
+/* ************************************************************************** */
+/* simplify constant appearing in exponential term                            */
+/* e.g. y = f(x) + exp(%c)  ==>  y = f(x) + %c                                */
+/* ************************************************************************** */ 
+simpConstInExp(expr,depvar,indepvar):=block([_Expterms,_coef:0,_newExpr:expr,_subst],
+
+  dprint(4,"simplify constant: expr = ",expr),
+  dprint(4,"simplify constant: depvar = ",depvar),
+  dprint(4,"simplify constant: indepvar = ",indepvar),
+
+  _Expterms: allTerms(expr),
+  dprint(4,"expterms = ",_Expterms),
+
+  if length(_Expterms)>0 then  
+    for i:1 thru length(_Expterms) do   
+      if not(freeof(depvar,_Expterms[i][1])) or not(freeof(indepvar,_Expterms[i][1])) then _subst:false,
+
+  if length(_Expterms)>1 then   
+    for i:2 thru length(_Expterms) do   
+      if _Expterms[i-1][1]#_Expterms[i][1] then _subst:false,
+
+  if _subst=false then return(expr),
+
+  for arg in _Expterms do 
+    _newExpr:subst(integration_constant*exp(arg[2]),exp(arg[2] + arg[1]*integration_constant),expr),
+
+  /* this happens when there were other %c terms in the expression that are not inside exp(), like %c*exp(a*%c+b) */
+  /*if not freeof(%c%,_newExpr) then return(expr),*/
+
+  dprint(5,"simpconstinExp:: ",_newExpr),
+  return(_newExpr)
+)$
+
+
+/* ************************************************************************** */
+/* when the expression can be written as log(expr) = %c, then return expr=%c */
+/* this is used for implicit expression only */
+/* ************************************************************************** */
+simpConstInLog(expr,depvar,indepvar):=block([_newExpr],
+  if freeof(log,expr) or rhs(expr)#integration_constant then return(expr),
+  _newExpr : logcontract(lhs(expr)),
+  dprint(5,"logexpr=",_newExpr,args(_newExpr)[1]),
+  if op(_newExpr)=log then return(args(_newExpr)[1]=integration_constant) else return(expr)
+)$
+
+/* ************************************************************************** */
+
+/* if expr [y = f(x,y,%c)] can be written as y=f(x,y) + g(%c) then simplify to y=f(x,y)+%c */
+simpConstInLin(expr,_y,_x):=block([_newExpr:expr,_A,_B,_X,linearconstants,_P,_Q,isP:false,isQ:false,_LC],
+  dprint(5,"simpconstinlin:: ",expr),
+
+  /* we can handle lists */
+  /*if not listp(expr) then expr:[expr],*/
+
+  /* for implicit equations we only try f(x,y) + C1 = %c */
+  /* and we simplify by absorbing C1 in the integration constant and returning f(x,y) = %c */
+  if (lhs(expr)#_y) then (
+    if rhs(expr)# integration_constant then return(expr),
+    /*print("expr=",lhs(expr)),*/
+    _LC : cplusfxy(lhs(expr),_x,_y),
+    /*print("LC=",_LC),*/
+    if _LC # false then return(_fxy = integration_constant) else return(expr) 
+  ),
+
+
+  expr : ratsimp(rhs(expr)),
+ 
+  _Q : num(expr), _newExprQ : _Q,
+  _P : denom(expr), _newExprP : _P,
+  dprint(5,"Q = ",_Q),
+  dprint(5,"P = ",_P),
+
+
+  linearconstantsQ:linearp(ratexpand(_Q),integration_constant),
+  dprint(4,"linearconstantsQ=",linearconstantsQ),
+  if linearconstantsQ#false then (
+     dprint(5,"we have linear constants Q"),
+     isQ : true,
+     _AQ:rhs(linearconstantsQ[1]),
+     _BQ:rhs(linearconstantsQ[2]),
+     _XQ:rhs(linearconstantsQ[3]), /* this is %c */
+     if signum(_BQ)=-1 then _B: - _BQ else _B:_BQ,  /* if we have y=f(x) -B(x)*%c then change to y=f(x)+B(x)*%c */
+     if (_B#0) and (freeof(_x,_y,_B)) then _B:1,        /* if we have y=f(x) +B*%c with B a constant, change to y=f(x) + %c */ 
+     _newExprQ: _AQ + _B*_XQ 
+  ),  
+
+  if _P#1 then (
+    linearconstantsP:linearp(ratexpand(_P),integration_constant),
+
+    dprint(4,"linearconstantsP=",linearconstantsP),
+    if linearconstantsP#false then (
+     dprint(5,"we have linear constants P"),
+     isP : true,
+     _AP:rhs(linearconstantsP[1]),
+     _BP:rhs(linearconstantsP[2]),
+     _XP:rhs(linearconstantsP[3]), /* this is %c */
+     if signum(_BP)=-1 then _B: - _BP else _B : _BP, /* if we have y=f(x) -B(x)*%c then change to y=f(x)+B(x)*%c */
+     if (_B#0) and (freeof(_x,_y,_B)) then _B:1,        /* if we have y=f(x) +B*%c with B a constant, change to y=f(x) + %c */ 
+     _newExprP: _AP + _B*_XP
+
+     /* we have an expression Q/(B*%c) and we make it %c*Q/B */
+     /*if _AP=0 then _newExprP : _B/_XP */
+    )  
+  ),
+
+  /* if we changed 2 constants, we have to compare them */
+  /* if they are not the same, we replace the smallest with %c and substitute into the largest */
+
+  dprint(5,"newQ = ",_newExprQ),
+  dprint(5,"newP = ",_newExprP),
+
+  if (isQ=true) and (isP=false) then return(_y=_newExprQ/_P),
+  if (isQ=false) and (isP=true) then return(_y=_Q/_newExprP),
+  if (isQ=false) and (isP=false) then return(_y=_Q/_P),
+
+  /* in this case, isQ=true and isP=true */
+  /* this means we possibly changed 2 constants */
+  if isQ=true and isP=true then (
+    dprint(5,"BP,BQ=",_BP," ",_BQ), 
+    /* the same constant: accept the changes */
+    if _BQ=0 or _BP=0 then _newExpr : _newExprQ/_newExprP /* only a %c in P or Q*/
+    else if ratsimp(_BP/_BQ)=1 then _newExpr : _newExprQ/_newExprP /* the constant terms in P,Q is the same */
+    else if ratsimp(_BP/_BQ)=-1 then _newExpr : (_AQ - _B*_XQ)/_newExprP /* the constant term in P and Q differ by sign */
+    else (
+      /* (for now) do not accept the changes. */
+      dprint(2,"rejecting simplification of constants"),
+      _newExpr : _Q/_P
+    )
+  ),  
+dprint(5,"new ode = ",_newExpr),
+return(_y=_newExpr)
+)$
+
+
+/* ************************************************************************** */
+/* ************************************************************************** */
+/*
+MakeConstPos(expr):=block([newexpr],
+  newexpr: ratsimp(((rhs(expr)-lhs(expr)+integration_constant))),
+  if freeof(integration_constant,newexpr) then return(ratsimp(expr+2*integration_constant))
+)$
+*/
+/* ************************************************************************** */
+
+
+/* we are looking for exponential terms containing a constant of integration */
+allTerms(expression):= block( [ ],
+  allOpsPriv (expression,[])
+)$
+/* ************************************************************************** */
+
+/* ************************************************************************** */
+/* ************************************************************************** */
+allOpsPriv(expression, opList) := block ( [_x, _args, _constcoef,
+  _expterm,_newList:opList,_lp],
+
+  if atom(expression) then opList else (
+    _x: op(expression), 
+    _args: args(expression), 
+    if (_args[1] = %e)  and not freeof(%c,_args[2]) then (
+      /* only exponential terms containing %c */
+      _lp : linearp(_args[2],integration_constant),
+      /*if _lp=false then return(opList),*/ /* capture in case linearp is false */ 
+      if _lp#false then (
+      _constcoef:rhs(_lp[2]),
+      _expterm:rhs(_lp[1]),
+      /*if freeof(constcoef,depvar) and freeof(constcoef,indepvar) then*/
+      _newList: cons([_constcoef,_expterm],opList)
+      )
+    ),
+    for arg in _args do
+      _newList: allOpsPriv(arg, _newList),
+    _newList
+  )
+
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* this changes dependencies to explicit form                     */
+/* the only thing we need to do is to kill the dependencies !!!   */
+/* ************************************************************************** */
+explicit_form_to_dependencies_form(_ode) :=block( 
+  /* get a list of user defined functions */
+  /* only at start of the call to odesolve*/
+  /*_dependencylist : copy(dependencies),*/
+  dprint(5,"explicit form to dependency form"), 
+  /*_listudf : listUDF(rhs(_ode)),*/
+  _listudf : listUDF(_ode),
+  /* we throw away udf that have one single argument*/
+  _listudf : sublist(_listudf,lambda([_i], not(length(args(_i))=1 and atom(args(_i)[1])))),
+  _udf_op : map(op,_listudf),
+  _udf_args : flatten(map(args,_listudf)), 
+
+  /* get a list of generally defined functions */ 
+  _listgdf : listUDFGeneral(_ode),
+  /* remove items from the list that have atom-arguments like sin(x) */
+  _listgdf : sublist(_listgdf,lambda([_i], not(length(args(_i))=1 and atom(args(_i)[1])))),
+  _listgdf : append(_listgdf,listGDF(_ode,_y,_x)),
+  /* remove everything that is already in listudf */
+  _listgdf : unique(sublist(_listgdf,lambda([_i],not(member(_i,_listudf))))),
+  _gdf_op : map(op,_listgdf),
+  _gdf_args : unique(flatten(map(args,_listgdf))),
+
+  dprint(5,"listudf = ",_listudf), 
+  dprint(5,"udf_op = ",_udf_op), 
+  dprint(5,"udf_args = ",_udf_args), 
+  dprint(5,"listgdf = ",_listgdf), 
+  dprint(5,"gdf_op = ",_gdf_op), 
+  dprint(5,"gdf_args = ",_gdf_args), 
+
+  /* for the udf, we need to introduce new variables      */
+  /* note that we remove gradefs by removing dependencies */
+  if _listudf#[] then (
+  _varlist:makelist(concat(%g,_i),_i,1,length(_udf_args)),
+  dprint(5,"varlist = ",_varlist), 
+   /* there is no need to add the new variables to the dependency list, diff(%g1,x) will work */
+   /*depends(_varlist,[x,y]),*/
+   _udfargs : _udf_args,  
+   for _g in _varlist do (
+      apply('gradef,[_g,_x,diff(first(_udfargs),_x)]),   
+      apply('gradef,[_g,_y,diff(first(_udfargs),_y)]),
+      _udfargs:rest(_udfargs)    
+   ), 
+
+
+  /* replace all udfs with their operators: f(ax+by)  -> f */
+  _ode : subst(map("=",_listudf,_udf_op),_ode),
+  dprint(5,"canonical form of ode, replaced long arguments = ",_ode),
+
+  /* only dependencies for the udf, not for the general free functions */
+  map(depends,_udf_op,_varlist),   
+  dprint(5,"dependencies=",dependencies),
+  /*
+  dprint(5,"d%g1/dx = ",diff(%g1,_x)),
+  dprint(5,"d%g1/dy = ",diff(%g1,_y)),
+  */
+
+  /* the list of functions that we would like to use for symmetry4 */
+  _freefunctions : append(_udf_op, _listgdf),
+  dprint(5,"free functions = ",_freefunctions)
+  ),
+
+  return(_ode) 
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* this changes dependencies to explicit form                     */
+/* the only thing we need to do is to kill the dependencies !!!   */
+/* and then substitute                                            */
+/* ************************************************************************** */
+dependencies_form_to_explicit_form(expr) :=block( 
+/* ************************************************************************** */
+   dc : copy(dependencies),
+   kill(dependencies),
+   for _i:1 thru length(dc) do (
+    expr:subst(dc[_i],op(dc[_i]),expr)
+   ),
+   [expr,dc]
+)$
+
+
+/* ************************************************************************** */
+/* check ode input                                                            */
+/* ************************************************************************** */
+odeType(_ode,_y,_x,ODEtype):=block([_rhs,_df,_df_x,_df_y,_P,_Q],
+  /*dprint(5,"input ode = ",_ode),*/
+  if freeof('diff,_ode) then (dprint(0,"Error: no differential operator (diff) found!"), return(false)),
+  if derivdegree(_ode,_y,_x) # 1 then (dprint(0,"Error: No first order ODE found!"), return (false)), 
+
+  _ode:solve(_ode,'diff(_y,_x)),
+ 
+  if not listp(_ode) then (dprint(0,"Error: could not write ODE explicitly in the form dy/dx = f(x,y) ",_ode), return(["implicit first order ode"])),
+  if length(_ode) > 1 then dprint(0,"warning: writing the ODE in the explicit form dy/dx=f(x,y) leads to multiple ODEs: ",_ode),
+
+  _ode : _ode[1],
+  if lhs(_ode)#('diff(_y,_x)) then (dprint(0,"Error: could not write ODE explicitly in the form dy/dx = f(x,y) ",_ode), return(["implicit first order ode"])),
+
+  /* we have to check if the ode contains general functions */
+/*
+  if (heuristics=false) then (
+    varlist : showratvars(rhs(_ode)), 
+    varlist : sublist(varlist,lambda([_i],not(lfreeof(map(op,dependencies),_i)) or not(lfreeof(dependencies,_i)) or not(freeof('diff,diff(_i,_y))) or not(freeof('diff,diff(_i,_x))))),
+    if varlist # [] then (
+      dprint(0,"Error: Prelle-Singer method cannot handle general functions."),
+      dprint(0,"try again with option 'heuristics=true"),
+      return(false)
+    )
+  ),
+*/
+
+
+  dprint(5,"ODE:",_ode),
+  dprint(5,"x (independent variable) : ",_x),
+  dprint(5,"y (dependent variable) : ",_y),
+
+  /* dy/dx = M/N =Q/P*/ 
+  /*_P:  ratcoeff(_ode,'diff(_y,_x),1),   */
+  /*_Q: -ratsimp(_ode - _P*'diff(_y,_x)), */
+
+  return(["explicit first order ode"])
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* write ode1 to canonical form:                                              */
+/* -write sin,cos,tan,cot, etc as sin,cos                                     */
+/* -expand square roots                                                       */
+/* ************************************************************************** */
+ode1CanonicalForm(_ode,_y,_x):=block([],
+  dprint(5,"start canonical form: ode = ",_ode),
+
+  /* try to solve explicitly in the derivative */
+  _ode:solve(_ode,'diff(_y,_x)),
+  _ode : _ode[1],
+  /* canonical form: write tan to sin,cos*/ 
+  _rhs:trigsimp(rhs(_ode)), 
+  /* canonical form: ratsimp to put into fraction */
+  _rhs : ratsimp(_rhs),  
+  dprint(5,"rhs = ",_rhs), 
+
+  /* splits square roots sqrt(a*b) into sqrt(a)*sqrt(b) and sqrt(a/b) into sqrt(a)/sqrt(b) */
+  /*_rhs : rootsexpand(_rhs),*/
+  /*_rhs : radcan(_rhs),*/
+  dprint(5,"rhs = ",_rhs), 
+  /* TODO: what about general fractional powers? */
+  /* ... */
+
+  /* what about log functions? */
+  /* what about sinh functions?*/
+  /* etc... */
+
+  return('diff(_y,_x)=_rhs)
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* get the pfaffian form of the ode, i.e. if dx/dt=P, dy/dt=Q, then           */
+/* dy/dx = Q/P   =>   Pdy = Qdx and we return P,Q                             */
+/* ************************************************************************** */
+ode1PfaffianForm(_ode,_y,_x):=block([_P,_Q],
+  /* input is allowed to be y' = Q/P, or y'-Q/P=0, or P*y'-Q=0 and also y'-Q/P, P*y'-Q */
+  if not freeof("=",_ode) then _ode : lhs(_ode) - rhs(_ode),
+
+  /*dprint(5,"ode=",_ode),*/ 
+  [_P,_Q] : bothcoeff(_ode,'diff(_y,_x)),
+  /*dprint(5,"p,q=",_P," , ",_Q),*/
+  if _P=1 then (
+    /*_ode : ratsimp(_ode),*/ /* if we assume that P,Q are already coprime then this is not needed */
+    _P : denom(_Q),
+    _Q : num(_Q)
+  ),
+  /*dprint(5,"p,q=",_P," , ",_Q),*/
+  return([_P,-_Q])
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* *****     Check if input mu is an integrating factor of ode          ***** */
+/* ************************************************************************** */
+isIntegratingFactor(mu,ode,_y,_x) :=(block[_P,_Q,_isIntegratingFactor:false],
+
+  ode: ode1CanonicalForm(ode,y,x),
+  /* rewrite the ode to pfaffian form */
+  /* Q(x,y)dx - P(x,y)dy = 0 */
+  [_P,_Q] : ode1PfaffianForm(ode,_y,_x),
+  dprint(4,"P, Q"=_P,_Q),
+  /* check if d(mu*P)/dx - d(mu*Q)/dy = 0*/
+  if (ratsimp(diff(mu*_P,_x) + diff(mu*_Q,_y))=0) then(
+    dprint(4,mu, " is an integrating factor of the ode ",ode),
+    true
+  ) else 
+    false
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* ***** check if X is a symmetry of the ode                            ***** */
+/* ************************************************************************** */
+checkSymmetries(_X,_ode,_y,_x) :=(block[_phi,_xi,_n,_xi_x,_xi_y,_n_x,_n_y,_phi_x,_phi_y,_linearizedSymmetryCondition,_isSymmetry,_substlist,_listudf,_udf_op,_udf_args,_varlist,dependencylist],
+
+  dependencylist : copy(dependencies),  
+  /*dprint(5,"dependencylist = ",dependencylist),*/
+
+  _ode : solve(_ode,'diff(_y,_x)),
+  _phi : ratsimp(rhs(_ode[1])),
+  /*dprint(5,"phi = ",_phi),*/
+
+  /* ***** ************************************************* ***** */
+  /* we need to define derivatives for composite functions/chain rule */
+  /* ***** ************************************************* ***** */
+  /* get a list of user defined functions */
+  if listUDF(_phi)#[] then (
+    _listudf : listUDF(_phi),
+    /*dprint(5,"listudf=",_listudf), */
+    /* throw away functions depending on only atoms, like f(x) */
+    _listudf : sublist(_listudf,lambda([_i], not(length(args(_i))=1 and atom(args(_i)[1])))),
+    /*dprint(5,"listudf=",_listudf),*/
+    /* list f,g,h */
+    _udf_op : map(op,_listudf),
+    /*dprint(5,"udf_op=",_udf_op),*/
+    /* list of arguments*/
+    _udf_args : flatten(map(args,_listudf)), 
+    /*dprint(5,"udf_args=",_udf_args),*/
+
+    /* for the udf, we need to introduce new variables */
+    _varlist:makelist(concat(%g,_i),_i,1,length(_udf_args)),
+    depends(_varlist,[x,y]),
+    for _g in _varlist do (
+       /*print("declaring derivatives for: ",_g),*/
+       /*print("first of fargs = ",first(_udf_args)),*/
+       apply('gradef,[_g,_x,diff(first(_udf_args),_x)]),   
+       apply('gradef,[_g,_y,diff(first(_udf_args),_y)]),
+       _udf_args:rest(_udf_args)    
+    ), 
+
+    /* only dependencies for the udf, not for the general free functions */
+    map(depends,_udf_op,_varlist),   
+    /*dprint(5,"dependencies = ",dependencies),*/
+
+    /* replace all udfs with their operators: f(ax+by)  -> f */
+    _phi : subst(map("=",_listudf,_udf_op),_phi)
+    /* ***** ************************************************* ***** */
+  ),
+  dprint(5,"phi = ",_phi),
+  dprint(5,"depvar = ",_y),
+  dprint(5,"indepvar = ",_x),
+  dprint(5,"X = ",_X),
+
+  /* linearized symmetry condition:                                   */
+  /*   n_x + (n_y-xi_x)*phi - xi_y*phi^2 = xi*phi_x + eta*phi_y       */
+
+  _xi : _X[1],
+  _n  : _X[2],
+
+  _xi_x  : diff(_xi,_x),
+  _xi_y  : diff(_xi,_y),
+  _n_x   : diff(_n,_x),
+  _n_y   : diff(_n,_y),
+  _phi_x : diff(_phi,_x),
+  _phi_y : diff(_phi,_y),
+
+  _linearizedSymmetryCondition : _n_x + (_n_y-_xi_x)*_phi - _xi_y*_phi*_phi -_xi*_phi_x - _n*_phi_y,
+  dprint(5,"symcond = ",_linearizedSymmetryCondition),
+  _linearizedSymmetryCondition : ratexpand(_linearizedSymmetryCondition),
+  _linearizedSymmetryCondition : ev(_linearizedSymmetryCondition,nouns),
+  _linearizedSymmetryCondition : simplify(_linearizedSymmetryCondition),
+  dprint(5,"symcond = ",_linearizedSymmetryCondition),
+  /* this is sometimes necessary e.g. for kamke1.70 to completely reduce to 0 */ 
+  _linearizedSymmetryCondition : fullratsimp(_linearizedSymmetryCondition),
+  dprint(5,"symcond = ",_linearizedSymmetryCondition),
+  dprint(5,"symcond = ",grind(_linearizedSymmetryCondition)),
+  _isSymmetry : _linearizedSymmetryCondition,
+  if (_isSymmetry = 0) then (
+    dprint(4,"generator X=", _X , " is a symmetry of ode ",_ode)
+  ) else (
+    dprint(4,"generator X=", _X , " is NOT a symmetry of ode ",_ode),
+    dprint(4,_isSymmetry)
+  ),
+
+  if listUDF(ratsimp(rhs(_ode[1])))#[] then (
+    kill(dependencies),
+    if dependencylist#[] then map(depends, map(op,dependencylist), map(args,dependencylist))
+  ),
+  _isSymmetry
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* ***** main routine that loops over all symmetry types                ***** */
+/* ************************************************************************** */
+findSymmetries(_Q,_P,_y,_x,[options]):= block([_xi,_eta,_rhs,linearconstants,_freefunctions_xy,_f,_g,fg,_phi,_phistar,_S,_ode,useMethod,_symfound,_C,_expr,_I,lf,_fx_over_gy,_res,_undet_xi,_undet_eta,_undet_polydegree,_bernoulliode],
+/* ************************************************************************** */
+  dprint(5,"findsymmetries::options = ",options), 
+  useMethod              : assoc('useMethod,options,"all"),               /* you can set all individual methods: fy,fx,separable,exact,linear,inverse-linear,symmetry1..5, */
+  dprint(5,"findsymmetries::method = ",useMethod),                      /* abel, bernoulli, riccati, chini, clairaut, d'Alembert, */
+  /* for the method of undetermined coefficients, we need the list of undetermined coefficients, and the undetermined function for [xi,eta]*/
+  /*_undet_var		   : assoc('varlist,options, []),                */
+  _undet_xi 		   : assoc('xi,options, []),                
+  _undet_eta		   : assoc('eta,options,[]),                
+  _undet_polydegree        : assoc('polydegree,options,[]),            
+
+ dprint(5,"***** polydegree = ",_undet_polydegree),
+
+  method : false,
+  dprint(5,"findsymmetries::start"),
+  _rhs:_Q/_P,
+  _phi : _rhs, 
+  _ode : 'diff(_y,_x) = _phi,
+  dprint(5,"rhs = ",_phi, " ",_y),
+
+  /* no user defined functions that depend on x,y */
+  /* if we do not call the routine from ode1solve, then udf_args is not defined, we just set it as an empty list */
+  if not listp(_udf_args) then _udf_args:[],
+  _freefunctions_xy : sublist(_udf_args,lambda([_i],not freeof(_x,_i) and not freeof(_y,_i)   )),
+  
+  dprint(5,"free functions = ",_freefunctions_xy),
+
+  if _freefunctions_xy=[] then (
+
+
+  /* ************************** */
+  /* ***** y' = f(y)      ***** */
+  /* ***** quadrature     ***** */
+  /* ************************** */
+  /* not in "all" because also in inverse-linear routine */
+  if useMethod="fy" or useMethod="quadrature" then (
+    dprint(2,"   trying y' = F(y) ..."),  
+    /* first, substitute dependencies */
+    if dependencies#[] then (
+      substlist: map("=",map(op,dependencies),dependencies),
+      _expr : subst(substlist,_phi),
+      substlist: map("=",_varlist,_udf_args),
+      _expr : subst(substlist,_expr)
+    ) else _expr:_phi,
+
+    if freeof(_x,_expr) then (
+       dprint(2,"*** solution found : y' = F(y) (quadrature) ***"),  
+       method: "F(y)",
+       _xi : 1, _eta : 0,
+       /* return symmetry if it is nontrivial */
+       if (simplify(_xi*_Q-_eta*_P)#0) then return([_xi,_eta])
+    )
+  ),
+
+
+  /* ************************** */
+  /* ***** y' = f(x)      ***** */
+  /* ***** quadrature     ***** */
+  /* ************************** */
+  /* not in "all" because also in linear routine */
+  if useMethod="fx" or useMethod="quadrature" then (
+    dprint(2,"   trying y' = F(x) ..."),  
+    /* first, substitute dependencies */
+    if dependencies#[] then (
+      substlist: map("=",map(op,dependencies),dependencies),
+      _expr : subst(substlist,_phi),
+      substlist: map("=",_varlist,_udf_args),
+      _expr : subst(substlist,_expr)
+    ) else _expr:_phi,
+
+    if freeof(_y,_expr) then (
+       dprint(2,"*** solution found : y' = F(x) (quadrature) ***"),  
+       method: "F(x)",
+       _xi:0, _eta:1,
+       if (simplify(_xi*_Q-_eta*_P)#0) then return([_xi,_eta])
+    )
+  ),
+
+
+  /* ************************** */
+  /* ***** separable      ***** */
+  /* ***** y' = f(x)*g(y) ***** */
+  /* ************************** */
+  if useMethod="all" or useMethod="separable" then (
+
+    dprint(2,"   trying separable ..."), 
+
+    /* first, substitute dependencies */
+    if dependencies#[] then (
+      substlist: map("=",map(op,dependencies),dependencies),
+      _expr : subst(substlist,_phi),
+      substlist: map("=",_varlist,_udf_args),
+      _expr : subst(substlist,_expr),
+      dprint(5,"separable, phi=",_expr)
+    ) else _expr:_phi,
+
+    fg : separable(_expr,_x,_y), 
+
+    if (fg#false) then (
+      dprint(2,"*** solution found : y' = f(x)*g(y) (separable) ***"),  
+      method: "separable",
+      _xi : 1/fg[1], _eta : 0,
+      if (simplify(_xi*_Q-_eta*_P)#0) then return([_xi,_eta])
+    )
+  ),
+
+
+  /* ************************** */
+  /* ***** exact ode      ***** */
+  /* ************************** */
+  if useMethod="all" or useMethod="exact" then (
+    dprint(2,"   trying exact ..."),
+    /* we first try the canonical expression of the ode */
+    _expr : diff(_P,_x)+diff(_Q,_y),
+    _expr : simplify(_expr), 
+    if (_expr=0) then (
+      dprint(2,"*** solution found : exact ***"),
+      method:"exact",
+      _xi:1/_Q, _eta:0,
+      if (simplify(_xi*_Q-_eta*_P)#0) then return([_xi,_eta])
+    )
+    /* TODO we should also test the original ode for exactness (not written in the form y'=f(x,y) but a(x,y)y'=b(x,y)) */
+  ), 
+
+
+  /* ********************************** */
+  /* ***** linear first order ode ***** */
+  /* ***** y' = g(x)*y + f(x)     ***** */
+  /* ********************************** */
+  if useMethod="all" or useMethod="linear" then (
+    dprint(2,"   trying linear ..."),  
+
+    /* first, substitute dependencies */
+    /* linearp works with freeof, so does not work with dependencies */
+    if dependencies#[] then (
+      substlist: map("=",map(op,dependencies),dependencies),
+      _expr : subst(substlist,_phi),
+      substlist: map("=",_varlist,_udf_args),
+      _expr : subst(substlist,_expr)
+    ) else _expr:_phi,
+
+    linearconstants:linearp(ratexpand(_expr),_y),
+    dprint(4,"linearconstants = ",linearconstants),
+    if linearconstants # false then (
+      _f: rhs(linearconstants[1]), 
+      _g: rhs(linearconstants[2]), 
+      /* ----- y' = f(x) ----- */
+      /* this case is already covered in the case separable */
+      if _g=0 then (
+        dprint(2,"*** solution found : y' = f(x) (quadrature) ***"),  
+        method: "quadrature",
+        _xi:0, 
+        _eta:1 
+      ) else  
+      /* ----- y' = g(x)*y ----- */
+      if _f=0 then (
+        dprint(4,"*** solution found : y' = g(x)*y (linear) ***"),  
+        method: "linear",
+        _xi:0, 
+        _eta:_y  
+      ) else ( 
+        /* ----- y' = f(x) + g(x)*y (general linear ode) ----- */
+        dprint(2,"*** solution found : y' = f(x)+g(x)*y (linear) ***"),  
+        method: "linear",
+        /* symmetry generators for linear eq */
+        _xi : 0,
+        _eta: exp(integrate(_g,_x))
+      ),
+      dprint(4,"returning ",_xi,", ",_eta),  
+      if (simplify(_xi*_Q-_eta*_P)#0) then return([_xi,_eta])
+    ) 
+  ),
+
+
+  /* ********************************* */
+  /* ***** trying inverse-linear ***** */
+  /* ********************************* */
+  if useMethod="all" or useMethod="inverse-linear" then (
+    dprint(2,"   trying inverse linear ..."), 
+
+    /* first, substitute dependencies */
+    if dependencies#[] then (
+      substlist: map("=",map(op,dependencies),dependencies),
+      _expr : subst(substlist,_phi),
+      substlist: map("=",_varlist,_udf_args),
+      _expr : subst(substlist,_expr)
+    ) else _expr:_phi,
+
+    _phistar : simplify(1/sublis([_x=_y,_y=_x],_expr)),
+    dprint(5,"  phi = ",_phistar), 
+    
+    linearconstants:linearp(ratexpand(_phistar),_y),
+    if linearconstants # false then (
+      _f: rhs(linearconstants[1]), 
+      _g: rhs(linearconstants[2]),
+      /* ----- y' = f(x)*y ----- */
+      if _f=0 then (
+        dprint(2,"*** solution found : y' = 1/(f(y)*x) (inverse-linear) ***"),  
+        method: "inverse-linear",
+        _xi:sublis([_x=_y,_y=_x],_y), 
+        _eta:0 
+      ) else if _g=0 then (
+        dprint(2,"*** solution found : y' = f(y) (quadrature) ***"),  
+        dprint(4,"y' = g(y)"),  
+        method: "quadrature",
+        _xi:1, 
+        _eta:0 
+      ) else ( 
+        /* ----- y' = f(x) + g(x)*y (general linear ode) ----- */
+        dprint(2,"*** solution found : y' = 1/(f(y)+g(y)*x) (inverse-linear) ***"),  
+        method: "inverse-linear",
+        /* symmetry generators for linear eq */
+        _xi: sublis([_x=_y,_y=_x],exp(integrate(_g,_x))),
+        _eta : 0
+      ),
+      if (simplify(_xi*_Q-_eta*_P)#0) then return([_xi,_eta])
+    )
+  ),
+
+
+  /* ***************************************************** */
+  /* ***** trying Bernoulli ode: y' = c1*y^c2 + c3*y ***** */
+  /* ***************************************************** */
+  if useMethod="all" or useMethod="bernoulli" or useMethod="Bernoulli" then (
+    dprint(2,"   trying Bernoulli ..."),  
+    _C : isBernoulli(_phi,_y,_x),
+    dprint(5,"bernoulli = ",_C),
+    if _C#false then (
+      dprint(2,"*** solution found : y' = c1*y^c2 + c3*y (Bernoulli) ***"),  
+      method: "bernoulli",
+      [_xi,_eta]: [0, simplify(_y^_C[2] * exp((1-_C[2])*integrate(_C[3],_x)))],  
+      if (simplify(_xi*_Q-_eta*_P)#0) then return([_xi,_eta])
+    )
+  ),
+
+
+  /* ***************************************************** */
+  /* ***** trying Riccati ode: y' = a*y^2 + b*y + c ***** */
+  /* TODO: some Riccati odes can be easily solved by transforming to bernoulli ... */
+  /* TODO: some special riccati odes can be solved for defined coefficients        */
+  /* ***************************************************** */
+  if useMethod="all" or useMethod="riccati" or useMethod="Riccati" then (
+    dprint(2,"   trying Riccati ..."), 
+    dprint(3,"phi = ",ratexpand(_phi)), 
+    _C : isRiccati(ratexpand(_phi),_y),
+    dprint(3,"C = ",_C), 
+    if _C#false then (
+      /* throw away quadratures */
+      /*if not(freeof(_x,[_f0,_f1,_f2])) and _f0#0 and _f2#0 then (*/
+      /* note: not sure if f1#0 is a requirement, but it results in invalid symmetries */
+      if _f1#0 and _f0#0 and _f2#0 then (
+        dprint(4,"C = ",_C),
+        /* step 1: check if the chini invariant is constant. we can solve these directly */
+        /* see kolokolnikov */
+        _I : (diff(_f0,_x)*_f2 - _f0*diff(_f2,_x) - 2*_f0*_f1*_f2)^2 / (_f0*_f2)^3,
+        _I : simplify(_I),
+        dprint(2,"Riccati solver: Chini invariant I = ",_I),
+        if freeof(_x,_I) and freeof(_y,_I) then (
+          [_xi,_eta]: [simplify(sqrt(_f2/_f0)/_f2), simplify(_y*(diff(_f0,_x)*_f2 - _f0*diff(_f2,_x))/(2*_f0*_f0*_f2*sqrt(_f2/_f0)))],
+      
+          dprint(5,"f0=",_f0),
+          dprint(5,"f1=",_f1),
+          dprint(5,"f2=",_f2),
+          X:[_xi,_eta],
+          dprint(5,"X=",X),
+          dprint(5,"symmetry = ",grind(simplify(checkSymmetries(X,'diff(_y,_x)=_phi,_y,_x)))),
+ 
+          dprint(2,"*** solution found : y' = a*y^2 + b*y+c (Riccati, constant invariant) ***"),  
+          method: "riccati-constant-invariant",
+          if (simplify(_xi*_Q-_eta*_P)#0) then return([_xi,_eta])
+        ),
+
+          
+        /* method 2: see if it transforms to a Bernoulli ode: */
+        /* y' = c*y^2 + f(x)*y -f'(x) */
+        /* y' = y*(c*y+f(x)) - f'(x)  */ 
+        /* use the transformation u=y+f(x)/c */
+        /* transforms to u' = c*u^2 - c*f(x)*u */
+        _res : simplify(diff(1 + (_f1/_f2),_x) + _f0),
+        dprint(4,"_res=",_res),
+        if _res=0 then (
+          dprint(2,"*** solution found : riccati maps to bernoulli ***"),
+          depends(_u,_x),
+          _bernoulliode : subst(y=1*_u - (_f1/_f2),_ode),
+          _bernoulliode : ev(_bernoulliode,nouns),
+          _bernoulliode : solve(_bernoulliode,diff(_u,_x))[1],
+          dprint(4,"bernoulli ode : ",_bernoulliode),
+          [_xi,_eta]: [0, simplify(_u^2 * exp((-1)*integrate(-(_f1),_x)))],         
+          dprint(4,"xi,eta=",_xi,_eta),
+          remove(_u,dependency),
+          /*_res : checkSymmetries([_xi,_eta],_bernoulliode,_u,_x),*/
+
+          /* now transform back to riccati using backtransform u=y+_f1*/ 
+          [_xi,_eta] : simplify(subst(_u=_y+(_f1/_f2),[_xi,_eta])),
+          dprint(4,"xi,eta=",_xi,_eta),
+          method: "riccati-maps-to-bernoulli",
+          if (simplify(_xi*_Q-_eta*_P)=0) then (dprint(1,"warning: symmetries found but they were trivial")) else return([_xi,_eta])
+        )
+
+        /* method 3: use method of undetermined coefficients to search for rational symmetries.  */
+        /* in case we have y'=a(x)y^2 + b(x)y + c(x), then assume that the symmetry is of the form [0,(c1*x^2+c2x+c3y^2+c4y+c5xy+c6)/(a(x))]  */
+        /* when a(x) can be separated into a(x)=x*b(x), then use b(x) */
+        /* kamke odes that have these type of symmetries : 1.279, 1.317,1.323,1.324,1.346*/
+        /* order of polynomial in numerator:4, 2, 3, 5, 1*/
+      )
+    )
+  ),
+
+
+  /* ***************************************************** */
+  /* ***** trying Abel ode: y' = a*y^3 + b*y^2 + c*y + d ***** */
+  /* we do not call abel by default because all constant invariant cases are solved by linear symmetries*/
+  /* ***************************************************** */
+  if useMethod="abel" or useMethod="Abel" then (
+    dprint(2,"   trying Abel ..."),  
+    _C : isAbel(_ode,_y,_x),
+    if _C#false then (
+      _C : ODE1_AbelSolve(_ode,_y,_x),
+      if (_C=false) then (
+        dprint(4,"Abel ode could not be solved (non-constant invariant)")
+        /*return([false,"Abel nonconstant invariant"]) */
+      ) else (
+        dprint(2,"*** solution found : y' = a*y^3 + b*y^2+cy + d (Abel) ***"),  
+        dprint(4,"Abel"),
+        /*method: "Abel",*/
+        [_xi,_eta] : _C,
+        if (simplify(_xi*_Q-_eta*_P)#0) then return([_xi,_eta])
+     )
+    )
+  )
+
+
+  /* ***** trying Chini ode: y' = a*y^n + b*y + c = 0 ***** */
+  /* TODO: should test for generalized Abel instead */
+  /* these are also solved by linear symmetries */
+/*
+  if useMethod="all" or useMethod="chini" or useMethod="Chini" then (
+    dprint(4,"   trying Chini ..."),  
+    dprint(4,"   WARNING NOT TESTED YET !!! ..."),  
+    C : isChini(_ode,_y),
+    if C#false then (
+      C : ODE1_SolveChini(_ode,_y,_x),
+      if (C=false) then (
+        dprint(4,"Chini ode could not be solved (non-constant invariant)"),
+        return([false,"Chini nonconstant invariant"]) 
+      ),
+      dprint(4,"y' = a*y^n + by + c (Chini)"),  
+      dprint(4,"Chini"),
+      method: "Chini",
+      [_xi,_eta] : C,
+      return([_xi,_eta])
+    )
+  )
+*/
+),  /* end of part where phi cannot have functions depending on both x and y */
+
+  /* ***** Cheb-Terrab and Roche 4.1,4.2 ***** */
+  /* compute some simple symmetries (using Cheb-terrab and Roche) */
+  if useMethod="all" or useMethod="symmetry1" or useMethod="symmetry2" then (
+    dprint(2,"   trying simple symmetries ..."),  
+
+    /* ***** Cheb-Terrab and Roche 4.1 - 4.3 ***** */
+    _S : ode1_SimpleSymmetries(_phi,_y,_x,'useMethod=useMethod),
+    dprint(5,"   S = ",_S),  
+    if (_S # false) then (
+      _xi : _S[1],
+      _eta : _S[2],
+      if (simplify(_xi*_Q-_eta*_P)#0) then return([_xi,_eta])
+    )
+  ),
+
+  /* ***** Cheb-Terrab and Roche 4.3 ***** */
+  /* symmetry6 is a generalization of symmetry3 */
+  /* however, we need symmetry3 in the case that phi_xxx=0*/
+  /* compute some simple symmetries (using Cheb-terrab and Roche) */
+  if useMethod="all" or useMethod="symmetry3" then (
+    dprint(2,"   trying [xi,eta] = [F(x), G(x)]"),  
+
+    /* ***** Cheb-Terrab and Roche 4.1 - 4.3 ***** */
+    _S : ode1_SimpleSymmetries(_phi,_y,_x,'useMethod=useMethod),
+    dprint(5,"   S = ",_S),  
+    if (_S # false) then (
+      _xi : _S[1],
+      _eta : _S[2],
+      if (simplify(_xi*_Q-_eta*_P)#0) then return([_xi,_eta])
+    )
+  ),
+
+
+  if useMethod="all" or useMethod="symmetry4" then (
+    /* ***** Cheb-Terrab and Roche 4.4 ***** */
+
+    /* ***** [xi,eta] = [F(x), G(y)] ***** */
+    /* first try the 'non-general' case */
+    dprint(2,"   trying [xi,eta]=[F(x),G(y)] (non-general)"), 
+    _S : false, 
+    dprint(5,"_phi = ",_phi),
+    /* _freefunctions is the list of free functions with declared dependencies */
+    dprint(5,"free functions = ",_freefunctions),
+  
+    /* in freefunctions, we keep a list of all functions that depend on x and y */
+    /* if there are functions that depend on both x and y, we can continue      */
+    lf : sublist(_freefunctions,lambda([_i], diff(_i,_x)#0 and diff(_i,_y)#0)),
+
+    dprint(5,"_Fnew=",_freefunctions), 
+    dprint(5,"_F_args=",_F_args), 
+    dprint(5,"lf=",lf), 
+    /* if lf#[] then the expression can not be separable */
+    _symfound:false, 
+    for l in lf do (
+
+      dprint(5,"l = ",l),
+      dprint(5,"dldx = ",diff(l,_x)),
+      dprint(5,"dldy = ",diff(l,_y)),
+
+      _fx_over_gy : simplify(diff(l,_x)/diff(l,_y)),
+      dprint(5,"fx/gy = ",_fx_over_gy), 
+
+      /* 1. first check for the non-separable case */
+      dprint(5,"checking non-separable case (1)"),
+      _xi : -1/_fx_over_gy,
+      _eta : 1,      
+      _res : checkSymmetries([_xi,_eta],'diff(y,x)=_phi,_y,_x),
+      dprint(5,"det = ",_res), 
+      if _res=0 then return(_symfound:true),
+
+      /* 1. first check for the non-separable case */
+      dprint(5,"checking non-separable case (2)"),
+      _xi : 1,
+      _eta : -_fx_over_gy,
+      _res : checkSymmetries([_xi,_eta],'diff(y,x)=_phi,_y,_x),
+      dprint(5,"det = ",_res), 
+      if _res=0 then return(_symfound:true),
+      
+      /* if not a symmetry, then continue */
+      dprint(5,"checking separability of ",_fx_over_gy), 
+      _S : separable(1/_fx_over_gy,_x,_y),
+      dprint(5,"_S = ",_S),
+      if _S # false then (
+        _xi : _S[1],
+        _eta : -1/_S[2],
+        _res : checkSymmetries([_xi,_eta],'diff(y,x)=_phi,_y,_x),
+        dprint(5,"det = ",_res), 
+        if _res=0 then return(_symfound:true),
+ 
+        _xi : -_S[2],
+        _eta : 1/_S[1],
+        _res : checkSymmetries([_xi,_eta],'diff(y,x)=_phi,_y,_x),
+        dprint(5,"det = ",_res), 
+        if _res=0 then return(_symfound:true),
+
+        dprint(1,"warning: could not find symmetry even though function was found")
+        /*return(false)*/
+      )
+    ),
+    if _symfound=true then ( 
+      dprint(2,"*** solution found : [xi,eta]=[F(x),G(y)] not general ***"),  
+      method: "[xi,eta]=[F(x),G(x)] not general (symmetry4)",
+      if (simplify(_xi*_Q-_eta*_P)#0) then return([_xi,_eta])
+    ) 
+  ),
+
+
+  /* ***** [xi,eta] = [F(x), G(y)] ***** */
+  /* we do not use this method except for testing purposes */
+  /* this method often runs indefinitely and does not find unique solutions */
+  if useMethod="symmetry4b" then (
+
+    dprint(2,"   trying [xi,eta]=[F(x),G(y)] (general)"), 
+    /* we can improve further by demanding that the functions are of the form K(f(x)+g(y))*/
+    /* */
+ 
+    dprint(4,"   trying [xi,eta]=[F(x),G(y)] (general)"), 
+    lf : sublist(_freefunctions,lambda([_i], diff(_i,_x)#0 and diff(_i,_y)#0)),
+    dprint(5,"lf=",lf), 
+
+    if lf # [] then (
+      _logphi : (log(_phi)),
+      _logphi_x : (diff(_logphi,_x)),
+      _logphi_y : (diff(_logphi,_y)),
+      A : simplify(diff(_logphi,_x,1,_y,1)),
+      dprint(5,"A = ",A),
+      if A=0 then return([false]),
+      B : simplify(diff(_logphi,_y,2) + diff(_logphi,_y)^2),
+      dprint(5,"B = ",B),
+      if B=0 then return([false]),
+      C : simplify(diff(_logphi,_x,2) - diff(_logphi,_x)^2),
+      if C=0 then (dprint(5,"C is zero, no 4.4 symmetry!",A,B,C),return(false)),
+      Ax : (diff(A,_x)), 
+      Ay : (diff(A,_y)),
+      Axy :(diff(Ax,_y)),
+      Axx : (diff(Ax,_x)), 
+      Ayy : (diff(Ay,_y)),
+      D : (2*Axy + _logphi_x*Ay - Ax*_logphi_y + A*(_logphi_x*_logphi_y+2*A))*A - 3*Ax*Ay,
+      D : simplify(D),
+
+      if D=0 then (
+        dprint(4,"case 1"),
+        E1 : simplify(3*Ax^2 + ((_logphi_x^2+2*C)*A - 2*Axx)*A),
+        dprint(5,"E1 = ",E1),
+        if E1=0 then return(false),
+        E2 : simplify((2*Ayy + (2*B-_logphi_y^2)*A)*A - 3*Ay^2),
+        dprint(5,"E2 = ",E2),
+        if E2#0 then return(false),
+        E3 : simplify(((28*Ax + 4*_logphi_x*A)*A^3 - (_logphi_y*A + Ay)*E1)*E1 - 8*A^4*diff(E1,_x)),
+        dprint(5,"E3 = ",E3),
+        if E3#0 then return(false), 
+        dprint(4,"D=0,[xi,eta]=[F(x),G(y)]"),  
+        method: "D=0,[xi,eta]=[F(x),G(y)]",
+        _eta : simplify(exp(integrate((4*(Ax-_logphi_x*A)*A^3 + (_logphi_y*A-Ay)*E1)/(2*A*E1),_y))),
+        _xi : simplify(-4 * A^3*_eta / E1),
+        if (simplify(_xi*_Q-_eta*_P)#0) then return([_xi,_eta])
+      
+      ) else (
+        dprint(4,"case 2"),
+        Dx : simplify(diff(D,_x)),
+        dprint(5,"Dx = ",Dx),
+        dprint(4,"case II, Dx = ",Dx),
+        Dy : simplify(diff(D,_y)),
+        dprint(5,"Dy = ",Dy),
+        _expr : ((6*Ax*Ayy*D) + 
+        (6*Ax*D*B - 3*_logphi_y^2*Ax*D - 2*Ayy*Dx + (_logphi_y^2*Dx - 2*Dx*B)*A)*A)*A
+        + ((3*A*Dx-9*Ax*D)*Ay-3*D^2)*Ay + A*Dy*D,
+        _expr: simplify(_expr),
+        dprint(5,"expr = ",_expr),
+        if (_expr=0) then (
+          E4 : simplify((2*Ayy + (2*B-_logphi_y^2)*A)*A - 3*Ay^2),
+          dprint(5,"E4 = ",grind(E4)),
+          if E4=0 then return(false),
+          E5 : simplify(4*A^3*D - D^2 + ((2*Axx-(_logphi_x^2+2*C)*A)*A - 3*Ax^2)*E4),
+          dprint(5,"E5 = ",E5),
+          if E5#0 then return(false),
+          E6 : simplify(-A*diff(E4,_y)*D +((diff(E4,_x)-_logphi_y*D)*A+3*Ay*D+(A*_logphi_x-3*Ax)*E4)*E4),
+          dprint(5,"E6 = ",E6),
+          if E6#0 then return(false), 
+          method: "D#0,[xi,eta]=[F(x),G(y)]",
+          _eta : simplify(exp(integrate(simplify(((A*_logphi_x-Ax)*E4-(Ay+A*_logphi_y)*D)/(2*A*D)),_y))),
+          _xi : simplify(-E4*_eta/D),
+          if (simplify(_xi*_Q-_eta*_P)#0) then return([_xi,_eta])
+        )
+      )
+    )
+  ),
+
+  if useMethod="all" or useMethod="symmetry6" then (
+    /* ***** Cheb-Terrab and Kolokolnikov ***** */
+    /* ----- [xi,eta] = [F(x),P(x)*y+Q(x) ] ----- */
+    dprint(2,"   trying [xi,eta]=[F(x),P(x)y+Q(x)]"),  
+    _X : linearSymmetries(_ode,_y,_x),
+    print("linearsymmetries:",_X),
+    if _X#false then (
+      dprint(2,"*** solution found : [xi,eta]=[F(x),P(x)y+Q(x)] (symmetry6) ***"),  
+      method: "[F(x),P(x)y+Q(x)]",
+      [_xi,_eta]:_X, 
+      if (simplify(_xi*_Q-_eta*_P)#0) then return([_xi,_eta])
+    )
+  ),
+
+  /* method of undetermined coefficients */
+  if useMethod="all" or useMethod="symmetry5" or useMethod="muc" then (
+    /* ***** Cheb-Terrab and Roche 4.5 ***** */
+    /* ----- [xi,eta] = [ax+by+c, fx+gy+h] ----- */
+    dprint(2,"   trying [xi,eta]=[ax+by+c,fx+gy+h]"),  
+
+    /*_X : methodOfUndeterminedCoefficients(_phi,_y,_x), */
+    _X : methodOfUndeterminedCoefficients(_phi,_y,_x,'xi=_undet_xi,'eta=_undet_eta,'polydegree=_undet_polydegree), 
+    if _X#false then (
+      
+      dprint(2,"*** solution found : [xi,eta]=[ax+by+c,fx+gy+h] (symmetry5) ***"),  
+      method: "[ax+by+c,fx+gy+h]",
+      [_xi,_eta]:_X,
+/*      _res : simplify(_eta - _xi*_phi),
+      if (_res=0) then (
+        dprint(1,"warning: symmetry found but it was trivial")
+      ) else  
+*/
+      if (simplify(_xi*_Q-_eta*_P)=0) then (dprint(1,"warning: symmetry found but it was trivial")) else return([_xi,_eta])
+    ),
+    dprint(2,"trying rational symmetries (I) "),
+    /* in kamke there are a number of symmetries of the form [xi,eta]=[0,F/G], where F is a polynomial in x,y and G=P is the coefficient */
+    /* in the ode y'=Q/P */
+    /* note: degree here is 5 (max occuring in kamke database). This is sufficient to solve the occuring cases in kamke 1..367 */
+
+    /* we are only considering F(x,y) and no auxiliary variables like log(x), sin(x) ... */
+    /* we are also not considering nonzero xi ... */
+    /* we are also not considering [F/P,0], maybe in the inverse case? */
+    /* but we noticed that the computation can be very costly if we choose F/G too general */
+    varlist:[],
+    [_vareta,_polylist] : PolyList(append([_x,_y],varlist),SYM5DEGREE,__b),
+    _eta : apply("+",map("*",_vareta,args(_polylist))),  
+    dprint(5,"Q=",_P),
+    _fl : factor_list(_P),
+    dprint(5,"factors=",_fl),
+    _fl : apply("*",delete(x,_fl)), /* remove x if it is a factor */
+    constantlist : sublist(showratvars(_fl),lambda([i],atom(i) and i#_x and i#_y)), /* remove constants that may appear in the denominator*/
+    dprint(5,"constantlist = ",constantlist),   
+    for _c in constantlist do apply('declare,[_c,constant]),
+    _X : methodOfUndeterminedCoefficients(_phi,_y,_x,'xi=0,'eta=_eta/_fl),
+    dprint(5,"symmetry5:X=",_X), 
+    for _c in constantlist do apply('remove,[_c,constant]),
+   
+    if _X#false then (
+      
+      dprint(2,"*** solution found : [xi,eta]=[0,(fx+gy+h)/P(x,y)] (symmetry5) ***"),  
+      method: "[ax+by+c,fx+gy+h]",
+      [_xi,_eta]:_X,
+/*
+      _res : simplify(_eta - _xi*_phi),
+      if (_res=0) then (
+        dprint(1,"warning: symmetry found but it was trivial")
+      ) else  
+*/
+        if (simplify(_xi*_Q-_eta*_P)=0) then (dprint(1,"warning: symmetry found but it was trivial")) else return([_xi,_eta])
+    ),
+
+    /* we try the general rational symmetry of degree 3 */
+    /* it is very costly, so we try [0,F/G] and [F/G,0]  and not [A/B,F/G] */
+    dprint(2,"trying rational symmetries (II)"),
+
+    /* construct the general multivariate polynomial ode degree 1 smaller than sym5degree (expensive!)*/
+    varlist:[],
+    [_varxi,_polylist] : PolyList(append([_x,_y],varlist),max(SYM5DEGREE-1,1),__a),
+    _xi : apply("+",map("*",_varxi,args(_polylist))),  
+    [_vareta,_polylist] : PolyList(append([_x,_y],varlist),max(SYM5DEGREE-1,1),__b),
+    _eta : apply("+",map("*",_vareta,args(_polylist))),  
+    _X : methodOfUndeterminedCoefficients(_phi,_y,_x,'xi=0,'eta=_eta/_xi), 
+   
+    if _X#false then (
+      dprint(2,"*** solution found : [xi,eta]=[0,(fx+gy+h)/(ax+by+c)] (symmetry5) ***"),  
+      method: "[ax+by+c,fx+gy+h]",
+      [_xi,_eta]:_X,
+/*
+      _res : simplify(_eta - _xi*_phi),
+      if (_res=0) then (
+        dprint(1,"warning: symmetry found but it was trivial")
+      ) else  
+*/
+        if (simplify(_xi*_Q-_eta*_P)=0) then (dprint(1,"warning: symmetry found but it was trivial")) else return([_xi,_eta])
+    ),
+
+    dprint(2,"trying rational symmetries (III)"),
+    _X : methodOfUndeterminedCoefficients(_phi,_y,_x,'xi=_eta/_xi,'eta=0), 
+    if _X#false then (
+      dprint(2,"*** solution found : [xi,eta]=[(fx+gy+h)/(ax+by+c),0] (symmetry5) ***"),  
+      method: "[ax+by+c,fx+gy+h]",
+      [_xi,_eta]:_X,
+/*
+      _res : simplify(_eta - _xi*_phi),
+      if (_res=0) then (
+        dprint(1,"warning: symmetry found but it was trivial")
+      ) else  
+*/
+        if (simplify(_xi*_Q-_eta*_P)=0) then (dprint(1,"warning: symmetry found but it was trivial")) else return([_xi,_eta])
+    ),
+
+
+    if SYM5RAT=true then (
+      dprint(2,"trying rational symmetries (IV)"),
+      varlist:[],
+      [_varxi,_polylist] : PolyList(append([_x,_y],varlist),1,__a),
+      _Q1 : apply("+",map("*",_varxi,args(_polylist))),  
+      [_vareta,_polylist] : PolyList(append([_x,_y],varlist),1,__b),
+      _P1 : apply("+",map("*",_vareta,args(_polylist))),  
+      [_varxi,_polylist] : PolyList(append([_x,_y],varlist),1,__c),
+      _Q2 : apply("+",map("*",_varxi,args(_polylist))),  
+      [_vareta,_polylist] : PolyList(append([_x,_y],varlist),1,__d),
+      _P2 : apply("+",map("*",_vareta,args(_polylist))),  
+
+      _X : methodOfUndeterminedCoefficients(_phi,_y,_x,'xi=_Q1/_P1,'eta=_Q2/_P2), 
+      if _X#false then (
+        dprint(2,"*** solution found : [xi,eta]=[(ax+by+c)/(dx+ey+f),(gx+hy+i)/(jx+ky+l)] (symmetry5) ***"),  
+        method: "[ax+by+c,fx+gy+h]",
+        [_xi,_eta]:_X,
+/*
+        _res : simplify(_eta - _xi*_phi),
+        if (_res=0) then (
+          dprint(1,"warning: symmetry found but it was trivial")
+        ) else  
+*/
+          if (simplify(_xi*_Q-_eta*_P)=0) then (dprint(1,"warning: symmetry found but it was trivial")) else return([_xi,_eta])
+      )
+    )
+
+
+    /* maybe first try symmetries of the form [A/B,P/Q] */
+    /* we can try again, with a rational polynomial */ 
+    /* first we try a search for symmetries where the denominator of phi is also the denominator of eta (and we assume xi=0)*/
+    /*_X : methodOfUndeterminedCoefficients(_phi,_y,_x,'varlist=_undet_var,'xi=0,'eta=_undet_eta), */
+       
+
+  ),
+
+
+
+  dprint(5,"end of Lie symmetry search"),
+  /* we return a second item in the list, which is the reason it failed ("failed","Riccati","Abel") */
+  return(false)
+)$ 
+/* ************************************************************************** */
+
+
+
+/* ************************************************************************** */
+/* ************************************************************************** */
+/* ************************************************************************** */
+ode1_SimpleSymmetries(_phi,_y,_x,[options]):=block([_S,_F,_G,_H,_xi,_eta,_expr,_Gy,_Fxx,_FxplusGy,_freefunctions_xy,_freefunctions_gdf,_Phi_x,_Phi_y,_Phi_yy,_Q,_Q_x,_Q_y,_Psi,_A,_B,_res],
+
+  useMethod              : assoc('useMethod,options,"all"),               /* these are methods symmetry1, symmetry2, symmetry3 */
+
+  /* no user defined functions that depend on x,y */
+  _freefunctions_xy : sublist(_udf_args,lambda([_i],not freeof(_x,_i) and not freeof(_y,_i)   )),
+  _freefunctions_gdf : sublist(_gdf_args,lambda([_i],not freeof(_x,_i) and not freeof(_y,_i)   )),
+  dprint(4,"   freefunctions = ",_freefunctions_xy),  
+  
+
+  if _freefunctions_xy = [] then (
+
+  dprint(4,"method=",useMethod),
+  /* ***** Cheb-Terrab and Roche 4.1 ***** */
+  /* ***** [xi,eta] = [F(x)*G(y), 0] ***** */
+  if useMethod="all" or useMethod="symmetry1" then (
+    dprint(2,"   trying [xi,eta]=[F(x)*G(y),0] (symmetry1)"),  
+    dprint(5,"   phi = ",_phi),  
+    /* note, if S=0 then the original ode is separable */
+    _S : simplify(diff(log(_phi),_x,1,_y,1)/_phi^2),
+    if (_S=0) then (dprint(1,"warning, ode is separable, returning false (please solve using method=separable)"),return(false)),
+    dprint(5,"   S = ",_S),  
+    dprint(5,"calling separable"), 
+    _S : separable(_S,_x,_y),
+    dprint(5,"   S = ",_S),  
+    if _S # false then (
+      _F: _S[1],
+      _G: _F * diff(1/(_F*_phi),_x),
+      _G : simplify(_G), 
+      dprint(1,"warning, _G (should be free of x) = ",_G),
+      if freeof(_x,_G) then (
+        _G : exp(integrate(_G,_y)),
+        dprint(2,"*** solution found : [xi,eta]=[F(x)*G(y),0] (symmetry1) ***"),  
+        method: "[xi,eta]=[F(x)*G(y),0]",
+        _xi : simplify(_F*_G),
+        _eta : 0,
+        return([_xi,_eta])
+      )
+    )
+  ),
+
+  /* ***** Cheb-Terrab and Roche 4.2 ***** */
+  /* ***** [xi,eta] = [F(x)+G(y), 0] ***** */
+
+  if useMethod="all" or useMethod="symmetry2" then (
+    dprint(2,"   trying [xi,eta]=[F(x)+G(y),0] (symmetry2)"),  
+    dprint(5,"   phi = ",_phi), 
+    if _freefunctions_xy#[] or _freefunctions_gdf#[] then (
+      dprint(5,"found function with inseparable part, no symmetries of type symmetry2: ",_freefunctions_xy," ",_freefunctions_gdf)
+    ) else ( 
+      _expr :  simplify(_phi * diff(1/_phi,_x,2)), /* eq.27 */
+      /* note, if expr=0 then the ode is inverse-linear*/
+      dprint(5,"   expr = ",_expr), 
+
+      if (_expr=0) then (dprint(1,"warning: ode is (inverse)-linear, returning false (please solve using method=inverse-linear)"),return(false)),
+
+      _S : diff(1/_expr,_y),
+      if _S=0 then(dprint(1,"warning, S=0, ode is probably directly separable or inverse-linear. returning false"), return(false)),
+    
+      dprint(5,"   _S = ",_S),  
+      _S : separable(_S,_x,_y),
+      dprint(5,"   _S = ",_S),  
+      if _S # false then (
+        _Gy : _S[2], 
+        dprint(5,"Gy=",_Gy),
+        _Fxx : 1/_S[1],
+        dprint(5,"Fxx=",_Fxx),
+        /* if S[1]=1, then we do not have an Fxx */
+        _FxplusGy : _Fxx/_expr,
+        dprint(5,"Fx+Gy=",_FxplusGy),
+        _expr : diff(_FxplusGy*_phi,_x) + _phi*_phi*diff(_FxplusGy,_y),
+        dprint(5," expr will now be simplified, ",_expr), 
+        _expr : simplify(_expr),
+        dprint(5," simplified expression, ",_expr), 
+
+        if _expr=0 then (
+          dprint(2,"*** solution found : [xi,eta]=[F(x)+G(y),0] (symmetry2) ***"),  
+          method: "[xi,eta]=[F(x)+G(y),0]",
+          _xi : _FxplusGy,
+          _eta : 0,
+          return([_xi,_eta])
+        ) else (
+          dprint(5,"symmetries are not compatible with determining equations"),
+          dprint(5,"discarding symmetries")
+        )
+      )
+    )
+  ) 
+  ),
+ 
+  /* ***** Cheb-Terrab and Roche 4.3 ***** */
+  /* ***** [xi,eta] = [F(x), H(x)]   ***** */
+  /* ***** note that symmetry6 is a generalization of symmetry3 ***** */
+  if useMethod="all" or useMethod="symmetry3" then (
+    dprint(2,"   trying [xi,eta]=[F(x),H(x)] (symmetry3)"), 
+
+    /* the first thing we can do is check if the right hand side can be split into */ 
+    /* phi = f(x) + g(x,y) */
+    /* this will immediately cancel out kamke1.80, which takes 10 minutes to simplify */
+    /* we can also check if we have general functions f(y) */
+ 
+    _Phi_y : diff(_phi,_y),
+      dprint(5,"phi_y = ",_Phi_y),
+    _Phi_yy : simplify(diff(_Phi_y,_y)), /* we need this to check if phi_yy=0*/
+      dprint(5,"phi_yy = ",_Phi_yy),
+    if _Phi_yy#0 then (
+      _Q : simplify(_Phi_y/_Phi_yy),
+      dprint(5,"Q = ",_Q),
+      
+      _Q_y : diff(_Q,_y),
+      dprint(5,"Qy = ",_Q_y),
+      _Q_y : simplify(_Q_y),
+      dprint(5,"simplified Qy = ",_Q_y),
+
+      if (_Q_y # 0) then (
+        _Q_x : diff(_Q,_x),
+        _Psi : simplify(_Q_x/_Q_y),
+
+        dprint(4,"psi = ",_Psi),
+        if freeof(_y,_Psi) then (
+          _Phi_x : diff(_phi,_x),
+          _expr : (_Psi*_Phi_y - diff(_Psi,_x) - _Phi_x)/(_phi+_Psi),
+
+          _expr : simplify(_expr),
+
+          dprint(4,"expr = ",_expr),
+          if freeof(_y,_expr) then (
+            dprint(4,"found symmetry"),
+            _F : simplify(exp(integrate(_expr,_x))),
+            _H : simplify((-_Psi * _F)),
+
+            dprint(2,"*** solution found : Qy#0, [xi,eta]=[F(x),G(x)] (symmetry3) ***"),  
+            method: "Qy#0, [xi,eta]=[F(x),G(x)]",
+            _xi : _F,
+            _eta : _H,
+            return ([_xi,_eta]) 
+          ) 
+        )
+      ) else (
+        /* odes of the type y'=A(x)+B(x)*exp(y/C1) */
+        _res : AplusBF(ratexpand(_phi),_x,_y),
+        dprint(5,"res=",_res),
+        if _res#false then (        
+          _A : rhs(_res[4]),
+          dprint(5,"A=",_A),
+          _B : rhs(_res[3]),
+          dprint(5,"B=",_B),
+ 
+          _B : separable(_B,_x,_y),
+          if _B#false then (
+            _B : _B[1],
+            dprint(5,"B=",_B),
+            _F : simplify(exp(-integrate(_A/_Q,_x))/_B),
+            dprint(5,"F=",_F),
+            _H : simplify(_A * _F),    
+            dprint(5,"H=",_H),
+            dprint(2,"*** solution found : Qy=0,[xi,eta]=[F(x),G(x)] (symmetry3) ***"),  
+            method: "Qy=0,[xi,eta]=[F(x),G(x)]",
+            _xi : _F,
+            _eta : _H,
+            return ([_xi,_eta]) 
+          )
+        )  
+      )
+    )
+  ),
+
+return(false)
+)$
+
+
+/* ************************************************************************* */
+/* ***** print expr only when flag<DEBUGFLAG                           ***** */
+/* ************************************************************************* */
+dprint(flag,[expr])::= if flag <= DEBUGFLAG then buildq ([expr], print (splice (expr)));
+/* ************************************************************************* */
+
+
+/* ************************************************************************* */
+/* ***** change variables x and y to get the reverse ode dx/dy = f(y,x) **** */
+/* ************************************************************************* */
+reverseODE1(ode,y,x):=block([reverseode],
+  /* sublis does a parallel substitution*/
+  reverseode : sublis([x=y,y=x],ode),
+  reverseode : solve(reverseode,'diff(y,x)), 
+  dprint(5,"reverse ode = ",reverseode),
+  return(reverseode)
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* splits an expression containing square roots and factorizes the            */
+/* square roots such that                                                     */
+/*   sqrt((p1*p2*...pn)/(q1*q2*..qm))                                         */
+/*   = sqrt(p1)*sqrt(p2)*...sqrt(pn)/(sqrt(q1)*sqrt(q2)*..sqrt(qm))           */
+/* this is the inverse of rootscontract                                       */
+/* ************************************************************************** */
+rootsexpand(expr) :=block([splitExpr:expr,freeof_i:false,sqrtList,insideSqrtList,factorsInsideSqrtList,splitSqrtList,_X,_L,_i],
+  if not(freeof(sqrt,dispform(expr,all))) then (
+    dprint(4,"trying to split square root terms"),
+    if freeof(%i,expr) then ( 
+      dprint(4,"expression is free of imaginary numbers"),
+      freeof_i : true
+    ),
+    /* get a list with all the sqrt terms */
+    sqrtList:sublist(showratvars(expr),lambda([_x],not(freeof(sqrt,dispform(_x,all))))),
+    insideSqrtList : flatten(map(args,sqrtList)),
+    dprint(5,"insidesqrtlist:",insideSqrtList), 
+    factorsInsideSqrtList:map(factor_list,insideSqrtList),
+    
+    /* at this point, we might have -1 as a factor. we should remove it and switch sign to the second term */
+    _i:1,
+    for _L in factorsInsideSqrtList do (
+    if _L[1] = -1 then (_L:rest(_L), _L[1]:-_L[1],factorsInsideSqrtList[_i]:_L),
+    _i : _i+1 
+    ),
+ 
+    dprint(5,"factorsinsidesqrtlist:",factorsInsideSqrtList), 
+    factorsInsideSqrtList:map(sqrt,factorsInsideSqrtList),
+    dprint(5,"factorsinsidesqrtlist:",factorsInsideSqrtList), 
+
+    splitSqrtList:[],
+    for _L in factorsInsideSqrtList do (  
+     _X : 1,
+     for _i in _L do _X:_X*_i,
+     splitSqrtList : endcons(first(sqrtList) = _X,splitSqrtList),   
+     sqrtList : rest(sqrtList)
+    ),
+    dprint(5,"splitSqrtList=",splitSqrtList),
+    splitExpr : subst(splitSqrtList,expr)
+  ), 
+  dprint(5,"expr: ",splitExpr), 
+  dprint(5,"freeof: ",is(freeof_i=true)), 
+
+  /* do not introduce imaginary numbers */
+  if (freeof_i=true) and (freeof(%i,splitExpr)=false) then (
+    dprint(0,"we have introduced imaginary numbers in expr: ",splitExpr), 
+    return(expr) 
+  )
+  else
+    return(ratsimp(splitExpr))
+)$
+/* ************************************************************************** */
+/* ************************************************************************** */
+/* splits an expression containing exponentials and factorizes the            */
+/* exponentials such that                                                     */
+/*   exp(p1 + p2 + ... + pn)                                                  */
+/*   = exp(p1)*exp(p2)*...exp(pn)                                             */
+/* ************************************************************************** */
+/* TODO */
+expexpand(expr) :=block([splitExpr:expr,freeof_i:false,sqrtList,insideSqrtList,factorsInsideSqrtList,splitSqrtList,_X,_L,_i],
+  if not(freeof(%e,expr)) then (
+    dprint(4,"trying to split exponential terms"),
+    if freeof(%i,expr) then ( 
+      dprint(4,"expression is free of imaginary numbers"),
+      freeof_i : true
+    ),
+
+    /* get a list with all the exponential terms */
+    factorsInsideExpList:sublist(showratvars(expr),lambda([_x],not(freeof(%e,_x)))),
+    dprint(5,"factorsinsideExplist:",factorsInsideExpList), 
+    expList : map(lambda([_i],hipow(_i,%e)),factorsInsideExpList),
+/*
+    insideExpList : flatten(map(args,expList)),
+    dprint(5,"insidesqrtlist:",insideExpList), 
+    factorsInsideExpList:map(factor_list,insideExpList),
+*/
+    
+    /* at this point, we might have -1 as a factor. we should remove it and switch sign to the second term */
+/*
+    _i:1,
+    for _L in factorsInsideExpList do (
+    if _L[1] = -1 then (_L:rest(_L), _L[1]:-_L[1],factorsInsideSqrtList[_i]:_L),
+    _i : _i+1 
+    ),
+*/
+ 
+    dprint(5,"explist:",expList), 
+    /*factorsInsideExpList:map(exp,factorsInsideExpList),*/
+    /*dprint(5,"factorsinsidesqrtlist:",factorsInsideExpList), */
+
+    splitExpList:[],
+    for _L in factorsInsideExpList do (  
+     _X : 1,
+     for _i in _L do _X:_X*_i,
+     splitExpList : endcons(first(expList) = _X,splitExpList),   
+     expList : rest(expList)
+    ),
+    dprint(5,"splitExpList=",splitExpList),
+    splitExpr : subst(splitExpList,expr)
+  ), 
+  dprint(5,"expr: ",splitExpr), 
+  dprint(5,"freeof: ",is(freeof_i=true)), 
+
+  /* do not introduce imaginary numbers */
+  if (freeof_i=true) and (freeof(%i,splitExpr)=false) then (
+    dprint(0,"we have introduced imaginary numbers in expr: ",splitExpr), 
+    return(expr) 
+  )
+  else
+    return(ratsimp(splitExpr))
+)$
+/* ************************************************************************** */
+
+
+
+/* ************************************************************************** */
+/* returns factors as lists (Stavros Macrakis) */
+/* ************************************************************************** */
+factor_list(ex):=
+  if mapatom(ex) then [ex] else            /* don't factor numbers */
+    block([fex: factor(ex),inflag:true],
+          if mapatom(fex) or op(fex)#"*" then [fex]
+	  else args(fex)
+)$
+/* ************************************************************************** */
+
+
+
+/* ************************************************************************** */
+/* ***** give determining equations for first order ode                 ***** */
+/* ************************************************************************** */
+determiningEquations(_ode,_y,_x):=block([_phi,_eta,_xi,_n,_deteq],
+  depends(_eta,[_x,_y]),
+  depends(_xi,[_x,_y]),
+  _ode: ode1CanonicalForm(_ode,_y,_x),
+  _phi    : rhs(_ode),
+  dprint(4,"phi=",_phi),
+  determiningEquation: diff(_eta,_x) + (diff(_eta,_y) - diff(_xi,_x))*_phi - diff(_xi,_y)*_phi^2 - _xi*diff(_phi,_x) - _eta*diff(_phi,_y),
+  dprint(5,"determining equation = ",grind(determiningEquation)),
+  determiningEquation: simplify(determiningEquation),
+
+  /* now we have to gather powers of y */
+  /* subterms with terms like sqrt(f+g)/(fg+f^2) are not simplified, except with factor */
+  _op : op(ratexpand(determiningEquation)),
+  _args : args(ratexpand(determiningEquation)),
+  determiningEquation : apply(_op,map(factor,_args)),    
+
+  dprint(5,"determining equation = ",grind(determiningEquation)),
+  /* for some equations, ratsimp hangs*/
+  /*L : args(ratexpand(ratsimp(determiningEquation))),*/
+  L : args(ratexpand((determiningEquation))),
+  dprint(5,"L = ",L),
+  L2 : [],
+
+  /* we write the determining equation as C1*f1(x,y) + C2*f2(x,y) + ... , and we put the terms in a list */
+  for l in L do ( 
+    C:constant_factors(l,[_x,_y]), 
+    L2:endcons([C,ratsimp(l/C)],L2)
+  ),
+  dprint(5,"L2 = ",L2),
+
+
+  eq1:[],
+  eq2:[],
+  while L2#[] do (
+    l:first(L2), 
+    dprint(5,"term = ",l), 
+    _i:0,
+    found:false,
+    for eq in eq2 do (
+      _i:_i+1, 
+      if eq=l[2] then (
+        eq1[_i]:eq1[_i]+l[1],dprint(5,_i," eq1=",eq1),
+        found:true,
+        dprint(5,"found a term: ",eq)
+      )
+    ),    
+    if found=false then (
+      dprint(5,"adding a term",l[1],", ",l[2]), 
+      eq1:endcons(l[1],eq1),dprint(5,"eq1=",eq1),
+      eq2:endcons(l[2],eq2) /*,dprint(5,"eq2=",eq2)*/
+    ), 
+
+  L2 : delete(l,L2) 
+  ),
+
+  dprint(5,"eqs = ",grind(eq1)),
+  dprint(5,"vars = ",grind(_var)),
+
+  remove(_xi,dependency),remove(_eta,dependency),
+
+  return(determiningEquation)
+)$
+
+
+/* BUG: in method of undetermined coefficients, we can have ode-variables in the rational symmetry P/Q */
+
+/* ************************************************************************** */
+/* ***** determine a symmetry of the form [xi,eta]=[ax+by+c, fx+gy+h]   ***** */
+/* ************************************************************************** */
+methodOfUndeterminedCoefficients(_phi,_y,_x,[options]):=block([determiningEquation,L,L2,_i,eq1,eq2,l,C,found,_op,_args,_xi,_eta,_var,_polydegree,_ode],
+
+ _ode : 'diff(_y,_x) = _phi,
+
+/*  nijso TODO CHECK POLYDEGREE !!!!!!*/
+  /* --- check all the optional arguments --- */
+  _polydegree      : assoc('polydegree,options,[]),
+  /*_uservars        : assoc('varlist,options, []),                */
+  _xi 		   : assoc('xi,options, []), 
+  _eta		   : assoc('eta,options,[]),     
+
+  /* check if a user defined option was activated */
+  if _xi#[] or _eta#[] then (
+    /* check if a user defined option was NOT activated */
+    if _xi=[] or _eta=[] then (
+      _xi=[],_eta:[],
+      dprint(0,"error: for user defined symmetries you need to define xi and eta. Using system default.")
+    )
+  ),       
+ 
+  dprint(5,"---------- polynomial degree of xi,eta = ",_polydegree),
+  /*dprint(5,"---------- user defined variables = ",_uservars),*/
+  dprint(5,"---------- user defined xi = ",_xi),
+  dprint(5,"---------- user defined eta = ",_eta),
+ 
+  /* in case of special functions, like sqrt(x^2+1) or sin(a*x+b), we can add them to our definition of xi,eta */
+  /* note that at the moment we can only allow user defined polynomials in _x,_y */
+  /* TODO: add possibility of different user defined variables */
+  dprint(5,"dependencies=",dependencies),
+   
+  if _xi#[] and _eta#[] then ( 
+    original_variables : listUDFGeneral(_xi+_eta),
+    dprint(5,"1.extended variables = ",original_variables),
+    _var : showratvars(_xi+_eta),
+    _var : sublist(_var,lambda([_i],lfreeof(append([_x,_y],original_variables),_i))),
+    _var : sublist(_var,lambda([_i],not(constantp(_i)))) /* remove from the list all declared constants */
+  )
+  else (
+   _polydegree : SYM5DEGREE,
+    original_variables : _listgdf,
+    dprint(5,"extended variables = ",original_variables)
+  ),
+
+  varlist:makelist(concat(%x,i),i,1,length(original_variables)),
+  dprint(5,"varlist = ",varlist),
+  /* 2. define derivatives dci/dx and dci/dy */
+  dx: diff(original_variables,_x),
+  dy: diff(original_variables,_y),
+  dprint(5,"dx = ",dx),
+  dprint(5,"dy = ",dy),
+
+  depends(varlist,[_x,_y]),
+  /* now define derivatives of new variables using gradef */
+  for v in varlist do (
+    apply('gradef,[v,_x,first(dx)]),
+    apply('gradef,[v,_y,first(dy)]),
+    dx:rest(dx),dy:rest(dy)
+  ),
+
+  if _xi=[] or _eta=[] then (
+    dprint(5,"no user defined shape for the symmetry, defining our own"),
+    [_varxi,_polylist] : PolyList(append([_x,_y],varlist),_polydegree,__a),
+    [_vareta,_polylist] : PolyList(append([_x,_y],varlist),_polydegree,__b),
+    _xi : apply("+",map("*",_varxi,args(_polylist))),  
+    _eta : apply("+",map("*",_vareta,args(_polylist))),  
+    _var : append(_varxi,_vareta)
+  ),
+
+  dprint(5,"---------- var = ",_var),
+  dprint(5,"---------- xi  = ",_xi),
+  dprint(5,"---------- eta = ",_eta),
+
+  _phi : subst(map("=",original_variables,varlist),_phi), 
+  determiningEquation : diff(_eta,_x) + (diff(_eta,_y)-diff(_xi,_x))*_phi - diff(_xi,_y)*_phi^2 - _xi*diff(_phi,_x) - _eta*diff(_phi,_y),
+  dprint(5,"determining equation = ",grind(determiningEquation)),
+  determiningEquation:ev(determiningEquation,nouns),
+  dprint(5,"determining equation = ",grind(determiningEquation)),
+  determiningEquation: simplify(determiningEquation),
+
+  /* to simplify, we can first ratsimp to get a common denominator, and then only look at the numerator */
+  determiningEquation : num(ratsimp(determiningEquation)),
+  dprint(5,"determining equation = ",determiningEquation),
+
+  /* recompute the extended variables */
+  determiningEquation :  subst(map("=",varlist,original_variables),determiningEquation), 
+
+  determiningEquation: simplify(determiningEquation),
+  determiningEquation :  subst(map("=",original_variables,varlist),determiningEquation), 
+  dprint(5,"determining equation = ",determiningEquation),
+
+ 
+ 
+
+
+  /* subterms with terms like sqrt(f+g)/(fg+f^2) are not simplified, except with factor */
+  _op : op(ratexpand(determiningEquation)),
+  _args : args(ratexpand(determiningEquation)),
+  determiningEquation : apply(_op,map(factor,_args)),    
+
+  dprint(5,"determining equation = ",grind(determiningEquation)),
+  /* for some equations, ratsimp hangs*/
+  L : args(ratexpand((determiningEquation))),
+  dprint(5,"L = ",L),
+  L2 : [],
+
+  /* we write the determining equation as C1*f1(x,y) + C2*f2(x,y) + ... , and we put the terms in a list */
+  for l in L do ( 
+    C:constant_factors(l,[_x,_y,_f,_g]), 
+    L2:endcons([C,ratsimp(l/C)],L2)
+  ),
+  dprint(5,"L2 = ",L2),
+
+  eq1:[],
+  eq2:[],
+  while L2#[] do (
+    l:first(L2), 
+    /*dprint(5,"term = ",l), */
+    _i:0,
+    found:false,
+    /*dprint(5,found),*/
+    for eq in eq2 do (
+      _i:_i+1, 
+      if eq=l[2] then (
+        eq1[_i]:eq1[_i]+l[1],
+        /*dprint(5,_i," eq1=",eq1),*/
+        found:true
+        /*dprint(5,"found a term: ",eq)*/
+      )
+    ),    
+    if found=false then (
+      /*dprint(5,"adding a term",l[1],", ",l[2]), */
+      eq1:endcons(l[1],eq1), /*dprint(5,"eq1=",eq1),*/
+      eq2:endcons(l[2],eq2) /*,dprint(5,"eq2=",eq2)*/
+    ), 
+
+  L2 : delete(l,L2) 
+  ),
+
+  dprint(5,"eqs = ",grind(eq1)),
+  dprint(5,"vars = ",grind(_var)),
+  sol:solve(eq1,_var),
+  dprint(4,"solution=",sol),
+ 
+  /* for now, put everything at 1 */ 
+  _switch : 1, /* in replacing free constants, we alternate between -1,+1 in the hope to prevent trivial symmetries */
+  for _r in %rnum_list do (sol:subst(_switch,_r,sol),_switch:_switch*1),
+  dprint(4,"solution=",sol),
+  if sol=[] then return(false),
+
+
+
+  /*if length(sol)>1 then ( */
+    /*dprint(1,"warning:multiple solutions found! using the first nontrivial symmetry!"),*/
+    /*dprint(3,"multiple solutions for the coefficients are :",sol),*/
+    dprint(3,"for the symmetry : xi=",_xi),
+    dprint(3,"for the symmetry :eta=",_eta),
+    _xi_master : _xi,    
+    _eta_master : _eta,    
+    _xi : 0,
+    _eta : 0,
+    /* loop over possible solutions, check if symmetry is 0 or trivial (we do errcheck all the time to prevent division by zero errors for rational symmetries)*/ 
+    dprint(1,"warning: division by zero might occur, but we will take care of it... (it means the symmetry is not valid)"),
+    for s in sol do (
+      dprint(5,"s = ",s),
+      _xi_candidate : errcatch(subst(s,_xi_master)),
+      _eta_candidate : errcatch(subst(s,_eta_master)),
+      dprint(5,"candidate xi  = ",_xi_candidate),
+      dprint(5,"candidate eta = ",_eta_candidate),
+      _xi_candidate  : flatten(errcatch(subst(map("=",varlist,original_variables),_xi_candidate))), 
+      _eta_candidate : flatten(errcatch(subst(map("=",varlist,original_variables),_eta_candidate))), 
+      dprint(5,"candidate xi  = ",_xi_candidate),
+      dprint(5,"candidate eta = ",_eta_candidate),
+      _xi_candidate : flatten(errcatch(simplify(_xi_candidate))),
+      _eta_candidate: flatten(errcatch(simplify(_eta_candidate))),
+      dprint(5,"candidate xi  = ",_xi_candidate),
+      dprint(5,"candidate eta = ",_eta_candidate),
+      dprint(5,"phi = ",rhs(_ode)),
+      if (_xi_candidate#[] and _eta_candidate#[]) and (_xi_candidate#[0] or _eta_candidate#[0]) then (
+        dprint(5,"one of the candidates is nonzero"),   
+        if checkSymmetries(flatten([_xi_candidate,_eta_candidate]),_ode,_y,_x)=0 then (
+          dprint(5,"found a valid symmetry"),
+          _xi:_xi_candidate[1],
+          _eta:_eta_candidate[1]
+        )
+      ) 
+    ),
+  /*),*/
+  dprint(5,"xi,eta=",_xi,_eta),
+  if (_xi=0) and (_eta=0) then return(false),
+  remove(varlist,dependency),
+  return([_xi,_eta])
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* construct a multivariate polynomial of degree _degree with undetermined    */
+/* coefficients _coeffs in the variables contained in varlist, note that      */
+/* varlist is used for lexicographic ordering and we want to keep the ordering*/
+/* ************************************************************************** */
+PolyList(_varlist,_degree,_coeffs) :=block([_somavar,_L,_C,_Pterms,_ai,_xx],
+  _somavar:1+apply("+",_varlist),
+  _L:args(ratexpand(_somavar^_degree*2)),         /* multiply by 2 so every term has constant coefficient */
+
+  /* we have the polynomial C1*P1(x,y) + C2*P2(x,y) + C3*P3(x,y), etc for varlist [x,y] */
+  _C:map(first,map(args,_L*_xx)),                 /* get all constant coefficients */
+  _Pterms:apply("/",[_L,_C]),                          /* strip constants from polyterms by dividing by C*/
+
+  _ai:makelist(concat(_coeffs,_i),_i,length(_Pterms)), /* undetermined coefficients */
+  _Pterms : apply("+",_Pterms),                         /* change from list to polynomial */
+  /*_Pterms : lexicographicallyOrderedPolynomial(_Pterms,_varlist),*/
+
+  return([_ai,_Pterms])                                /* P is a list of polynomial terms*/
+)$
+/* ************************************************************************** */
+
+/* ************************************************************************** */
+/* detects if expr is the right-hand side of a Riccati equation */
+/* ************************************************************************** */
+isRiccati(_expr,_y):=block( [_a,_b,_c],
+  /* first, check if the expression is f/g. if it is, we return false */
+  /* ... */
+
+  ratexpand(_expr),
+  return(riccatip(_expr,_y))
+)$
+/* ************************************************************************** */
+
+/* ************************************************************************** */
+/* change of variables of an ode  TODO */
+/* ************************************************************************** */
+dchange(ode,expr):=block([],
+
+return(false)
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* ***** convert first order Riccati ode to second order linear ode     ***** */
+/* TODO: make this Riccati2Linear*/
+/* ************************************************************************** */
+Riccati2SecondOrder(ode,y,x):=block([newode],
+  newode:ratexpand(ev(subst(y=diff(v(x),x)/v(x),ode),nouns)),
+  newode : solve(newode,diff(v(x),x,2)),
+  return(newode)
+)$
+/* convert second order linear ode to first order Riccati ode */
+/* secondOrder2Riccati(expr,y,x) */
+/* ... */
+
+
+/* ************************************************************************** */
+/* compute a separable first order ode from the original first order ode and a symmetry */
+/* ************************************************************************** */
+/* TODO make r,s (names of new depvar) an optional variable*/
+ode1FromSymmetry(_ode,_y,_x,_X):=block([_coord_rs,_newode],
+
+  _coord_rs : canoni(_X,_y,_x),
+
+  _newode : ode1FromCanoni(_ode,_y,_x,_coord_rs), 
+  
+  return([_newode,_coord_rs])
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* compute a separable first order ode from the original first order ode and canonical coordinates */
+/* ************************************************************************** */
+/* TODO make r,s (names of new depvar) an optional variable*/
+ode1FromCanoni(_ode,_y,_x,_coord_rs):=block([_r,_s,_phi,_newphi,_newode,_rt,_st,_coord_xy],
+
+  _ode: ode1CanonicalForm(_ode,_y,_x),
+  _phi    : rhs(_ode),
+  dprint(5,"phi(x,y) = ",_phi),
+
+
+  _coord_xy : substSolve(_coord_rs,[_x,_y]),
+  dprint(5,"inverse transformation = ",_coord_xy),
+  if _coord_xy=false then (dprint(0,"error, could not determine explicit inverse of canonical coordinates"),return(false)), 
+
+
+/* 
+  /* this was for to_poly_solve */
+  if op(_coord_xy)=%union then (
+    _coord_xy : args(_coord_xy)
+  ) else (
+    dprint(0,"error, could not invert the canonical coordinates and write them as a function of (",_x,",",_y,") : ",_coords_rs),
+    return(false)
+  ),
+*/   
+  /* the name of the coordinates */
+  _r : lhs(_coord_rs[1]),
+  _s : lhs(_coord_rs[2]),
+  dprint(5,"(r,s) = ",_r," , ",_s),
+
+  /* the transformation of the coordinates */
+  _rt : rhs(_coord_rs[1]),
+  _st : rhs(_coord_rs[2]),
+  dprint(5,"(r,s) = ",_rt," , ",_st),
+
+  _newphi : (diff(_st,_x) + _phi*diff(_st,_y)) / (diff(_rt,_x) + _phi*diff(_rt,_y)),
+  _newphi : subst(_coord_xy,_newphi),
+
+  dprint(5,"new ode = ",_newphi),
+  /* we just use a ratsimp here. Do we need more?*/
+  return('diff(_s,_r) = simplify(_newphi))
+)$
+/* ************************************************************************** */
+
+
+/* try to solve a system of 2 nonlinear equations for 2 unknowns */
+/* what else can we do to generalize this? */
+/* for larger systems, see if we can 
+    - decouple the system 
+    - eliminate trivial equations
+    - substituting variables
+*/
+
+substSolve(eqs,vars):=block([_r,_s,_s1,_s2,_eq1,_eq2],
+
+  [_x,_y] : vars,
+
+  /* x is in both equations, we try to eliminate x */
+  if not freeof(_x,eqs[1]) and not freeof(_x,eqs[2]) then (
+    if freeof(_y,eqs[1]) and freeof(_y,eqs[2]) then (dprint(0,"error, could not find variable ",_y," in equation system"),return([])),
+    if freeof(_y,eqs[1]) then 
+      [_eq1,_eq2,_var1,_var2]:[eqs[1],eqs[2],vars[1],vars[2]] 
+    else 
+      [_eq1,_eq2,_var1,_var2]:[eqs[2],eqs[1],vars[1],vars[2]] /* we can easily eliminate x from eq if it is free of y */
+  ) 
+  else if not freeof(_y,eqs[1]) and not freeof(_y,eqs[2]) then (
+    if freeof(_x,eqs[1]) and freeof(_x,eqs[2]) then (dprint(0,"error, could not find variable ",_x," in equation system"),return([])),
+    if freeof(_x,eqs[1]) then 
+      [_eq1,_eq2,_var1,_var2]:[eqs[1],eqs[2],vars[2],vars[1]] 
+    else 
+      [_eq1,_eq2,_var1,_var2]:[eqs[2],eqs[1],vars[2],vars[1]] /* we can easily eliminate x from eq if it is free of y */
+  ) else (
+    /* system is already decoupled */
+    if not freeof(_x,eqs[1]) then 
+      [_eq1,_eq2,_var1,_var2]:[eqs[1],eqs[2],vars[1],vars[2]] 
+    else
+    if not freeof(_y,eqs[1]) then 
+      [_eq1,_eq2,_var1,_var2]:[eqs[1],eqs[2],vars[2],vars[1]]
+  ), 
+
+  dprint(5,"eq1 = ",_eq1),
+  dprint(5,"eq2 = ",_eq2),
+  dprint(5,"vr1 = ",_var1),
+  dprint(5,"vr2 = ",_var2),
+
+  _s1 : solve(_eq1,_var1),
+  dprint(5,"s1 = ",_s1),
+  if _s1#[] then _s2 : solve(subst(_s1,_eq2),_var2),
+  if _s1=[] or _s2=[] then (dprint(0,"error, could not solve equation ",_s1," ",_s2), return([])),
+  dprint(5,"s2 = ",_s2),
+
+  if not freeof(lhs(_s1[1]),rhs(_s1[1])) then (dprint(0,"error, could not write canonical coordinates (1) in explicit form"),return(false)),
+  if not freeof(lhs(_s2[1]),rhs(_s2[1])) then (dprint(0,"error, could not write canonical coordinates (2) in explicit form"),return(false)),
+
+  if _var1=vars[1] then
+    return(flatten([_s1,_s2]))
+  else 
+    return(flatten([_s2,_s1]))
+)$
+
+/* ************************************************************************** */
+/* ***** compute canonical coordinates from symmetries                  ***** */
+/* ************************************************************************** */
+canoni(_X,_y,_x,[options]):=block([_Psi,_xi,_eta,_r,_s,_yr,_xir,_canoni:[],_sr:[]],
+  _sr    : options,                                 /* names of canonical coordinates. default is s,r */
+  if _sr=[] then _sr:['s,'r],
+
+  [_xi,_eta] : _X,
+  dprint(5,"canoni:: X=",_X),
+ 
+  if (_xi#0) then (
+   dprint(1,"canonical coordinates ode = y'=",_eta/_xi),
+   _Psi :  ode1solve('diff(_y,_x)=_eta/_xi,_y,_x,'returnSymmetries=false,'returnIntegratingFactor=false), 
+   dprint(1,"first integral is ",_Psi),
+
+   _Psi:_Psi[1],
+   dprint(1,"first integral is ",_Psi),
+   if length(_Psi)>1 then (
+     dprint(1,"warning: multiple first integrals found that determine canonical coordinate r. Choosing the first from the list: ",_Psi)
+   ),
+  
+   /* nijso BUG TODO note that solve can only solve if equation is polynomial, maybe switch to to_poly_solve or Solver, or do some pre-processing */
+ 
+   _r : solve(_Psi[1],integration_constant)[1], 
+   dprint(1,"canonical coordinate r : ",_r),
+   if (lhs(_r)#%c) then ( 
+     dprint(1,"explicit solution for canonical coordinate could not be found!"),
+     return(false)
+   ),
+   _r : subst(integration_constant=r,_r), 
+   dprint(1,"canonical coordinate r : ",_r),
+   _yr : solve(_r,_y)[1], 
+   dprint(1,"yr : ",_yr),
+   _xir : subst(_yr,_xi), 
+   /*_xir : subst(_r,_xi), */
+   dprint(1,"xi(x,y(r,x)) = ",_xir), /* write xi(x,y) as xi(x,r) */
+   _s : integrate(1/_xir,_x), 
+   _s : subst(_r,_s), 
+   dprint(1,"canonical coordinate s=",_s),
+   _canoni : [_sr[2]=rhs(_r),_sr[1]=_s]
+  )
+  else if (_eta#0) then (
+   /*_Psi :  ode1solve('diff(_y,_x)=_xi/_eta,_y,_x,'returnSymmetries=false,'returnIntegratingFactor=false), */
+   _r : r=_x,
+   dprint(1,"canonical coordinate r=",_r),
+   /*_etar : subst(_x=_r,_etar), */
+   _s : integrate(1/_eta,_y),
+   dprint(1,"canonical coordinate s=",_s),
+   _canoni : [_sr[2]=rhs(_r),_sr[1]=_s]
+  )
+  else 
+    return(false),
+
+
+return(_canoni)
+)$
+
+/* ************************************************************************** */
+/* ***** Generate a first order ode from a symmetry                    ***** */
+/* ************************************************************************** */
+ode1FromSym(_X,_y,_x):=block([_canoni,_ode,_r,_s],
+
+_canoni : canoni(_X,_y,_x),
+
+if _canoni # false then [_r,_s] : _canoni else return(false),
+dprint(1,"canonical coordinates : ",_canoni),
+_ode : - (diff(_s,_x) - %F(_r)*diff(_r,_x)) / 
+         (diff(_s,_y) - %F(_r)*diff(_r,_y)),
+
+dprint(1,"most general ode invariant under the group ",_X," is ",_ode),
+return(_ode)
+)$
+
+
+
+
+/* ************************************************************************** */
+/* ***** try some symmetries for implicit odes                          ***** */
+/* ************************************************************************** */
+ODE1_implicit(ode,_y,_x):=block([
+List_Sym:[[0,_y],[0,_x],
+          [0,1/_x],[0,1/_y],
+          [_x,0],[_y,0],
+          [1/_x,0],[1/_y,0],
+          [_x,_y],[_y,_x] ]
+
+],
+
+  /* loop over symmetries and see if one of them is a symmetry of ode*/
+  for sym in List_Sym do(
+    if checkSymmetries(sym,ode,_y,_x)=0 then return(sym) 
+  ),
+  return(false)
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* ***** find a gcd that does not depend on the variables               ***** */
+/* ***** input: two expressions c1*f(x,y) and c2*g(x,y)                 ***** */
+/* ***** output: largest common constant                                ***** */
+/* ************************************************************************** */
+greatest_constant_divisor(_F,_G,varlist):=block([_c1,_c2,_C],
+   _c1 : constant_factors(ratsimp(_F),varlist),
+   _c2 : constant_factors(ratsimp(_G),varlist),
+   _C : gcd(_c1,_c2), 
+   /* do not use op because op fails on atoms, e.g. op(5) fails */ 
+   if signum(_F)=-1 and signum(_G)=-1 then _C:-_C,
+   return(_C)
+)$
+/* ************************************************************************** */
+
+/* ************************************************************************** */
+/* copy from ode2.mac, I need more general integration constants              */
+/* ************************************************************************** */
+/*block(local(soln,xc,yc),*/
+  ic1(soln,xc,yc):= block([stringC,lC,listC,%C,%%C],
+    stringC:string(integration_constant),
+    lC:slength(stringC),
+    /*print("stringC=",stringC),*/
+    /*print("lC=",lC),*/
+     (
+       noteqn(xc), 
+       noteqn(yc), 
+       /*boundtest('integration_constant,integration_constant), */
+       listC:delete(lhs(yc),delete(lhs(xc),showratvars(soln))), 
+       /*print("list=",listC), */
+       for _S in listC do(
+         /*print("S=",_S), */
+         if slength(string(_S))>=lC then
+           if substring(string(_S),1,lC+1)=stringC then %C:_S
+       ),
+       /*boundtest('%C,), */
+       /*print("%C=",%C),*/
+       %%C:%C, 
+       /*sol:rhs(solve(at(soln,[xc,yc]),%C)[1]),*/
+       /*print("sol=",sol),print("%%C=",%%C),*/
+       ratsimp(subst([%%C=rhs(solve(at(soln,[xc,yc]),%C)[1])],soln))
+     )
+
+/*  )*/
+)$
+
+/* ************************************************************************** */
+/*block(local(x),*/
+ noteqn(x):=if atom(x) or not inpart(x,0)="="
+              then (disp(x), disp("boundary condition is not an equation"), error()
+)$
+ 
+/* ************************************************************************** */
+ /*block(local(x,y),*/
+ boundtest(x,y):=
+    if x#y then (disp(x), disp("constant of integration must not be bound"), error()
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* ***** compute differential invariants from symmetries                ***** */
+/* ***** compute here differential invariants of first order odes only  ***** */
+/* ************************************************************************** */
+/* a general routine would generate differential invariants of order n*/
+/* TODO */
+differentialInvariants(_X,_y,_x):=block([_eta,_xi,dy,_eta1,sol],
+
+  _xi : _X[1],
+  _eta : _X[2],
+  /* first prolongation of eta: */
+  dy : xxx,
+  _eta1 : diff(_eta,_x) + (diff(_eta,_y) - diff(_xi,_x))*dy - diff(_xi,_y)*dy^2,
+
+  /* Xr=0*/
+  if _xi=0 and _eta=0 then return(false),
+
+  if _xi#0 then (ode: 'diff(y,x)=_eta/_xi,_Y:y,_X:x) else (ode:'diff(x,y)=_xi,_eta, _Y:x,_X:y),
+
+  /* compute first fundamental differential invariant: dx/xi = dy/eta */
+  sol : ode1solve(ode,_Y,_X,'returnSymmetries=false,'returnIntegratingFactor=false,'returnSolution=true)
+
+  /* compute second fundamental differential invariant dy/eta = dy1/deta1 */
+
+)$
+
+/* ************************************************************************** */
+/* try to put riccati ode into normal form (for rational riccati this works)*/
+/* ************************************************************************** */
+riccati_RNF(ode,y,x):=block([phi], 
+  phi:rhs(solve(ode,'diff(y,x))[1]), 
+  dprint(5,"phi=",phi),
+  C:riccatip(ratexpand(phi),y),
+  dprint(5,"coefs=",C),
+  depends(u,t),
+  odenew:subst([x=t,y=exp(integrate(subst(x=t,_f1),t))*u],ode),
+  odenew:ev(odenew,nouns),
+  odenew:ratexpand(solve(odenew,diff(u,t))[1]),
+  dprint(5,"final:odenew=",odenew),
+  phi:rhs(odenew),dprint(5,"phi=",phi),
+  C:riccatip(ratexpand(rhs(odenew)),u),
+  dprint(5,"coeffs=",C),
+  odenew:subst(u=u/_f2,odenew),
+  odenew:ev(odenew,nouns),
+  odenew:solve(odenew,diff(u,t)),
+  dprint(5,"odenew=",odenew)
+)$
+
+/* ************************************************************************** */
+/* count the terms in an expression */
+/* ************************************************************************** */
+termcount(_s,_expr):=block([found:true,count:0,pos],
+  if not stringp(_s) then _s:string(_s), 
+  if not stringp(_expr) then _expr:string(_expr), 
+  while(found#false) do(
+    pos:ssearch(_s,_expr), 
+    if pos=false then found:false else (_expr:sremovefirst(_s,_expr),count:count+1) 
+  ),
+
+  return(count)
+)$

@@ -1,0 +1,586 @@
+/* ************************************************************************** */
+/* *****     separable                                                  ***** */
+/* *****                                                                ***** */
+/* *****     Author: Nijso Beishuizen                                   ***** */
+/* *****                                                                ***** */
+/* ***** Description: routines to determine separable functions         ***** */
+/* ***** Based on the paper by J.A. Cid, A simple method to find out    ***** */
+/* ***** when an ordinary differential equation is separable,           ***** */
+/* ***** International Journal of Mathematical Education in Science     ***** */
+/* ***** and Technology Vol. 40 , Iss. 5,2009                           ***** */
+/* ***** (http://www4.ujaen.es/~angelcid/Archivos/Papers/IJMEST.pdf)    ***** */
+/* ************************************************************************** */
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+put('separable,002,'version)$
+/* ************************************************************************** */
+
+/* ************************************************************************** */
+/* ***** print all statements with flag lower than DEBUGFLAG           ***** */
+/* ************************************************************************** */
+DEBUGFLAG:2$
+
+/* ************************************************************************** */
+/* ***** the maximum length of an expression(using the length of the    ***** */
+/* ***** string) that we will consider for separability                 ***** */
+/* ***** default: 2000                                                  ***** */
+/* ***** note that setting this to a higher value will increase the     ***** */
+/* ***** computational time (sometimes to infinite time), but might     ***** */
+/* ***** lead to a successfull solution in the end                      ***** */
+/* ***** setting this value to 100,000 led to extra solutions found     ***** */
+/* ***** with the ode solver, higher values not (and led to inf time)   ***** */
+/* ************************************************************************** */
+
+/* we need 4000 for kamke1.87 */
+/* we need 8000 for kamke1.51 */
+MAX_LENGTH_FOR_SEPARABILITY:8000$
+MAX_LENGTH_FOR_SIMPLIFICATION:8000$
+
+ratfac:true$
+radsubstflag:true$
+
+/* ************************************************************************** */
+/* ***** input: an expression F(x,y)                                    ***** */
+/* ***** output: a list with separated functions [f(x),g(y)]            ***** */
+/* ***** or [f(x),g(y),C]                                               ***** */
+/* ***** or false when the expression is not separable                  ***** */
+/* ************************************************************************** */
+separable(_F,_x,_y,[options]) :=block([_F1,_C,_dF,_S,_f,_g,_P,_Q,_ratvars,_L,_cfp,_cfq,_SP,_SQ,_Res],
+
+  splitConstant       : assoc('splitConstant,options,false), /* if true, if F(x,y)=C*f(x),g(y), the output will be [f,g,C] */
+                                                             /* if false, if F(x,y)=C*f(x)*g(y), the output will be [f,C*g]  */       
+
+  /* we need to make sure that for F=P/Q, P,Q are coprime, so we should check if they have shared factors.     */
+  /* we can do extensive simplification to make sure that this is the case, or just assume that     */
+  /* this is true: the user has to make sure that the input _F is simplified enough                 */
+  _F1 : ratsimp(_F), /* ratsimp is unavoidable here to construct a proper P/Q expression ... */
+
+  /* preliminaries: check if freeof x or freeof y */
+   /* ***** if the expression is independent of x,y then it is a constant and not separable  ***** */
+  if freeof(_x,_y,_F1) then (
+     dprint(5,"separable: expression is C"),
+     if splitConstant then return([1,1,_F1]) else return([1,_F1])
+  ),
+
+  /* ***** check if the expression depends only on y ***** */
+  if freeof(_x,_F1) then (
+     dprint(5,"separable: expression is f(y)"),
+     _C : constant_factors(_F1,[_y]),
+     dprint(5,"C = ",_C),
+     if splitConstant then return([1,ratsimp(_F1/_C),_C]) else return([1,_F1])
+  ),
+
+  /* ***** check if the expression depends only on x ***** */
+  if freeof(_y,_F1) then (
+     dprint(5,"separable: expression is f(x)"),
+     _C : constant_factors(_F1,[_x]),
+     dprint(5,"C = ",_C),
+    if(signum(_F1)=-1) then ( 
+      if splitConstant then return([ratsimp(-_F1/_C),1,-_C]) else return([ratsimp(-_F1/_C),-_C]) 
+    )
+    else 
+      if splitConstant then return([ratsimp(_F1/_C),1,_C]) else return([ratsimp(_F1/_C),_C])
+  ),
+
+  /* very quick preliminary test to see if it is immediately separable */
+  if op(_F1)="*" then (
+    dprint(5,"we have product terms"),
+    _L : args(_F1),
+    dprint(5,"L = ",_L),
+    _Res:sublist(_L,lambda([_i],not freeof(_y,_i) and not freeof(_x,_i))),
+    dprint(5,"res = ",_Res),
+    if _Res=[] then (
+      _g:apply("*",sublist(_L,lambda([_i],freeof(_x,_i) and not freeof(_y,_i)))),
+      _f:apply("*",sublist(_L,lambda([_i],freeof(_y,_i) and not freeof(_x,_i)))),
+      _C:apply("*",sublist(_L,lambda([_i],freeof(_y,_i) and freeof(_x,_i)))),
+      dprint(5,"separable, f=",_f),
+      dprint(5,"separable, g=",_g),
+      if splitConstant then return([_f,_g,_C])
+      else return ([_f,_g*_C])
+    )
+  ), 
+
+  /* ***** we have a maximum limit for the expression, long expressions take forever to separate ***** */
+  _lS : slength(string(_F1)),  
+  dprint(5,"   length S = ",_lS),  
+  if (_lS>MAX_LENGTH_FOR_SEPARABILITY) then (
+      dprint(1,"Warning: subexpression is too long to consider separability. Length = ",_lS),
+      dprint(1,"Putting separable=false. "),
+      dprint(1,"If you want to try anyway, put MAX_LENGTH_FOR_SEPARABILITY to a higher value. Current value: ",MAX_LENGTH_FOR_SEPARABILITY),
+      return(false)
+  ),
+
+  _P : num(_F1),
+  _Q : denom(_F1),
+  dprint(5,"F1=",_F1), 
+  dprint(5,"P=",_P), 
+  dprint(5,"Q=",_Q), 
+
+  /* if P,Q are coprime functions, then F is separable if P and Q are separable */
+  /* we could introduce this assumption to speed up the code significantly */
+  /* first, some simple checks: check if Q is Q(x),Q(y) or Q(x,y) */
+
+  /* we can now do a quick check for inseparable functions, for instance sqrt(x+y) or f(x*y) */
+  /* e.g. kamke 1.338 has sqrt(y+x) terms */
+  _ratvars : showratvars(_F1),
+  dprint(5,"ratvars=",_ratvars),
+  /* we assume that any expression that contains sqrt(f(x)+g(y)) is not separable */
+  _L : sublist(_ratvars,lambda([i],not freeof(sqrt,dispform(i,all)))),
+  _L : map(args,_L),
+  _L:sublist(_L,lambda([i],not freeof(_x,i) and not freeof(_y,i) )),  
+  _L:sublist(_L,lambda([i],op(i[1])="+")), 
+  if _L # [] then (
+    dprint(5,"unseparable function found: sqrt(f(x) + f(y))"),
+    return(false)
+  ),
+
+  /* now check if we have sin(x*y) or cos(x*y) */
+  _L : sublist(_ratvars,lambda([i],not freeof(sin,cos,dispform(i,all)))),
+  _L : map(args,_L),
+  _L:sublist(_L,lambda([i],not freeof(_x,i) and not freeof(_y,i) )),  
+  _L:sublist(_L,lambda([i],i[1]=_x*_y)), /* only check for sin(x*y) or cos(x*y)*/ 
+  if _L # [] then (
+    dprint(5,"unseparable function found: sin(x*y) or cos(x*y)"),
+    return(false)
+  ),
+
+
+  if not(freeof(_x,_y,_Q)) then (
+    
+    /* note, these two checks are easily captured by the third general separation of P/Q */
+    if freeof(_x,_P) then (
+      if freeof(_y,_Q) then (
+       /* P(y)/Q(x) */
+       dprint(5,"separable: expression is P(y)/Q(x)"),
+       _cfp : constant_factors(_P,[_y]),
+       _cfq : constant_factors(_Q,[_x]),
+       if splitConstant then
+         return([ratsimp(1/(_Q/_cfq)),ratsimp(_P/_cfp),_cfp/_cfq])
+       else
+         /* we only need to get rid of the constant in the f(x) term */
+         return([ratsimp(1/(_Q/_cfq)),ratsimp(_P*_cfq)])
+      ) 
+    )
+    else if freeof(_y,_P) then (
+      if freeof(_x,_Q) then(
+       /* P(x)/Q(y) */
+       dprint(5,"separable: expression is P(x)/Q(y)"),
+       _cfp : constant_factors(_P,[_x]),
+       _cfq : constant_factors(_Q,[_y]),
+       if splitConstant then
+          return([ratsimp(_P/_cfp),ratsimp(1/(_Q/_cfq)),_cfp/_cfq])
+       else
+          return([ratsimp(_P/_cfp),ratsimp(_cfp/_Q)])
+      )
+    )
+    else (
+      /*P=P(x,y)*/
+       dprint(5,"separable: expression is P(x,y)/Q(y)"),
+      _SP : separable(_P,_x,_y,'splitConstant=splitConstant),
+      dprint(5,"sP = ",_SP),
+      if (_SP=false) then return(false),
+      _SQ : separable(_Q,_x,_y,'splitConstant=splitConstant),
+      dprint(5,"sQ = ",_SQ),
+      if (_SQ=false) then return(false),
+      if splitConstant then
+        return([ratsimp(_SP[1]/_SQ[1]),ratsimp(_SP[2]/_SQ[2]),_SP[3]/_SQ[3]])
+      else
+        return([ratsimp(_SP[1]/_SQ[1]),ratsimp(_SP[2]/_SQ[2])])
+    )
+  ),
+  /* if we end up here, then Q is free of x and y, so we basically have P(x,y)/C */  
+ 
+  /* we use the ratsimp expression if it is smaller (or not much larger) than the F-expression */
+  if slength(string(_F1)) < 1.5*slength(string(_F)) then _F : _F1,
+ 
+
+  _dF : diff(_F,_x),
+  _S : _dF/_F,
+  if not freeof(_y,_S) then _S : simplify(_S),
+
+  if freeof(_y,_S) then (
+  /* F is separable*/
+    _f : exp(integrate(_S,_x)),
+    _f : simplify(_f),
+    _dF : diff(_F,_y),
+    _S : _dF/_F,
+
+    if not freeof(_x,_S) then _S : simplify(_S),
+
+    if freeof(_x,_S) then (
+      dprint(5,"g was successfully found"),
+      _g : exp(integrate(_S,_y)),
+      dprint(5,"g:",grind(_g)),
+      _g : simplify(_g)
+    ) else (
+      dprint(0,"FATAL ERROR! WAS NOT ABLE TO SEPARATE Y FROM THE SEPARABLE FUNCTION ",_F),
+      return(false)
+    )
+  ) else return(false),
+
+  /* note that the residue can be a non-unity constant */
+  _Res : simplify(_F/(_f*_g)),
+  dprint(5,"residue = ",grind(_Res)),
+  if (freeof(_x,_Res) and freeof(_y,_Res)) then (
+    dprint(5,"separability verified"),
+    /* add the constant factor only when we do not want to split the constant */
+    if not(splitConstant) then _g : _g*_Res
+  )
+  else (
+    dprint(1,"Warning: could not validate separable function! F=f(x)*g(y), F,f,g = ",simplify(_F),", ",simplify(_f),", ",simplify(_g)),
+    dprint(1,"Warning: could not validate separable function! F=f(x)*g(y), F,f,g = ",_F,", ",_f,", ",_g),
+    dprint(1,"Trying division procedure..."),
+    _g : simplify(_F/_f),    
+    if freeof(_x,_g) then (
+      dprint(1,"Separation was successful using division procedure"),
+      if (splitConstant) then(
+        _Res : constant_factors(_g,[_y]),
+        _g:ratsimp(_g/_Res),
+        dprint(0,"Constant factor = ",_Res)
+      )
+    ) else (    
+      dprint(0,"Error: validation of separability failed")
+    ),
+    /* add the constant factor only when we do not want to split the constant */
+    if not(splitConstant) then _g : _g*_Res
+  ),
+ 
+  if splitConstant then
+    return([_f,_g,_Res])
+  else
+    return([_f,_g])
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* ***** input: an expression F(x,y)                                    ***** */
+/* ***** output: true if input expression is separable                  ***** */
+/* ***** or false when the expression is not separable                  ***** */
+/* ************************************************************************** */
+isSeparable(_F,_x,_y) :=block([_F1,_P,_Q,_L,_SP,_SQ,_dF,_S],
+
+  /* we need to make sure that P,Q are coprime, so we should check if they have shared factors.     */
+  /* we can do extensive simplification to make sure that this is not the case, or just assume that */
+  /* this is true: the user has to make sure that the input _F is simplified enough                 */
+  _F1 : ratsimp(_F), /* ratsimp is unavoidable here to construct a proper P/Q expression ... */
+
+  /* preliminaries: check if freeof x or freeof y */
+   /* ***** if the expression is independent of x,y then it is a constant and not separable  ***** */
+  if freeof(_x,_y,_F1) then (
+     dprint(5,"separable: expression is C"),
+     return(true) 
+  ),
+
+  /* ***** check if the expression depends only on y ***** */
+  if freeof(_x,_F1) then (
+     dprint(5,"separable: expression is f(y)"),
+     return(true)
+  ),
+
+  /* ***** check if the expression depends only on x ***** */
+  if freeof(_y,_F1) then (
+     dprint(5,"separable: expression is f(x)"),
+     return(true)
+  ),
+
+  _P : num(_F1),
+  _Q : denom(_F1),
+  _ratvars : showratvars(_F1),
+  /* we assume that any expression that contains sqrt(f(x)+g(y)) is not separable */
+  _L : sublist(_ratvars,lambda([i],not freeof(sqrt,dispform(i,all)))),
+  _L : map(args,_L),
+  _L:sublist(_L,lambda([i],not freeof(_x,i) and not freeof(_y,i) )),  
+  _L:sublist(_L,lambda([i],op(i[1])="+")), 
+  if _L # [] then (
+    dprint(5,"unseparable function found: sqrt(f(x) + f(y))"),
+    return(false)
+  ),
+  /* now check if we have sin(x*y) or cos(x*y) */
+  _L : sublist(_ratvars,lambda([i],not freeof(sin,cos,dispform(i,all)))),
+  _L : map(args,_L),
+  _L:sublist(_L,lambda([i],not freeof(_x,i) and not freeof(_y,i) )),  
+  _L:sublist(_L,lambda([i],i[1]=_x*_y)), /* only check for sin(x*y) or cos(x*y)*/ 
+  if _L # [] then (
+    dprint(5,"unseparable function found: sin(x*y) or cos(x*y)"),
+    return(false)
+  ),
+
+  if not(freeof(_x,_y,_Q)) then (
+    
+    /* note, these two checks are easily captured by the third general separation of P/Q */
+    if freeof(_x,_P) then (
+      if freeof(_y,_Q) then (
+       /* P(y)/Q(x) */
+       dprint(5,"separable: expression is P(y)/Q(x)"),
+       return(true)
+      ) 
+    )
+    else if freeof(_y,_P) then (
+      if freeof(_x,_Q) then(
+       /* P(x)/Q(y) */
+       dprint(5,"separable: expression is P(x)/Q(y)"),
+       returntrue()
+      )
+    )
+    else (
+      /*P=P(x,y)*/
+      _SP : isSeparable(_P,_x,_y),
+      dprint(5,"rational separation: P=",_SP), 
+      if (_SP=false) then return(false),
+      _SQ : isSeparable(_Q,_x,_y),
+      dprint(5,"rational separation: Q=",_SQ), 
+      if (_SQ=false) then return(false),
+      return(true)
+    )
+  ),
+  /* if we end up here, then Q is free of x and y, so we basically have P(x,y)/C */  
+ 
+  /* we use the ratsimp expression if it is smaller (or not much larger) than the F-expression */
+  if slength(string(_F1)) < 1.5*slength(string(_F)) then _F : _F1,
+ 
+  _dF : diff(_F,_x),
+  _S : _dF/_F,
+  _S : simplify(_S),
+
+  if freeof(_y,_S) then (
+  /* F is separable*/
+    dprint(5,"f is separable"),
+    return(true)
+  )
+  else return(false)
+
+)$
+/* ************************************************************************** */
+
+
+/* ************************************************************************** */
+/* ***** simple method of finding the constant factor in front of an    ***** */
+/* ***** equation                                                       ***** */
+/* ***** step 1: construct a set of args(expr)                          ***** */
+/* ***** step 2: determine the subset containing only constants         ***** */
+/* ************************************************************************** */
+/*
+constant_factors(_expr,_varlist) := block([inflag:true,_constantfactors:1,_C1:1,_G,_oldratvars,_arglist,_L,_W],
+// note: make function G local
+  dprint(0,"constant_factors in separable"),
+  if lfreeof(_varlist,_expr) then return(_expr),
+  if mapatom(_expr) then return(1),
+
+  if not(listp(_varlist)) then _varlist : [_varlist],
+
+  _oldratvars : ratvars,
+  ratvars : _varlist, // this was done globally elsewhere, should we do it only locally? 
+
+  // first we find terms C*f + C*g + C*h
+  // nijso: TODO when is this important? we do not have it in the current constant_factors... should we re-implement it? 
+  _expr : ratexpand(_expr),
+  _G([L]):=gcd(L[1],L[2]),
+  if op(_expr)="+" then (
+     _arglist:args(_expr),
+     _L : map(lambda([_i],constant_factors(_i,_varlist)),_arglist),
+     // determine if there is a shared minus sign 
+     _C1 : lreduce(_G,_L),
+     _W : unique(map(string,_L)),
+     if length(_W)=1 then (
+       _W : _W[1],
+       if (substring(_W,1,2)="-") then (
+         _C1 : -_C1
+       )
+     )
+  ), 
+
+  _expr : ratsimp(_expr/_C1),
+
+  if not mapatom(_expr) and op(_expr)="*"
+  // we know that the internal dependent variable is _x,and we want expr to be free of x 
+  // constantp doesn't knowthat abs(a) is constant 
+  then
+    _constantfactors : xreduce("*",listify(subset(setify(args(_expr)),lambda([_u],lfreeof(_varlist,_u))))),
+
+  ratvars : _oldratvars,
+
+  return(_constantfactors*_C1)
+)$
+*/
+
+/* ************************************************************************** */
+/* simple method of finding the constant factor in front of an equation       */
+/* step 1: construct a set of args(expr)                                      */
+/* step 2: determine the subset containing only constants                     */
+/* ************************************************************************** */
+constant_factors(_expr,_varlist) := block([inflag:true,_constantfactors:1,_oldratvars,_substlist],
+  /*dprint(0,"constant_factors in ode1_lie"),*/
+
+  /* first, substitute dependencies */
+  /* fix: do not substitute dependencies, but add them to the variable list */
+  /* we assume then that all dependencies are not constant_factors */
+  /*_substlist: map("=",map(op,dependencies),dependencies),*/
+  /*print("constant_factors:: substlist=",_substlist),*/
+  /*_expr : subst(_substlist,_expr),*/
+
+  if not(listp(_varlist)) then _varlist : [_varlist],
+  _varlist : append(_varlist,map(op,dependencies)),
+
+  _oldratvars : ratvars,
+  ratvars : _varlist, /* this was done globally elsewhere, should we do it only locally? */
+  _expr : ratsimp(_expr),
+  
+
+  if lfreeof(_varlist,_expr) then
+    _constantfactors:_expr
+  else if not mapatom(_expr) and op(_expr)="*"
+  /* we know that the internal dependent variable is _x,and we want expr to be free of x */
+  /* constantp doesn't knowthat abs(a) is constant */
+  then
+    _constantfactors : xreduce("*",listify(subset(setify(args(_expr)),lambda([_u],lfreeof(_varlist,_u))))),
+
+  ratvars : _oldratvars,
+
+  return(_constantfactors)
+)$
+/* ************************************************************************** */
+
+
+
+/* ************************************************************************** */
+
+/* ************************************************************************** */
+simplify(_S):=block([_N,_Nnew,_Snew,_ratvars,_lS,_isimaginary:false,_oldradexpand],
+  dprint(5,"simplify::START, S=",grind(_S)),
+  dprint(5,"dependencies = ",dependencies),
+  /* simplify unfactored subexpressions like sqrt(f+g)/(fg+g^2) -> 1/sqrt(f+g) that are not factored */
+  /* try to evaluate nouns */
+  _S : ev(_S,nouns),
+  dprint(5,"simplify:: S=",grind(_S)),
+  if not freeof(%i,_S) then _isImaginary:false,
+/*
+  if not freeof(%i,_S) then (
+    dprint(1,"warning, trying to get rid of imaginary numbers, check the result:",_S),
+    _S : rectform(_S),
+    dprint(1,"warning, trying to get rid of imaginary numbers, check the result:",_S)
+  ),
+*/
+
+  /* ***** we have a maximum limit for the expression, long expressions take forever to separate ***** */
+  _lS : slength(string(_S)),  
+  dprint(5,"   length S = ",_lS),  
+  if (_lS>MAX_LENGTH_FOR_SIMPLIFICATION) then (
+      dprint(1,"Warning: subexpression is too long to consider simplification. Length = ",_lS),
+      dprint(1,"Returning original expression..."),
+      dprint(1,"If you want to try anyway, put MAX_LENGTH_FOR_SIMPLIFICATION to a higher value. Current value: ",MAX_LENGTH_FOR_SIMPLIFICATION),
+      return(_S)
+  ),
+
+  _ratvars : showratvars(_S),
+  dprint(5,"ratvars = ",_ratvars),
+  /* we use length of expression as a simple measure for complexity to check for expression swell*/
+  _N : slength(string(_S)),
+  _Snew : fullratsimp(_S),
+  _Nnew : slength(string(_Snew)),
+  dprint(5,"   N,Nnew = ",_N," ",_Nnew),  
+  if _Nnew < 1.4*_N then (_S : _Snew, _N : slength(string(_S))),
+
+
+
+  dprint(5,"2. S=",grind(_S)),
+  /* if we have trig functions, we only want to simplify if they depend on x or y */ 
+  /*if sublist(_ratvars,lambda([_i],not freeof(sin,cos,tan,_i) and not freeof(_x,_y,_i))) # [] then (*/
+
+  /* we should not do this when we have derivatives of unknown functions, trig functions do not like that... */
+  /*the only ode in the kamke database that is trg + diff(f(x)) is kamke1.80 */
+  if freeof(diff,_ratvars) and sublist(_ratvars,lambda([_i],not freeof(sin,cos,tan,_i) )) # []  then (
+    dprint(5,"3.0 S=",grind(_S)),
+    _N : slength(string(_S)),
+
+    _Snew : trigreduce(_S), 
+    dprint(5,"3.1 trigreduce,S=",_Snew),
+    _Nnew : slength(string(_Snew)),
+    dprint(5,"   N,Nnew = ",_N," ",_Nnew),  
+    if _Nnew < 20*_N then (
+      _Strig : _Snew /*,_N : slength(string(_Strig))*/
+    ),
+
+
+    _Snew : trigsimp(_Strig),            /* sin^2+cos^2->1, sec -> 1/cos and tan(2x) -> sin(2x)/cos(2x)*/
+    dprint(5,"3.2 trigsimp,S=",_Snew),
+    _Nnew : slength(string(_Snew)),
+    dprint(5,"   N,Nnew = ",_N," ",_Nnew),  
+    if _Nnew < 20*_N then (_Strig : _Snew /*, _N : slength(string(_Strig))*/ ),
+
+    _Snew : expand(trigexpand(_Strig)),  /* writes sin(2x) as 2sin(x)cos(x) and sin(a+b) as sin(a)cos(b)+cos(a)sin(b) and sin(3x) as 3cos^2sin - sin^2*/
+    dprint(5,"3.3 trigexpand,S=",grind(_Snew)),
+    _Nnew : slength(string(_Snew)),
+    dprint(5,"   N,Nnew = ",_N," ",_Nnew),  
+    if _Nnew < 20*_N then (_Strig : _Snew /*, _N : slength(string(_Strig))*/),
+
+    _Snew : trigsimp(_Strig),            /* trigsimp again, this improves the probability of success of simplification! */
+    dprint(5,"3.4 trigsimp,S=",grind(_Snew)),
+    _Nnew : slength(string(_Snew)),
+    dprint(5,"   N,Nnew = ",_N," ",_Nnew),  
+    if _Nnew < 20*_N then (_Strig : _Snew /*, _N : slength(string(_Strig))*/),
+
+
+    _Snew : trigreduce(_Strig),  /* this simplifies new sin^2,cos^2 to sin(2x),cos(2x) terms, for the backtransformation of the symmetries of kamke 1.80 for instance */
+    dprint(5,"3.5 trigreduce,S=",grind(_Snew)),
+    _Nnew : slength(string(_Snew)),
+    dprint(5,"trig,   N,Nnew = ",_N," ",_Nnew),  
+    if _isimaginary=false and not freeof(%i,_Snew) then (
+      dprint(1,"warning: simplification introduced complex numers, ignoring trig-simplification")
+    ) else if _Nnew < 1.4*_N then (_S : _Snew, _N : slength(string(_S)))
+    /*if _Nnew < 1.4*_N then (_S : _Snew, _N : slength(string(_S)))*/
+  ),
+  dprint(5,"3. S=",_S),
+
+  /*if sublist(_ratvars,lambda([_i],not freeof(asinh,acosh,_i) and not freeof(_x,_y,_i))) # [] then (*/
+  if sublist(_ratvars,lambda([_i],not freeof(asinh,acosh,_i) )) # [] then (
+    _Snew : logarc(_S),
+    _Nnew : slength(string(_Snew)),
+    /*dprint(5,"trigh   N,Nnew = ",_N," ",_Nnew),  */
+    if _Nnew < 1.4*_N then (_S : _Snew, _N : slength(string(_S)))
+  ),
+
+  /* important for kamke 68,69,70,71*/
+  if sublist(_ratvars,lambda([_i],not freeof(sqrt,dispform(_i,all)) )) # [] then (
+    _oldradexpand:radexpand,
+    radexpand:all,
+    _Snew : rootscontract(_S),
+    radexpand:_oldradexpand,
+    dprint(5,"sqrt: ",_Snew),
+    dprint(5,"sqrt   N,Nnew = ",_N," ",_Nnew),  
+    if _isimaginary=false and not freeof(%i,_Snew) then (
+      dprint(1,"warning: simplification introduced complex numers, ignoring sqrt-simplification")
+    ) else 
+    
+    if _Nnew < 1.4*_N then (_S : _Snew, _N : slength(string(_S)))
+  ),
+
+
+  /*if sublist(_ratvars,lambda([_i],not freeof(%e,log,_i) and not freeof(_x,_y,_i))) # [] then (*/
+  if sublist(_ratvars,lambda([_i],not freeof(%e,log,_i) )) # [] then (
+    dprint(5,"log, exp"),
+    _Snew : radcan(_S),
+    dprint(5,"radcan: ",_Snew),
+    
+    _Nnew : slength(string(_Snew)),
+    dprint(5,"log   N,Nnew = ",_N," ",_Nnew),  
+    
+    if _isimaginary=false and not freeof(%i,_Snew) then (
+      dprint(1,"warning: simplification introduced complex numers, ignoring sqrt-simplification")
+    ) else  
+    
+    if _Nnew < 2.0*_N then (_S : _Snew, _N : slength(string(_S)))
+  ),
+
+  dprint(5,"simplify::END, S=",grind(_S)),
+  return(_S)
+)$
+/* ************************************************************************** */
+
+/* ************************************************************************** */
+/* ***** print expr only when flag<DEBUGFLAG                            ***** */
+/* ************************************************************************** */
+dprint(flag,[_expr])::= if flag <= DEBUGFLAG then buildq ([_expr], print (splice (_expr)))$
+/* ************************************************************************** */
