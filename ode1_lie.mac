@@ -53,6 +53,16 @@ batch("/home/nijso/mathematics/maxima_files/ode1_abel.mac");
 /* ************************************************************************** */
 
 
+/* substitute dependencies and integrate */
+/* this will still fail for expressions containing derivatives */
+integrate_with_dependencies(expr,x):=block([],
+/* step 1: substitute dependencies */
+/* step 2: integrate expression */
+/* step 3: substitute back */
+
+)$
+
+
 /* ************************************************************************** */
 put('ode1_Lie,001,'version)$
 /* ************************************************************************** */
@@ -172,9 +182,9 @@ ode1solve(_ode,_y,_x,[options]) := block(
   _returnIntegratingFactor: assoc('returnIntegratingFactor,options,returnIntegratingFactor), /* if true, compute X and integrating factor mu, return [[mu]] */
   _returnSolution         : assoc('returnSolution,options,returnSolution),                   /* if true, compute X, mu and solution and return [solution] */
   _returnExplicit         : assoc('returnExplicit,options,returnExplicit),                   /* if true, then try to write solution in explicit form */
-  useCanonical           : assoc('useCanonical,options,true),                                /* if true, the ode will be converted into canonical form using several simplification methods. */
+  useCanonical            : assoc('useCanonical,options,true),                               /* if true, the ode will be converted into canonical form using several simplification methods. */
   _tryInverse             : assoc('tryInverse,options,tryInverse),                           /* if true, try to find symmetries of the inverse-ode when no symmetries could be found for the ode */
-  useMethod              : assoc('useMethod,options,"all"),                                  /* choose a specific method for the solver */
+  useMethod               : assoc('useMethod,options,"all"),                                 /* choose a specific method for the solver */
 
 
   /* for the method of undetermined coefficients */
@@ -224,7 +234,7 @@ ode1solve(_ode,_y,_x,[options]) := block(
     return(false)
   ),
 
-  /* if ode is of type implicit we exit because we cannot solve them yet */
+  /* if ode is of type implicit we exit because we cannot solve them yet (untested) */
   if type[1]="implicit first order ode" then (
     dprint(0,"error: implicit ODE, not implemented yet, use sym_implicit!"),
     reason: "implicit ode not implemented",
@@ -573,6 +583,7 @@ linearSymmetries(_ode,_y,_x):=block(
   _A_yx: simplify(diff(_A_y,_x)),
 
   dprint(5,"dependencies=",dependencies),
+  dprint(5,"dependency list=",_dependencylist),
 
 /* TODO BUG: why did we want to do this again??? */
 
@@ -664,6 +675,7 @@ linearSymmetries(_ode,_y,_x):=block(
    for _i:1 thru length(dependencies) do (
     _ode:subst(dependencies[_i],op(dependencies[_i]),_ode)
    ),
+
   print("2. ode =",_ode),
   
   /*_ode : dependencies_form_to_explicit_form(_ode)[1],*/
@@ -675,18 +687,26 @@ linearSymmetries(_ode,_y,_x):=block(
   /* check the symmetry for the transformed ode */
   _odenew: subst(_transf,_ode),         
   _odenew : ev(_odenew,nouns),
-  dprint(5,"new ode =",_odenew),
+  dprint(5,"new ode =",grind(_odenew)),
   
   _odenew : solve(_odenew,diff(_u,_t))[1],
-  if lhs(_odenew)#diff(_u,_t) then (dprint(0,"error:could not separate du/dt :",_odenew),return(false)),
+  /* 06/2018: BUG! HOW DID WE MISS THIS ?!? */
+  /*_odenew : solve(_odenew,diff(_u(_t),_t))[1],*/
+
+  dprint(5,"solution =",_odenew),
+  
+
+  if lhs(_odenew)#diff(_u(_t),_t) then (dprint(0,"error:could not separate du/dt :",_odenew),return(false)),
   _odenew : simplify(_odenew),
   /* after the coordinate transformation, write in dependencies-form */
   /*_odenew : explicit_form_to_dependencies_form(_odenew),*/
   /* symmetry3 is the search for symmetries of the form [xi,eta]=[F(x),Q(x)] */
   /*remove(_u,dependency),*/
   dprint(5,"solving transformed ode: ",_odenew),
-
-  dc : dependencies,
+  dprint(5,"dependencies = ",dependencies),
+  dprint(5,"dependency list=",_dependencylist),
+  
+  dc : copy(dependencies),
   kill(dependencies),
 
   dprint(5,"ode = ",_odenew),
@@ -695,6 +715,7 @@ linearSymmetries(_ode,_y,_x):=block(
   /*_X : ode1solve(_odenew,_u,_t,'useMethod="symmetry3",'returnSymmetries=true,'returnIntegratingFactor=false,'returnSolution=false),*/
 
   map(depends, map(op,dc), map(args,dc)),
+  dprint(5,"dependencies = ",dependencies),
 
   dprint(5,"X = ",_X),
 
@@ -1373,7 +1394,7 @@ allOpsPriv(expression, opList) := block ( [_x, _args, _constcoef,
 /* the only thing we need to do is to kill the dependencies !!!   */
 /* ************************************************************************** */
 explicit_form_to_dependencies_form(_ode) :=block( 
-  /* get a list of user defined functions */
+  /* get a list of user defined functions, like f(x*y) or g(h(x)) */
   /* only at start of the call to odesolve*/
   /*_dependencylist : copy(dependencies),*/
   dprint(5,"explicit form to dependency form"), 
@@ -1443,14 +1464,14 @@ explicit_form_to_dependencies_form(_ode) :=block(
 /* the only thing we need to do is to kill the dependencies !!!   */
 /* and then substitute                                            */
 /* ************************************************************************** */
-dependencies_form_to_explicit_form(expr) :=block( 
+dependencies_form_to_explicit_form(_expr) :=block([_dc], 
 /* ************************************************************************** */
-   dc : copy(dependencies),
+   _dc : copy(dependencies),
    kill(dependencies),
-   for _i:1 thru length(dc) do (
-    expr:subst(dc[_i],op(dc[_i]),expr)
+   for _i:1 thru length(_dc) do (
+    _expr:subst(_dc[_i],op(_dc[_i]),_expr)
    ),
-   [expr,dc]
+   [_expr,_dc]
 )$
 
 
@@ -1758,11 +1779,18 @@ findSymmetries(_Q,_P,_y,_x,[options]):= block([_xi,_eta,_rhs,linearconstants,_fr
     /* first, substitute dependencies */
     if dependencies#[] then (
       substlist: map("=",map(op,dependencies),dependencies),
+  print("substlist = ",substlist),   
       _expr : subst(substlist,_phi),
+print("expr = ",_expr),
       substlist: map("=",_varlist,_udf_args),
+print("substlist = ",substlist),
       _expr : subst(substlist,_expr),
+print("expr = ",_expr),
+
       dprint(5,"separable, phi=",_expr)
     ) else _expr:_phi,
+
+   print("expr = ",_expr,_x,_y),
 
     fg : separable(_expr,_x,_y), 
 
