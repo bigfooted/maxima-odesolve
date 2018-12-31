@@ -77,7 +77,7 @@ ode2_lie(_expr,_y,_x) := block(
 
   dprint(3,"*** check if ode is of type 'ode2, missing y' "),
   if freeof(_y,_phi) then (
-    dprint(2,"ode is of type: missing y"),
+    dprint(1,"ode is of type: missing y"),
     /*_xi : 0, _eta : 1,*/
     _sol : subst(['diff(_y,_x,2)='diff(w,_x,1),'diff(_y,_x)=w],_ode),
     dprint(3,"returning the transformed ode with y\"=w\' and y\'=w "),
@@ -273,9 +273,8 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
   dprint(4,"***    case A "), 
 
   /* kamke odes: 37(exp(int(f(x)))),97(1/x),123(1/y, this cannot be?!?),226(y')*/ 
-  _gamma : diff(_phi,_y),                    /* eq. 2.35 */
-  _gamma : ratsimp(_gamma),
-  dprint(5,"gamma = ",_gamma),
+  _gamma : ratsimp(diff(_phi,_y)),                    /* eq. 2.35 */
+  dprint(5,"gamma = ",grind(_gamma)),
   /* case A: Gxy/Gyy depends on y */
   _gamma_y : diff(_gamma,_y),                /*  */
   _gamma_y : ratsimp(_gamma_y),
@@ -328,7 +327,7 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
 
   /* *** case C: Gxy/Gyy # 0 */ /* TODO *** */
   dprint(4,"***    case C "), 
-  _gamma : diff(_phi,_y),                    /* eq. 2.35 */
+  _gamma : ratsimp(diff(_phi,_y)),                    /* eq. 2.35 */
   dprint(5,"gamma = ",_gamma),
   /* case A: Gxy/Gyy depends on y */
   _gamma_y : diff(_gamma,_y),                /*  */
@@ -361,6 +360,8 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
         /*  if not freeof(_y,_H) then (*/
           _p_prime : ratsimp(diff(_H,_x) / diff(_H,_y)),
           dprint(5,"p_prime = ",_p_prime), 
+          dprint(5,"W = ",_W),
+          dprint(5,"gamma = ",_gamma),
           _F : (_p_prime + _dy)*_W / _gamma,
           _F : ratsimp(_F),
           dprint(5,"F = ",_F),
@@ -463,7 +464,7 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
               _mu : subst(_dy='diff(_y,_x),_F*_mu_tilde),
               _mu : ratsimp(_mu),
               dprint(4,"integrating factor mu(x,y') = ",_mu),
-              /*for _l in facts() do if not freeof(_dy,_l) then forget( subst('diff(_y,_x)=_dy,_l) ),*/
+              for _l in facts() do if not freeof(_dy,_l) then forget( subst('diff(_y,_x)=_dy,_l) ),
               return(_mu)
             ) else (
               dprint(4,"no integrating factor of this form, mu_tilde(x) depends on y or dy")
@@ -559,17 +560,31 @@ integratingFactor(_ode,_y,_x):=block([_phi,_dy,_ddy,_xi,_eta,_sol,_coeffs,_mu,_m
 
 
 /* ************************************************************************** */
-/* ***** ***** */
+/* ***** compute the mu_tilde term, eq. 33 ***** */
 /* ************************************************************************** */
-mu_tilde(_phi,_F,_x,_y,_dy) := block([_mu_tilde,_phi_y,_phi_1,_phi_2],
+mu_tilde(_phi,_F,_x,_y,_dy) := block([_mu_tilde,_phi_y,_phi_1,_phi_2,_phi_3,_phi_4],
 
   /* now determine mu_tilde to construct mu = F(x,y')*mu_tilde(x)*/
   _phi_y : diff(_phi,_y),
   _phi_1 : ratsimp(_phi_y * _F - _dy*diff(_phi_y*_F,_dy)),
   _phi_2 : ratsimp(diff(_phi_y*_F,_dy)),
+  dprint(5,"phi_1 = ",grind(_phi_1)),
+  dprint(5,"phi_2 = ",grind(_phi_2)),
+    _phi_3 : -diff(_phi*_F,_dy),
+    _phi_4 : diff(_F,_dy),
+ 
+  if (_phi_2#0) then 
   _mu_tilde : exp(
                  integrate(ratsimp(((diff(_phi_1,_y)-diff(_phi_2,_x))/_phi_2)),_x)
-                ),   
+                ) 
+  else (
+    _phi_3 : -diff(_phi*_F,_dy),
+    _phi_4 : diff(_F,_dy),
+    _mu_tilde : exp(
+                 integrate(ratsimp(((diff(_phi_3,_dy)-diff(_phi_4,_x))/_phi_4)),_x)
+                ) 
+  ),  
+  dprint(5,"mu_tilde = ",_mu_tilde),
   if freeof(_y,_mu_tilde) and freeof(_dy,_mu_tilde) then return(_mu_tilde),
        
   return(false)
@@ -922,7 +937,7 @@ firstIntegral(_expr,_y,_x):=block([_ode,_lambda,_mu,_isMu,_phi,_dI1,I1,_dI2,_I2,
   _I : subst(_dy='diff(_y,_x),_I),
 
   /* note that mu makes the explicit second order ode exact */
-  dprint(3,"exact:",isExact(_mu*('diff(_y,_x,2)-_phi),_y,_x)),
+  dprint(5,"exact:",isExact(_mu*('diff(_y,_x,2)-_phi),_y,_x)),
 
   return(_I)
 )$
@@ -936,8 +951,8 @@ odeconstruct(_mu,_y,_x) :=block([_phi],
 
   _mu : subst(['diff(_y,_x)=_dy],_mu), 
 
-  _phi : -(1/_mu) * (diff(integrate(_mu,_dy) + %F(_x,_y,_dy),_x)),
-  _phi : _phi + (-1/_mu)*_dy*(diff(integrate(_mu,_dy)+%F(x,y,_dy),_y)),
+  _phi : -(1/_mu) * (diff(integrate(_mu,_dy) + %F(_x,_y),_x)),
+  _phi : _phi + (-1/_mu)*_dy*(diff(integrate(_mu,_dy)+%F(x,y),_y)),
   _phi : ratsimp(subst([_dy='diff(_y,_x)],_phi)),
 
   return('diff(_y,_x,2)=_phi)
