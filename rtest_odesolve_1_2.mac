@@ -1,0 +1,801 @@
+/* ODE tests - Equations 101-200
+
+  Reference:
+    E Kamke, Differentialgleichungen Losungsmethoden und Losungen, 
+    Vol 1, Geest & Portig, Leipzig, 1961
+
+    E. S. Cheb-Terrab, T. Koloknikov,  First Order ODEs, 
+    Symmetries and Linear Transformations, European Journal of 
+    Applied Mathematics, Vol. 14, No. 2, pp. 231-246 (2003). 
+    (http://lie.uwaterloo.ca/papers/ode_iv.pdf)
+*/
+/* Don't kill(all,pt_(1),ans); It messes up trigsimp */
+
+
+/* current performance: */
+/* */
+
+
+
+/*(kill (all),load(ode1solve),*/
+(kill (all),
+batch("~/mathematics/maxima_files/ode1_lie.mac"), 
+batch("~/mathematics/maxima_files/kamke1_1.mac"), 
+DEBUGFLAG:2,
+timer:[],
+/* Print ode number*/
+pn_(n_):=(print("Kamke ODE 1.",n_),t0:elapsed_run_time()),
+pt_(n_):=(t:elapsed_run_time()-t0,print("time for ODE 1.",n_,"= ",t),timer:endcons([n_,t],timer)),
+
+/* 101 */
+pn_(101),
+ans:ode1solve(eqn:kamke1[101],y,x),
+pt_(101),ans);
+[y = (2*x)/(x^2+%c)];
+/*[y = 2*%c*x/(%c*x^2-1)];*/
+
+/* 102  */
+(pn_(102),
+assume(a>0),
+ans:ode1solve(eqn:kamke1[102],y,x),
+forget(a>0),
+pt_(102),ans);
+[y = (sqrt(a)*x*(%c*%e^(sqrt(a)*x^2)-1))/(%c*%e^(sqrt(a)*x^2)+1)];
+
+/* 103  */
+(pn_(103),ans:ode1solve(eqn:kamke1[103],y,x),
+pt_(103),ans);
+[y = -(x*(x^2-2*%c))/(x^2-2*%c-2)];
+
+/* 104 */
+(pn_(104),
+assume(a*b>0),
+ans:ode1solve(eqn:kamke1[104],y,x),
+forget(a*b>0),
+pt_(104),ans);
+[atan(a*sqrt(1/(a*b))*(a*x*y^2+y+b*x))-atan(a*sqrt(1/(a*b))*y)-a*sqrt(1/(a*b))*b*x = %c];
+/*[y = (x*(%c*sqrt(a)*sqrt(-b)*%e^(2*sqrt(a)*sqrt(-b)*x)
+               -sqrt(a)*sqrt(-b))
+          -%c*%e^(2*sqrt(a)*sqrt(-b)*x)-1)
+          /(a*x*(%c*%e^(2*sqrt(a)*sqrt(-b)*x)+1))];
+*/
+
+/* 105 */
+(pn_(105),ans:ode1solve(eqn:kamke1[105],y,x),
+pt_(105),ans);
+false; 
+/*[[y='diff(%u,x,1)/(%u*a),%u*a^2*(-d/x-c)-'diff(%u,x,1)*a*b/x-'diff(%u,x,2)*a = 0]];*/
+
+/* 106 */
+/* nijso: suddenly we need an additional assume */
+(pn_(106),
+assume(not equal((b+a-2)/2,-1)),
+ans:ode1solve(eqn:kamke1[106],y,x),
+forget(not equal((b+a-2)/2,-1)),
+pt_(106),ans);
+[y=-((%c*x^(b/2+a/2)*sin(2*x^(b/2+a/2)/(b+a))-x^(b/2+a/2)*cos(2*x^(b/2+a/2)/(b+a)))/(x^a*sin(2*x^(b/2+a/2)/(b+a))+%c*x^a*cos(2*x^(b/2+a/2)/(b+a))))];
+
+/*
+(pn_("106b"),
+assume(equal(a+b,0),x>0),
+ans:ode1solve(eqn:x*'diff(y,x)+x^a*y^2+(a-b)*y/2+x^b,y,x),
+forget(equal(a+b,0),x>0),
+ans
+,pt_(1),ans);
+[y = -((%c*sin(log(x))-cos(log(x)))/(x^a*sin(log(x))+%c*x^a*cos(log(x))))];
+*/
+
+/* 107 */
+(pn_(107),
+ans:ode1solve(eqn:kamke1[107],y,x),
+pt_(107),ans);
+false; 
+/*[[y = 'diff(%u,x,1)*x^(1-alpha)/(%u*a),%u*a^2*c*x^(beta+2*(alpha-1)-1)-'diff(%u,x,2)*a*x^(alpha-1)-'diff(%u,x,1)*(a*b*x^(alpha-2)-a*(alpha-1)*x^(alpha-2))=0]];*/
+
+/* 108 */
+(pn_(108),
+ans:ode1solve(eqn:kamke1[108],y,x),
+pt_(108),ans);
+[y = 1/(log(x)+%c*x+1)];
+
+/* 109 */
+(pn_(109),
+ans:ode1solve(eqn:kamke1[109],y,x),
+pt_(109),ans);
+[y = 1/(2*log(x)+%c*x+2)];
+
+/* 110 */
+(pn_(110),
+ans:ode1solve(eqn:kamke1[110],y,x),
+pt_(110),ans);
+[y = (x*(%c*%e^(2*'integrate(f(x),x))+1))/(%c*%e^(2*'integrate(f(x),x))-1)];
+
+/* 111 */
+(pn_(111),
+ans:ode1solve(eqn:kamke1[111],y,x),
+pt_(111),ans);
+false;
+
+/* 112 */
+(assume(x>0,y>0),
+pn_(112),
+ans:ode1solve(eqn:kamke1[112],y,x),
+forget(x>0,y>0),
+pt_(112),ans);
+[x^2/(sqrt(y^2+x^2)+y) = %c];
+/*[y = x*sinh(log(x) + %c)];*/
+
+/* 113 */
+(assume(x>0,y>0),
+pn_(113),
+ans:ode1solve(eqn:kamke1[113],y,x),
+forget(x>0,y>0),
+pt_(113),ans);
+[log(x/(sqrt(y^2+x^2)+y))-a*log(x) = %c];
+/*[y = -x*sinh(a*log(x)+%c)];*/
+/*[y = -(x*sinh(a*(log(x)+%c)))];*/
+/*[y = - x*sinh(a*log(x) + %c)];*/
+/*[y=-x*sinh(a*log(x/%c))];*/
+
+/* 114 */
+(assume(not equal(y,0)),
+pn_(114),
+ans:ode1solve(eqn:kamke1[114],y,x),
+forget(not equal(y,0)),
+pt_(114),ans);
+[log(sqrt(x^2)/(sqrt(y^2+x^2)+y))+x = %c];
+
+/* 115 */
+( assume(not equal(x,0)),assume(not equal(y,0)),
+pn_(115),
+ans:ode1solve(eqn:kamke1[115],y,x,'returnExplicit=false),
+forget(not equal(x,0)),forget(not equal(y,0)),
+pt_(115),ans);
+[(x*(sqrt(2)*log((sqrt(2*x^2*(y^2+x^2))+x*y+x^2)/(sqrt(x^2)*sqrt((y-x)^2)))+x*sqrt(x^2)))/(sqrt(2)*sqrt(x^2)) = %c];
+/*[2*asinh((y+x)/abs(y-x))+sqrt(2)*x^2 = %c];*/
+/*[(2*'integrate((sqrt(y^2+x^2)*((y^2-x*y)*'integrate((2*y^2-x*y+x^2)*%e^-(log(y^2+x^2)/2)/(y^4-2*x*y^3+2*x^2*y^2-2*x^3*y+x^4),x)+(x-y)*'integrate(%e^-(log(y^2+x^2)/2)/(y-x),x))-x)/((y-x)*sqrt(y^2+x^2)),y)+2*y*'integrate(%e^-(log(y^2+x^2)/2)/(y-x),x)+x^2)/2=%c];
+*/
+
+/* 116 */
+(pn_(116),ans:ode1solve(eqn:kamke1[116],y,x,'returnExplicit=false),
+pt_(116),ans); 
+[2*'integrate(sqrt(1/(y^4-5*x^2*y^2+4*x^4))*(sqrt(y^4-5*x^2*y^2+4*x^4)*(x^2*'integrate((5*y^2-8*x^2)*sqrt(1/(y^12-15*x^2*y^10+87*x^4*y^8-245*x^6*y^6+348*x^8*y^4-240*x^10*y^2+64*x^12)),y)
+                                                                       +'integrate(1/sqrt(y^4-5*x^2*y^2+4*x^4),y))
+                                            +y),x)
+  -2*x*'integrate(1/sqrt(y^4-5*x^2*y^2+4*x^4),y)+x^2
+   = %c];
+/*[2*'integrate(sqrt(1/(y^4-5*x^2*y^2+4*x^4))*(sqrt(y^4-5*x^2*y^2+4*x^4)*(x^2*'integrate((5*y^2-8*x^2)*sqrt(1/(y^12-15*x^2*y^10+87*x^4*y^8-245*x^6*y^6+348*x^8*y^4-240*x^10*y^2+64*x^12)),y)+'integrate(1/sqrt(y^4-5*x^2*y^2+4*x^4),y))+y),x)
+  -2*x*'integrate(1/sqrt(y^4-5*x^2*y^2+4*x^4),y)+x^2
+   = %c];*/
+/*[2*'integrate((sqrt(y^4-5*x^2*y^2+4*x^4)*(x^2*'integrate((5*y^2-8*x^2)/sqrt(y^12-15*x^2*y^10+87*x^4*y^8-245*x^6*y^6+348*x^8*y^4-240*x^10*y^2+64*x^12),y)
+                                         +'integrate(1/sqrt(y^4-5*x^2*y^2+4*x^4),y))
+               +y)
+               /sqrt(y^4-5*x^2*y^2+4*x^4),x)
+  -2*x*'integrate(1/sqrt(y^4-5*x^2*y^2+4*x^4),y)+x^2
+   = %c];*/
+/*[(2*'integrate((sqrt(y^4-5*x^2*y^2+4*x^4)*(y*'integrate((2*y^3-5*x^2*y)*%e^(-log(y+2*x)/2-log(y+x)/2-log(y-x)/2-log(y-2*x)/2)/(y^4-5*x^2*y^2+4*x^4),x)-'integrate(%e^(-log(y+2*x)/2-log(y+x)/2-log(y-x)/2-log(y-2*x)/2),x))-x)/sqrt(y^4-5*x^2*y^2+4*x^4),y)+2*y*'integrate(%e^(-log(y+2*x)/2-log(y+x)/2-log(y-x)/2-log(y-2*x)/2),x)+x^2)/2=%c];
+*/
+
+/* 117 */
+/* an explicit solution exists */
+(pn_(117),ans:ode1solve(eqn:kamke1[117],y,x),
+pt_(117),ans);
+[(x*log((x-1)*%e^(y/x)+x)-y)/x = %c];
+/*[(x*log(x*(%e^(y/x)+1))-y)/x = %c];*/
+/*[(x*log(%e^(y/x)+1)-y+x*log(x))/x = %c];*/
+/*[y = x*log(-%c*x/(%c*x-1))];*/
+
+/* 118 */
+(pn_(118),ans:ode1solve(eqn:kamke1[118],y,x),
+pt_(118),ans);
+[y = %e^(%c*x)];
+
+/* 119 */
+(pn_(119),ans:ode1solve(eqn:kamke1[119],y,x),
+pt_(119),ans);
+[y = %e^(%c*x)/x];
+
+/* 120 */
+/* return explicit to pass the comparison test */
+(pn_(120),ans:ode1solve(eqn:kamke1[120],y,x,'returnExplicit=false),
+pt_(120),ans); 
+[log(log(y/x^2))+x = %c];
+/*[y = x^2*%e^-(2*%c*%e^-x)];*/
+
+/* 121 */
+(pn_(121),ans:ode1solve(eqn:kamke1[121],y,x),
+pt_(121),ans);
+false;
+
+/* 122 */
+/* odesolve returns implicit solution...*/
+(pn_(122),ans:ode1solve(eqn:kamke1[122],y,x,'tryInverse=true),
+pt_(122),ans);
+[x*sec(y)*(sin(y)-x^2*cos(y)) = %c];
+/*[y = atan((%c+x^3)/x)];*/
+
+/* 123 */
+(pn_(123),ans:ode1solve(eqn:kamke1[123],y,x),
+pt_(123),ans);
+[x*(cos(y/x)+1)*csc(y/x) = %c];
+/* kamke says this can be written explicitly as [y=2*x*atan(%c*x)] */
+
+/* 124 */
+(pn_(124),ans:ode1solve(eqn:kamke1[124],y,x),
+pt_(124),ans);
+[(sin(y/x)+log(x)*cos(y/x)+log(x))/(cos(y/x)+1) = %c];
+/*
+[%c*x=%e^-(sin(y/x)/(cos(y/x)+1))];
+*/
+
+/* 125 */
+(pn_(125),ans:ode1solve(eqn:kamke1[125],y,x,'returnExplicit=false),
+pt_(125),ans);
+[2*x^2*(cos((2*y)/x)-1) = %c];
+
+/* 126 */
+(pn_(126),ans:ode1solve(eqn:kamke1[126],y,x),
+pt_(126),ans);
+['integrate(1/(y*(f(x*y)+1)),y)-log(x) = %c];
+
+/* 127  */
+/* result verified with maple */
+(pn_(127),ans:ode1solve(eqn:kamke1[127],y,x),
+pt_(127),ans);
+[b*'integrate(1/(y*(b*f(x^a*y^b)+a)),y)-log(x) = %c];
+
+/* 128  */
+(pn_(128),ans:ode1solve(eqn:kamke1[128],y,x),
+pt_(128),ans);
+['integrate((x^(a-1)*(a*x^a*g(x^a*y)*'integrate((y*pderivop(g,1)(x^a*y))/g(x^a*y)^2,y)-a*g(x^a*y)*'integrate(1/g(x^a*y),y)-f(x)*g(x^a*y)+a*y))/g(x^a*y),x)+x^a*'integrate(1/g(x^a*y),y) = %c];
+/*['integrate((x^a*f(x)*g(x^a*y)-a*x^a*y)/(x*g(x^a*y)),x)-'integrate((g(x^a*y)*'integrate((a*x^(2*a)*y*pderivop(g,1)(x^a*y)-a*x^a*g(x^a*y))/(x*g(x^a*y)^2),x)+x^a)/g(x^a*y),y)=%c];*/
+
+/* 129 */
+(pn_(129),ans:ode1solve(eqn:kamke1[129],y,x),
+pt_(129),ans);
+[y = %e^(x+1)/(%e*%c*x+%e*%c-expintegral_e(2,(-x)-1))];
+/*[y = %e^(x+1)/(%e*(%c*x+%c)-expintegral_e(2,(-x)-1))];*/
+
+/* 130 */
+/* nijso: we can still absorb the 5 into the constant of integration...*/
+(pn_(130),ans:ode1solve(eqn:kamke1[130],y,x),
+pt_(130),ans);
+[y = (4*x^3+5*%c*sqrt(x))/10];
+
+/*  131  */ 
+(pn_(131),ans:ode1solve(eqn:kamke1[131],y,x),
+pt_(131),ans);
+[y = log((4*%c*x+2*%c+1)/(2*x+1))-%c];
+/*[y = log(%c*(4*x+2)+1)-log(2*x+1)-%c];*/
+
+/*  132  */
+(pn_(132),ans:ode1solve(eqn:kamke1[132],y,x,'returnExplicit=false),
+pt_(132),ans);
+[(x*((6*x*log(x)-3*x)*y^3+4))/y^3 = %c];
+
+/*  133  */ 
+(pn_(133),ans:ode1solve(eqn:kamke1[133],y,x),
+pt_(133),ans);
+[y = (%c+gamma_incomplete(0,1/x))*%e^(1/x)];
+/*[y = %c*%e^(1/x)+gamma_incomplete(0,1/x)*%e^(1/x)];*/
+/*[y = (%c + gamma_incomplete(0,1/x))*%e^(1/x)];*/
+
+/*  134  */ 
+(pn_(134),ans:ode1solve(eqn:kamke1[134],y,x),
+pt_(134),ans);
+[y = -%e^-(1/x)*(%e^x-%c)];
+/*[y = -(%e^x-%c)/%e^(1/x)];*/
+/*[y = %c*%e^-(1/x)-%e^(x-1/x)];*/
+/*[y=%e^-(1/x)*(%c-%e^x)];*/
+
+/*  135  */ 
+/* we have sol/%c, this should be sol*%c */
+(pn_(135),ans:ode1solve(eqn:kamke1[135],y,x),
+pt_(135),ans);
+[y=%c*x*%e^(1/x)];
+
+/*  136  */
+(pn_(136),ans:ode1solve(eqn:kamke1[136],y,x),
+pt_(136),ans);
+[y = -(x*(log(x)-%c))/(x+%c+1)];
+/*[y = -((x*log(x)+%c*x)/(log(x)+%c+1))];*/
+/*[y=-((x*log(%c*x)-x)/log(%c*x))];*/
+
+/*  137  */ 
+/* solvable - polynomial N=1 */
+(pn_(137),ans:ode1solve(eqn:kamke1[137],y,x),
+pt_(137),ans);
+[y = -x/(log(x)+%c)];
+
+/*  138  */ 
+(pn_(138),ans:ode1solve(eqn:kamke1[138],y,x),
+pt_(138),ans);
+[y = -x*cos(log(x)+%c)*csc(log(x)+%c)];
+/*[y = -(x/tan(log(x)+%c))];*/
+
+/*  139  */ 
+(pn_(139),ans:ode1solve(eqn:kamke1[139],y,x),
+pt_(139),ans);
+false;
+/*[[y='diff(%u,x,1)/%u,%u*(-a*x^(k-2)+b^2/x^2-b/x^2)-'diff(%u,x,2)=0]];*/
+
+/*  140  */ 
+(pn_(140),ans:ode1solve(eqn:kamke1[140],y,x),
+pt_(140),ans);
+[y = -((%c*x-2)/(x*(%c*x-1)))];
+
+/*  141  */
+(pn_(141),
+assume(4*b-a^2+2*a-1>0),
+ans:ode1solve(eqn:kamke1[141],y,x),
+forget(4*b-a^2+2*a-1>0),
+pt_(141),ans);
+[y = -((sqrt(4*b-a^2+2*a-1)*tan((sqrt(4*b-a^2+2*a-1)*(log(x)+%c))/2)+a-1)/(2*x))];
+
+/*  142  */ 
+(pn_(142),ans:ode1solve(eqn:kamke1[142],y,x),
+pt_(142),ans);
+false;
+/*
+[y = -((%c*a^3*x^3*%e^(a*x)-%c*a^2*x^2*%e^(a*x)+2*%c*a*x*%e^(a*x)
+                                 -2*%c*%e^(a*x)-1)
+          /(x*(2*%c*%e^(a*x)+1)+%c*a^2*x^3*%e^(a*x)-2*%c*a*x^2*%e^(a*x)))];
+*/
+
+/*  143  */ 
+(pn_(143),
+assume(a*b>0),
+ans:ode1solve(eqn:kamke1[143],y,x),
+forget(a*b>0),
+pt_(143),ans);
+[y = (sqrt(4*a*b+1)*(%c*x^sqrt(4*a*b+1)+1)+%c*x^sqrt(4*a*b+1)-1)/(2*a*x*(%c*x^sqrt(4*a*b+1)-1))];
+/*[y = ((%c*sqrt(4*a*b+1)+%c)*x^sqrt(4*a*b+1)+sqrt(4*a*b+1)-1)/(2*a*x*(%c*x^sqrt(4*a*b+1)-1))];*/
+
+/*  144  */ 
+(pn_(144),ans:ode1solve(eqn:kamke1[144],y,x),
+pt_(144),ans);
+false; /* PS cant solve this one */
+/*[[y='diff(%u,x,1)/(%u*a),%u*a^2*(-b*x^(alpha-2)-c/x^2)-'diff(%u,x,2)*a=0]];*/
+
+/*  145  */ 
+(pn_(145),ans:ode1solve(eqn:kamke1[145],y,x),
+pt_(145),ans);
+false;
+
+/*  146  */ 
+(pn_(146),ans:ode1solve(eqn:kamke1[146],y,x),
+pt_(146),ans);
+false;
+
+/*  147  */ 
+(pn_(147),ans:ode1solve(eqn:kamke1[147],y,x),
+pt_(147),ans);
+false;
+
+/*  148  */ 
+/* check if log(sqrt()) is same as asinh()/sqrt()*/
+(pn_(148),ans:ode1solve(eqn:kamke1[148],y,x),
+pt_(148),ans);
+[y = (log(sqrt(x^2+1)+x)+%c)/sqrt(x^2+1)];
+/*[y = asinh(x)/sqrt(x^2+1)+%c/sqrt(x^2+1)];*/
+/*[y=(asinh(x)+%c)*%e^-(log(x^2+1)/2)];*/
+
+/*  149  */ 
+(pn_(149),ans:ode1solve(eqn:kamke1[149],y,x),
+pt_(149),ans);
+[y = ((x^2+1)^(3/2)+%c)/(3*sqrt(x^2+1))];
+/*[y = %c/sqrt(x^2+1)+(x^2+1)/3];*/
+/*[y=((x^2+1)^(3/2)/3+%c)*%e^-(log(x^2+1)/2)];*/
+
+/*  150  */ 
+(pn_(150),ans:ode1solve(eqn:kamke1[150],y,x),
+pt_(150),ans);
+[y = (2*x^3+%c)/(3*(x^2+1))];
+/*[y = 2*x^3/(3*x^2+3)+%c/(x^2+1)];*/
+/*[y=(2*x^3/3+%c)/(x^2+1)];*/
+
+/*  151  */ 
+(pn_(151),ans:ode1solve(eqn:kamke1[151],y,x),
+pt_(151),ans);
+false;
+
+/*  152  */ 
+/* [0,(cos(2y)+1)/sqrt(x^2+1)], inverse symmetry1*/
+(pn_(152),
+ans:ode1solve(eqn:kamke1[152],y,x,'returnExplicit=false,'tryInverse=true),
+pt_(152),ans);
+[sqrt(x^2+1)*sec(y)*(3*sin(y)+((-x^2)-1)*cos(y)) = %c];
+/*[tan(y)=(x^2+1)/3 + %c/(sqrt(x^2+1))];*/
+
+/*  153  */ 
+(pn_(153),ans:ode1solve(eqn:kamke1[153],y,x),
+pt_(153),ans);
+[y = %c*sqrt(x^2-1)+a*x];
+/*[y = %c*sqrt(x^2-1)+a*x];*/
+/*[y = %c*sqrt(x-1)*sqrt(x+1)+a*x];*/
+/*[y=(a*x/sqrt(x^2-1)+%c)*%e^(log(x^2-1)/2)];*/
+
+/*  154  */ 
+/* why (x-1)*(x+1) and not (x^2-1) in the denominator ???? */
+(pn_(154),ans:ode1solve(eqn:kamke1[154],y,x),
+pt_(154),ans);
+[y = (sin(x)+%c)/(x^2-1)];
+
+/*  155  */ 
+/* we have -2*%c -> %c */
+(pn_(155),ans:ode1solve(eqn:kamke1[155],y,x),
+pt_(155),ans);
+[y = (x*log((x-1)/(x+1))+2*%c*x+2)/(log((x-1)/(x+1))+2*%c)];
+
+/*  156  */ 
+(pn_(156),ans:ode1solve(eqn:kamke1[156],y,x),
+pt_(156),ans);
+[y = 1/(%c*sqrt(x^2-1)+x)];
+/*[y = -1/(%c*sqrt(x^2-1)-x)];*/
+/*[y = -%c/(sqrt(x^2-1)-%c*x)];*/
+/*[y=%e^-(log(x^2-1)/2)/(x/sqrt(x^2-1)+%c)];*/
+
+/*  157  */ 
+(pn_(157),ans:ode1solve(eqn:kamke1[157],y,x),
+pt_(157),ans);
+false; /* PS cant solve this one */
+/*
+[y = -(((%c*dgauss_b(1-a,a,1,-((x-1)/2))+dgauss_a(1-a,a,1,-((x-1)/2)))*x^2
+       +(-2*%c*gauss_b(1-a,a,1,-((x-1)/2))-2*gauss_a(1-a,a,1,-((x-1)/2)))*a*x
+       -%c*dgauss_b(1-a,a,1,-((x-1)/2))-dgauss_a(1-a,a,1,-((x-1)/2)))
+       /((2*%c*gauss_b(1-a,a,1,-((x-1)/2))+2*gauss_a(1-a,a,1,-((x-1)/2)))*a))];
+*/
+
+/*  158  */ 
+/* we have exp(%c) and exp(2*c) */
+(pn_(158),ans:ode1solve(eqn:kamke1[158],y,x,'returnExplicit=false),
+pt_(158),ans);
+[((x-1)*(x+1)*y^2)/(a*y+1)^2 = %c];
+/*[y = %c/(a*sqrt(x^2-1)-%c*a)];*/
+
+/*  159  */
+/* we have exp(2*c)*/ 
+(pn_(159),ans:ode1solve(eqn:kamke1[159],y,x),
+pt_(159),ans);
+[y = %e^(%c*x^2-%c)];
+
+/*  160  */ 
+(pn_(160),ans:ode1solve(eqn:kamke1[160],y,x),
+pt_(160),ans);
+[y = (x-2)/((x+2)*(log(x+2)+%c))];
+
+/*  161  */ 
+(pn_(161),ans:ode1solve(eqn:kamke1[161],y,x),
+pt_(161),ans);
+[y = -((3*x^4-8*x^3-%c)/(12*(x-3)*(x-2)^2))];
+/*[y=(%c-(3*x^4-8*x^3)/12)/((x-3)*(x-2)^2)];*/
+
+/*  162  */ 
+/* we have a very complicated integration constant*/
+(pn_(162),ans:ode1solve(eqn:kamke1[162],y,x),
+pt_(162),ans);
+[y = -(k*((x-b)^k*(%e^(%c*b*k^2+%c*b*k)*x-b*%e^(%c*b*k^2+%c*b*k))+(x-a)^k*(a*%e^(%c*a*k^2+%c*a*k)-%e^(%c*a*k^2+%c*a*k)*x)))/((k+1)*(%e^(%c*b*k^2+%c*b*k)*(x-b)^k-%e^(%c*a*k^2+%c*a*k)*(x-a)^k))];
+
+/*  163  */
+(pn_(163),
+assume(x>0),
+ans:ode1solve(eqn:kamke1[163],y,x),
+forget(x>0),
+pt_(163),ans);
+[y = (a*sqrt(x)*(%c*%e^((4*a)/sqrt(x))-1))/(%c*%e^((4*a)/sqrt(x))+1)];
+
+/*  164  */ 
+(pn_(164),ans:ode1solve(eqn:kamke1[164],y,x),
+pt_(164),ans);
+false;
+/*
+[y=-(((bessel_y(-(1/2),2*a/sqrt(-x))*%c+bessel_j(-(1/2),2*a/sqrt(-x)))*x
+   +((2*bessel_y(-(3/2),2*a/sqrt(-x))-2*bessel_y(1/2,2*a/sqrt(-x)))*%c
+    -2*bessel_j(1/2,2*a/sqrt(-x))+2*bessel_j(-(3/2),2*a/sqrt(-x)))*a*sqrt(-x))
+    /(4*bessel_y(-(1/2),2*a/sqrt(-x))*%c+4*bessel_j(-(1/2),2*a/sqrt(-x))))];
+*/
+
+/*  165  */ 
+/* check if there is a common factor !!!! */
+(pn_(165),ans:ode1solve(eqn:kamke1[165],y,x),
+pt_(165),ratsimp(ans));
+[y=((4*%c-2)*x^2-%c)/((2*%c-1)*x-%c)];
+/*[y = (2*%c*x^2-1)/(%c*x-1)];*/ /* PS finds explicit solution */
+/* [(x*y-2*x^2)/(y-1)=%c]; */
+
+/*  166  */ 
+(pn_(166),ans:ode1solve(eqn:kamke1[166],y,x),
+pt_(166),ans);
+false;
+/*
+[y = ((2*dgauss_b(1/2,3/2,1,x)*%c+2*dgauss_a(1/2,3/2,1,x))*x^2
+          +(2*gauss_b(1/2,3/2,1,x)*%c-2*dgauss_b(1/2,3/2,1,x)*%c
+                                     +2*gauss_a(1/2,3/2,1,x)
+                                     -2*dgauss_a(1/2,3/2,1,x))
+           *x)
+          /((gauss_b(1/2,3/2,1,x)*%c+gauss_a(1/2,3/2,1,x))*x
+           -gauss_b(1/2,3/2,1,x)*%c-gauss_a(1/2,3/2,1,x))];
+*/
+
+/*  167  */ 
+/* error-catch !!! */
+(pn_(167),ans:ode1solve(eqn:kamke1[167],y,x),
+pt_(167),ans);
+[y = -(x*cot((sqrt(7)*(log(x)+%c))/3))/sqrt(7)];
+/*[y = -x/(sqrt(7)*tan(sqrt(7)*log(x)/3-%c/(3*sqrt(7))))];*/
+/* [y=sqrt(7)*x*tan(sqrt(7)*log(%c*x)/3)/7]; */
+
+/*  168  */ 
+(pn_(168),ans:ode1solve(eqn:kamke1[168],y,x),
+pt_(168),ans);
+false;
+/*[y^4-6*y^2-4*x*y-3=0];*/
+
+
+/*
+[y = -( ((3*dgauss_b(1/2,7/6,4/3,-((x-2)/4))*%c
+         +3*dgauss_a(1/2,7/6,4/3,-((x-2)/4)))
+          *x^2
+     +(-6*gauss_b(1/2,7/6,4/3,-((x-2)/4))*%c
+       -6*gauss_a(1/2,7/6,4/3,-((x-2)/4)))
+           *x-12*dgauss_b(1/2,7/6,4/3,-((x-2)/4))*%c
+          -12*dgauss_a(1/2,7/6,4/3,-((x-2)/4)))
+   /(4*gauss_b(1/2,7/6,4/3,-((x-2)/4))*%c
+    +4*gauss_a(1/2,7/6,4/3,-((x-2)/4))) )  ];
+*/
+
+/*  169  */
+(pn_(169),ans:ode1solve(eqn:kamke1[169],y,x),
+pt_(169),ans);
+false;
+
+/*  170  */ 
+(pn_(170),ans:ode1solve(eqn:kamke1[170],y,x),
+pt_(170),ans);
+[y = (x^2*(log(x)+%c))/(x-%c+1)];
+/*[y = (x^2*(log(x)-%c))/(log(x)-%c+1)];*/
+/*[y = (x^2*log(x)-%c*x^2)/(log(x)-%c+1)];*/
+/* [y=(log(%c/x)+1)*x^2/log(%c/x)]; */
+
+/*  171  */ 
+(pn_(171),ans:ode1solve(eqn:kamke1[171],y,x),
+pt_(171),ans);
+[y = x^2/(%c*x+1)];
+/*[y = %c*x^2/(x+%c)];*/
+/*[y=x/(1/x+%c)];*/
+
+/*  172  */ 
+(pn_(172),ans:ode1solve(eqn:kamke1[172],y,x),
+pt_(172),ans);
+[y = -((5*x^9+4*%c)/(x^2*(x^9-%c)))];
+/*[x=%c*%e^-((log(x^2*y+5)-log(x^2*y-4))/9)];*/
+
+/*  173  */
+/* lots of integrals with abs(x)*/
+(pn_(173),ans:ode1solve(eqn:kamke1[173],y,x),
+pt_(173),ans);
+[y = -((3*%e^(4*x)+%c)/(x^3*(%e^(4*x)-%c)))];
+/*[y=-((3*%e^(4*x)-%c)/(x^3*%e^(4*x)+%c*x^3))];*/
+
+/*  174  */ 
+(pn_(174),ans:ode1solve(eqn:kamke1[174],y,x),
+pt_(174),ans);
+[y = %c/sqrt(x^2+1)];
+/*[y=%c*%e^-(log(x^2+1)/2)];*/
+
+/*  175  */ 
+(pn_(175),ans:ode1solve(eqn:kamke1[175],y,x),
+pt_(175),ans);
+[y = x*(%c*sqrt(x^2-1)+a)];
+/*[y = %c*(x^3-x)/(sqrt(x-1)*sqrt(x+1))+a*x];*/
+/*[y=x*(a/sqrt(x^2-1)+%c)*%e^(log(x+1)/2+log(x-1)/2)];*/
+
+/*  176  */ 
+(pn_(176),ans:ode1solve(eqn:kamke1[176],y,x),
+pt_(176),ans);
+false; 
+/*[[y='diff(%u,x,1)*x/%u,%u/(x*(x^2-1))-'diff(%u,x,2)/x-'diff(%u,x,1)/x^2=0]];*/
+
+/*  177  */ 
+(pn_(177),ans:ode1solve(eqn:kamke1[177],y,x),
+pt_(177),ans);
+[y = x^2/(%c*x-%c+1)];
+/*[y = -x^2/((%c-1)*x-%c)];*/
+/*[y=(x-1)*%e^-(2*(log(x-1)-log(x)))/((2*x-1)/(2*x^2-4*x+2)-1/(2*x^2-4*x+2)+%c)];*/
+
+/*  178  */ 
+/* we can find the solution with 'tryInverse=true, but it takes a long time*/
+(pn_(178),ans:ode1solve(eqn:kamke1[178],y,x,'tryInverse=true),
+pt_(178),ans);
+[y = (2*'integrate(sqrt((x^2-1)/x)/(x^2-1),x)+2*sqrt(x/(x^2-1))+%c)/(2*'integrate(sqrt((x^2-1)/x)/(x^2-1),x)+%c)];
+/*
+[y = (%c*sqrt(x-1)*sqrt(x+1)*'integrate(1/(sqrt(x-1)*sqrt(x)*sqrt(x+1)),x)
+         +sqrt(x-1)*sqrt(x+1)+%c*sqrt(x))
+    /(%c*sqrt(x-1)*sqrt(x+1)*'integrate(1/(sqrt(x-1)*sqrt(x)*sqrt(x+1)),x)
+         +sqrt(x-1)*sqrt(x+1))];
+*/
+/*  179  */ 
+(pn_(179),ans:ode1solve(eqn:kamke1[179],y,x),
+pt_(179),ans);
+false;
+/*[[y='diff(%u,x,1)*(3*x^2-3)/%u,-'diff(%u,x,1)*(6*x/(3*x^2-3)^2-(x^2/(3*x^3-3*x)+1/(3*x^3-3*x))/(3*x^2-3))-'diff(%u,x,2)/(3*x^2-3)+%u/((x^2-1)*(3*x^2-3)^2)=0]];*/
+
+/*  180  */
+/* symmetry X=[0,x-y^2/x], X=[0,(ax4-ax^2y^2+bx^3 -bxy^2+cx^2-cy^2)/((ax^2+bx+c)x)]*/ 
+
+(pn_(180),
+assume(4*a*c-b^2>0),
+SYM5DEGREE:4,
+ans:ode1solve(eqn:kamke1[180],y,x),
+forget(4*a*c-b^2>0),
+SYM5DEGREE:2,
+pt_(180),ans);
+[y = -(x*(%e^((4*atan((2*a*x+b)/sqrt(4*a*c-b^2)))/sqrt(4*a*c-b^2))-%c))/(%e^((4*atan((2*a*x+b)/sqrt(4*a*c-b^2)))/sqrt(4*a*c-b^2))+%c)];
+
+/*  181  */ 
+(pn_(181),
+assume(a>0),
+ans:ode1solve(eqn:kamke1[181],y,x),
+forget(a>0),
+pt_(181),ans);
+[y = -((sqrt(a)*tan((sqrt(a)*(%c*x-1))/x)-x)/x^2)];
+
+/*  182  */ 
+(pn_(182),ans:ode1solve(eqn:kamke1[182],y,x),
+pt_(182),ans);
+[y = (x*(2*x+%c-1))/((%c-1)*x^2+2)];
+
+/*  183  */
+(pn_(183),ans:ode1solve(eqn:kamke1[183],y,x,'returnExplicit=false),
+pt_(183),ans);
+[x^6/((2*x^3-1)*y^3) = %c];
+/*[y = ((sqrt(3)*%i-1)*%c*x^2)/(2*(2*x^3-1)^(1/3)),y = -((sqrt(3)*%i+1)*%c*x^2)/(2*(2*x^3-1)^(1/3)),y = (%c*x^2)/(2*x^3-1)^(1/3)];*/
+/*[y=%c*x^2*%e^-(log(2*x^3-1)/3)];*/
+
+/*  184 */ 
+/* nijso: needs assume on large expression so we only return the symmetry and the integrating factor */
+
+(pn_(184),
+assume(4*a*c-b^2>0),
+ans:ode1solve(eqn:kamke1[184],y,x,'returnSymmetries=true,'returnIntegratingFactor=true,'returnSolution=false),
+forget(4*a*c-b^2>0),
+ans,pt_(184),ans);
+[[-((a*x^2+b*x+c)/(2*a)),((2*a*x+b)*y-a)/(2*a)],[1/((a*x^2+b*x+c)*((a^2*x^4+2*a*b*x^3+(2*a*c+b^2)*x^2+2*b*c*x+c^2)*y^2+((-2*a^2*x^3)-3*a*b*x^2+((-2*a*c)-b^2)*x-b*c)*y+a^2*x^2+a*b*x+a*c+A))]];
+
+/*  185  */ 
+(pn_(185),ans:ode1solve(eqn:kamke1[185] ,y,x),
+pt_(185),ans); 
+false; 
+
+/*  186  */
+(pn_(186),ans:ode1solve(eqn:kamke1[186],y,x,'returnExplicit=false),
+pt_(186),ans);
+[x=%c*%e^-atan(x^(1-n)*y)];
+
+/*  187  */
+(pn_(187),
+assume(n^2-2*n-4*a*b+1>0),
+ans:ode1solve(eqn:kamke1[187],y,x),
+forget(n^2-2*n-4*a*b+1>0),
+ans,pt_(187),ans);
+[y = -(x^(n-1)*(sqrt(n^2-2*n-4*a*b+1)*(x^sqrt(n^2-2*n-4*a*b+1)+%c)+(1-n)*x^sqrt(n^2-2*n-4*a*b+1)+%c*n-%c))/(2*a*(x^sqrt(n^2-2*n-4*a*b+1)-%c))];
+/*[y = -(x^(n-1)*((sqrt(n^2-2*n-4*a*b+1)-n+1)*x^sqrt(n^2-2*n-4*a*b+1)+%c*sqrt(n^2-2*n-4*a*b+1)+%c*n-%c))/(2*a*(x^sqrt(n^2-2*n-4*a*b+1)-%c))];*/
+/*[n*y*'integrate(x^n/(a*x^2*y^2+(1-n)*x^(n+1)*y+b*x^(2*n)),x)-y*'integrate(x^n/(a*x^2*y^2+(1-n)*x^(n+1)*y+b*x^(2*n)),x)+log(x) = %c];*/
+
+/* 188  Abel eqn
+  Some choices that are integrable include
+    (n:3, b:1, a:n+b,pt_(1),ans);   => K = -27/4
+    (n:7, b:2, a:n+b,pt_(1),ans);   => K = -343/36
+*/
+(pn_(188),
+n:3,b:1,a:n+b,
+ans:ode1solve(eqn:kamke1[188],y,x),
+kill(a,b,n),
+pt_(188),ans);
+[(y*log((x^18*(2*y-x^3)^2)/(y+x^3)^2)+x^3*log((y+x^3)/(x^9*(2*y-x^3)))+6*y)/(2*y-x^3) = %c];
+/*[((2*y-x^3)*log(2*y-x^3)+(x^3-2*y)*log(y+x^3)+(18*log(x)+6)*y-9*x^3*log(x)-log(-1)*x^3)/(2*y-x^3) = %c];*/
+
+/*  189  */ 
+(pn_( 189 ),ans:ode1solve(eqn:kamke1[189] ,y,x),
+pt_(189),ans); 
+[x^(m*n+n)*'integrate(1/(a*x^(m+1)*y^n+((-m)-1)*x^(m*n+n)*y+b*x^(m*n+n+m+1)),y)-log(x) = %c];
+
+/*  190  */ 
+/* note minus sign */
+/* TODO we should simplify by taking the exponential of the function */
+/* can we put the lhs inside one log? */
+(pn_(190),
+assume(y>1,(y-1)*(y+1)>0,x>1,(x-1)*(x+1)>0),
+ans:ode1solve(eqn:kamke1[190],y,x),
+forget(y>1,(y-1)*(y+1)>0,x>1,(x-1)*(x+1)>0),
+pt_(190),ans);
+[(sqrt((x-1)*(x+1))+x)/(sqrt((y-1)*(y+1))+y) = %c];
+/*[(sqrt(x-1)*sqrt(x+1)+x)/(sqrt(y-1)*sqrt(y+1)+y) = %c];*/
+/*[(sqrt(1-y^2)*log(2*(sqrt(y^2-1)+y))-asin(x)*sqrt(y^2-1))/sqrt(1-y^2) = %c];*/
+/*[- (log(sqrt(y - 1)* sqrt(y + 1) + y) - log(sqrt(x - 1)* sqrt(x + 1) + x)) = %c];*/
+/*[log(2*sqrt(y^2-1)+2*y)=log(2*sqrt(x^2-1)+2*x)+%c];*/
+
+/*  191  */ 
+/* we need an extra solve because our routines reject an explicit solution of the form abs(y)=.. */
+(pn_(191),
+assume(abs(y)<1,abs(x)<1),
+ans:ode1solve(eqn:kamke1[191],y,x),
+forget(abs(y)<1,abs(x)<1),
+pt_(191),ans);
+[asin(1/abs(y))+asin(x) = %c];
+
+/*  192  */ 
+(pn_(192),
+assume(x>1,(x-1)*(x+1)>0),
+ans:ode1solve(eqn:kamke1[192],y,x),
+forget(x>1,(x-1)*(x+1)>0),
+pt_(192),ans);
+[y = -((a^2*log(sqrt(a^2)/(sqrt(x^2+a^2)+x))-%c)/(sqrt(x^2+a^2)+x))];
+/*[y = (a^2*log(sqrt(x^2+a^2)+x)-a^2*log(abs(a))+%c)/(sqrt(x^2+a^2)+x)];*/
+/*
+[y = %e^-asinh(x/abs(a))*(('integrate(sqrt(x^2+a^2),x))/a
+     -('integrate(x^2/sqrt(x^2+a^2),x))/abs(a)
+     +(a-abs(a))*x^2/(2*a*abs(a))+%c)];*/
+
+/*  193  */
+(pn_(193),ans:ode1solve(eqn:kamke1[193],y,x),
+pt_(193),ans);
+[y = (a*x*log(x)+%c)/log(x)];
+/*[y = %c/log(x)+a*x];*/
+/*[y=(a*(x*log(x)-x)+a*x+%c)/log(x)];*/
+
+/*  194  */ 
+(pn_(194),ans:ode1solve(eqn:kamke1[194],y,x),
+pt_(194),ans);
+[y = -(log(x)*(log(x)^2-2*%c))/(log(x)^2-2*%c-2)];
+/*[y=-((%c*log(x)^3+(2*%c+2)*log(x))/(%c*log(x)^2+2))];*/
+
+/*  195  */ 
+/* nijso: do not know how to set assumptions such that it will pass the question*/
+/* could we get rid of this assumption..?*/
+/* also get rid of abs values...*/
+
+(pn_(195),
+assume(8*cos(2*x)-9*sin(x)*sin(x)-8>0),
+ans:ode1solve(eqn:kamke1[195],y,x),
+forget(8*cos(2*x)-9*sin(x)*sin(x)-8>0),
+pt_(195),ans);
+[y=-((4*%e^(5*x)-%c)/((%e^(5*x)+%c)*sin(x)))];
+
+/*  196  */ 
+(pn_(196),ans:ode1solve(eqn:kamke1[196],y,x),
+pt_(196),ans);
+[y = %c*sqrt(sin(x)-1)/sqrt(sin(x)+1)-sqrt(sin(x)-1)*('integrate(sin(x)*sqrt(sin(x)+1)/sqrt(sin(x)-1),x)+'integrate(sqrt(sin(x)+1)/sqrt(sin(x)-1),x))/sqrt(sin(x)+1)];
+
+/*  197  */ 
+(pn_(197),ans:ode1solve(eqn:kamke1[197],y,x,'returnExplicit=false),
+pt_(197),ans);
+[(sec(x)^3*((sin(3*x)+3*sin(x))*y^3+2))/y^3 = %c];
+/*
+[y = -((sqrt(3)*%i-1)*sec(x))/(4^(1/3)*(sec(x)^3*sin(3*x)+3*sec(x)^3*sin(x)-6*%c)^(1/3)),
+ y = ((sqrt(3)*%i+1)*sec(x))/(4^(1/3)*(sec(x)^3*sin(3*x)+3*sec(x)^3*sin(x)-6*%c)^(1/3)),
+ y = -(2^(1/3)*sec(x))/(sec(x)^3*sin(3*x)+3*sec(x)^3*sin(x)-6*%c)^(1/3)];
+*/
+/*[y=1/(cos(x)*(%c-3*(tan(x)^3/3+tan(x)))^(1/3))];*/
+
+/*  198  */
+(pn_(198),ans:ode1solve(eqn:kamke1[198],y,x),
+pt_(198),ans);
+[y = -((cos(x)-%c)*tan(x))];
+/*[y = %c*sin(x)/(sqrt(sin(x)-1)*sqrt(sin(x)+1))-sin(x)];*/
+
+/*  199  - also Murphy 1.129 */ 
+(pn_(199),ans:ode1solve(eqn:kamke1[199],y,x),
+pt_(199),ans);
+[y = acot(%c*tan(x))];
+
+/*  200  */ 
+(pn_(200),ans:ode1solve(eqn:kamke1[200],y,x),
+pt_(200),ans);
+[y = -((2*A*a*x*sin(2*x)+A*a*cos(2*x)+((-4*A*c)-2*A*a)*x^2-%c)/(4*(a*cos(2*x)-2*b-a)))];
+/*[y = -((2*A*a*x*sin(2*x)+A*a*cos(2*x)-4*A*c*x^2-2*A*a*x^2-%c)/(4*(a*cos(2*x)-2*b-a)))];*/
+/*[y = (%c-(c*x^2/2-a*(2*x*sin(2*x)+cos(2*x)-2*x^2)/8)*A)/(a*sin(x)^2+b)];*/
+
+
+(print("timings: ",timer,", total=",lsum(i,i,makelist(timer[i][2],i,1,length(timer)))),true);
+true;
