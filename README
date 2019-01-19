@@ -15,4 +15,5 @@ References:
   Pages 105-108 
 [3] Jerald J. Kovacic, An algorithm for solving second order linear homogeneous differential equations, Journal of Symbolic Computation, v.2 n.1, p.3-43, March 1986 
 
-
+ode1_lie.mac
+Solves first order ODEs using Lie point symmetries, using the algorithms developed by Cheb-Terrab and coworkers
