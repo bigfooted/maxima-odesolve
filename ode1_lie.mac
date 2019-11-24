@@ -16,29 +16,11 @@
 /* ***** F. Schwarz - Abel ode paper(moved to ode1_abel.mac)            ***** */ 
 /* ************************************************************************** */
 
-batch("/home/nijso/mathematics/maxima_files/separable.mac");
-batch("/home/nijso/mathematics/maxima_files/ode_extra.mac");
-batch("/home/nijso/mathematics/maxima_files/ode1_abel.mac");
+batch("separable.mac");
+batch("ode_extra.mac");
+batch("ode1_abel.mac");
 
-/* will help when we have more complicated implicit functions with lambert_w solutions for instance */
-/*load(to_poly_solve);*/
-/* set domain to complex, so sqrt(x^2) is not simplified to abs(x). This will prevent some expressions to be 
-   converted into expressions containing atan() or %i  */
-/* leads to problems for some ode's*/
-/*domain:complex;*/
-/* leads to issues.. */
-/*logarc : true$*/
-/* TODO: 
-   return implicit solution when more than one solution is found
-
-   check if previous dependencies are preserved
-   check if expressions with dependencies will work
-   check if y(x) will work 
-   do not check if the symmetry is valid all the time. 
-
-*/
-/* ************************************************************************** */
-
+/* we need pdiff for integrals that contain derivative functions */
 load(pdiff)$
 use_pdiff:true$
 
@@ -48,8 +30,6 @@ put('ode1_Lie,003,'version)$
 
 /* ***** First, we set some global variables                            ***** */
 load(lrats)$
-/* ***** ode solver method used, set after finishing the computation    ***** */
-method : "none"$
 /* ***** reason for failure, set when returning unsuccessfully          ***** */
 reason : "none"$
 /* ***** print all statements with flag lower than DEBUGFLAG           ***** */
@@ -57,7 +37,8 @@ DEBUGFLAG:2$ /* default: 2, values 0..5 */
 /* RULES for printing messages                   */
 /* DEBUGFLAG=0 : fatal errors                    */
 /* DEBUGFLAG=1 : warnings                        */
-/* DEBUGFLAG=2 : main results                    */
+/* DEBUGFLAG=2 : main results:                   */
+/*               routines/methods used and result*/
 /* DEBUGFLAG=3 : additional intermediate results */
 /* DEBUGFLAG=4 : intermediate evaluation outputs */
 /* DEBUGFLAG=5 : intermediate evaluation outputs, least important, lot of output */
@@ -106,7 +87,8 @@ ODEMETHODS:["all",
             "symmetry5","muc", /* method of undetermined coefficients */
             "symmetry6"]$
 
-/* list of the methods used when 'all' is selected. They are used in the order listed*/
+/* list of the solver methods used when 'all' is selected. They are used in the order listed*/
+/* if tryInverse=true then the solver is executed for the inverse-ode immediately after the regular ode*/
 ALLMETHODSUSED:[
             "separable",
             "exact",
@@ -127,7 +109,6 @@ free_of(_x,_expr):=(block[_substlist],
     _expr : subst(substlist,_expr),
     return(freeof(_x,_expr))
 )$
-
 
 
 /* we can have y= ax + b, with a and b zero */
@@ -154,7 +135,7 @@ defmatch (cplusfxy, _C1 + _fxy, _x,_y);
 matchdeclare(_p1,lambda([_e1],_e1#0),_p2,lambda([_e3],_e3#0),_q2,lambda([_e4],_e4#1));
 defmatch(sqrtOfFraction,_p1*sqrt(_p2/_q2));
 
-/* *some global variables*/
+/* some global variables*/
 _varlist : []; /* */
 _udf_args : []; /* */
 
@@ -165,12 +146,6 @@ ode1Symmetries(_ode,_y,_x):=       ode1solve(_ode,_y,_x,'returnSymmetries=true, 
 ode1IntegratingFactor(_ode,_y,_x):=ode1solve(_ode,_y,_x,'returnSymmetries=false,'returnIntegratingFactor=true, 'returnSolution=false)$
 /* shortcut that returns only solutions */
 ode1Solution(_ode,_y,_x):=         ode1solve(_ode,_y,_x,'returnSymmetries=false,'returnIntegratingFactor=false,'returnSolution=true )$
-
-/* check if an expression has a negative sign */
-hasNegativeSign(expr):=block([],
-  if atom(expr) then return(false),
-  if (op(expr)="-") then return(true) else return(false)
-)$
 
 /* ************************************************************************** */
 /* ***** MAIN ROUTINE                                                   ***** */
@@ -207,7 +182,7 @@ ode1solve(_ode,_y,_x,[options]) := block(
   _returnSolution,          /* local boolean. true: return solution of ode. false: do not return solution of ode. */
   _odeCanonical],
 
-
+  /* the options for ode1solve */
   _returnSymmetries       : assoc('returnSymmetries,options,returnSymmetries),               /* if true, compute symmetries X and return [X]=[[xi,eta]] */
   _returnIntegratingFactor: assoc('returnIntegratingFactor,options,returnIntegratingFactor), /* if true, compute X and integrating factor mu, return [[mu]] */
   _returnSolution         : assoc('returnSolution,options,returnSolution),                   /* if true, compute X, mu and solution and return [solution] */
@@ -240,7 +215,7 @@ ode1solve(_ode,_y,_x,[options]) := block(
   /*exptdispflag : true,  */    /* if true, writes exponents with negative powers as quotients (true=default)  */
   ratsimpexpons: true,          /* if true, ratsimp will also simplify exponents */
   linsolvewarn:false,           /* if false, suppresses warning messages from linsolve (dependent equations eliminated) */
-  method:"none",
+  method:"none",                /* method used for solving the ODE (when successful) */
 
   if useCanonical=false and _tryInverse=true then (
     dprint(1,"warning: not looking for inverse-symmetries because canonical ode is off"),
@@ -358,18 +333,8 @@ ode1solve(_ode,_y,_x,[options]) := block(
     dprint(3,"simplifying symmetries, found a common constant: ",_gcd),
     /* we need ratsimp because greatest_common_divisor can return the gcd of a different X*/
     if (_gcd#0) then (_xi:ratsimp(_xi/_gcd),_eta:ratsimp(_eta/_gcd)),
-    dprint(2,"simplified [xi,eta]=[",_xi,",",_eta,"]"),
-  dprint(5,"2. udf_op = ",_udf_op), 
-
-    /* do not check result to save time*/
-    /* we check results after we have modified the symmetry*/
-    /*
-    if CHECKSYM then (
-      dprint(2,"checking if it is truly a symmetry:"),
-      isit : is(checkSymmetries([_xi,_eta],_ode_depform,_y,_x)=0),
-      dprint(2,"symmetry=",isit)
-    ), 
-    */
+    dprint(2,"simplified (1) [xi,eta]=[",_xi,",",_eta,"]"),
+    dprint(5,"2. udf_op = ",_udf_op), 
 
     /* ************************************** */
     /* often as symmetry with abs(x) has also a symmetry with x */
@@ -378,12 +343,6 @@ ode1solve(_ode,_y,_x,[options]) := block(
     _gcd : gcd(_xi,_eta),
     dprint(3,"simplifying symmetries, found a common constant: ",_gcd),
     if not freeof(abs,_gcd) then (
-/*      if op(_gcd)=abs then (
-        _xi : simplify( _xi*_gcd/args(_gcd)[1]), 
-       _eta : simplify(_eta*_gcd/args(_gcd)[1])
-      )
-      else (*/
-
         _absP : num(_gcd),
         _absQ : denom(_gcd),
         if not atom(_absP) then (
@@ -395,8 +354,7 @@ ode1solve(_ode,_y,_x,[options]) := block(
         if freeof(abs(_x),_absP) then (dprint(4,"case 3"),_xi:simplify(_xi*_x/abs(_x)),_eta:_eta*_x/abs(_x))
         else
         if freeof(abs(_x),_absQ) then (dprint(4,"case 4"),_xi:simplify(_xi*abs(_x)/_x),_eta:_eta*abs(_x)/_x),
-/*      ),*/
-      dprint(3,"simplified [xi,eta]=[",_xi,",",_eta,"]"),
+      dprint(3,"simplified (2) [xi,eta]=[",_xi,",",_eta,"]"),
       _X : [_xi,_eta],
 
      /* second check if the first one fails */
@@ -411,35 +369,11 @@ ode1solve(_ode,_y,_x,[options]) := block(
        isit : is(checkSymmetries([_xi,_eta],_ode_depform,_y,_x)=0), 
        if isit then _X:[_xi,_eta]
      ),
-      dprint(4,"simplified [xi,eta]=[",_xi,",",_eta,"]")
-
-/*
-      dprint(1,"gcd with abs, trying to get rid of it... (check your answer!)"),
-      arg_gcd : args(_gcd),
-      op_gcd : op(_gcd),
-      dprint(5,"arg_gcd: ",arg_gcd),
-      dprint(5,"op_gcd: ",op_gcd),
-      if op_gcd # abs then (
-        dprint(1,"warning: operator is not abs, checking if rational"),
-        op_gcd : op(arg_gcd[2]),
-        arg_gcd : 1/args(arg_gcd[2]),
-        dprint(5,"arg_gcd: ",arg_gcd),
-        dprint(5,"op_gcd: ",op_gcd),
-        if op_gcd#abs then dprint(1,"warning: could not remove abs !!!!!")
-      ),
-      if length(arg_gcd)=1 then (
-        dprint(5,"abs term: ",_gcd),
-        dprint(5,"no-abs term: ",arg_gcd),
-        _xi : simplify(_xi*_gcd/arg_gcd[1]),
-        _eta : simplify(_eta*_gcd/arg_gcd[1]),
-        _X : [_xi,_eta],
-      dprint(4,"simplified [xi,eta]=[",_xi,",",_eta,"]")
-      )else (dprint(1,"warning: abs term with more than one argument, cannot simplify!"))
-*/
-
+      dprint(4,"simplified (3) [xi,eta]=[",_xi,",",_eta,"]")
     ), 
     /* **************************************** */
-  dprint(5,"udf_op = ",_udf_op), 
+    dprint(5,"udf_op = ",_udf_op), 
+    dprint(2,"simplified (4) [xi,eta]=[",_xi,",",_eta,"]"),
 
     /* do not check result to save time*/
     if CHECKSYM then (
@@ -1970,6 +1904,15 @@ findSymmetries(_Q,_P,_y,_x,[options]):= block([_xi,_eta,_rhs,linearconstants,_fr
       if (simplify(_xi*_Q-_eta*_P)#0) then return([_xi,_eta])
     )
     /* TODO we should also test the original ode for exactness (not written in the form y'=f(x,y) but a(x,y)y'=b(x,y)) */
+    /* note that eq. 1.248, 1.251 is exact */
+    /* we can extend this by testing if the ode is exact when it is:
+       multiplied or divided by x (kamke 1.246 is exact when multiplied by x)
+       multiplied or divided by y (e.g. kamke 1.340 is exact when multiplied by y)
+       in general we could do a test to see if multiplication by x^a * y^b leads to an exact ode for integer a,b
+       e.g. kamke1.344 divided by y^2 is exact
+       also, multiplication or division by x^2+y^2 sometimes leads to exact ODE
+       
+    */
   ), 
 
 
@@ -2529,7 +2472,6 @@ findSymmetries(_Q,_P,_y,_x,[options]):= block([_xi,_eta,_rhs,linearconstants,_fr
       )
     )
 
-
     /* maybe first try symmetries of the form [A/B,P/Q] */
     /* we can try again, with a rational polynomial */ 
     /* first we try a search for symmetries where the denominator of phi is also the denominator of eta (and we assume xi=0)*/
@@ -2537,7 +2479,6 @@ findSymmetries(_Q,_P,_y,_x,[options]):= block([_xi,_eta,_rhs,linearconstants,_fr
        
 
   ),
-
 
 
   dprint(5,"end of Lie symmetry search"),
@@ -2718,13 +2659,7 @@ ode1_SimpleSymmetries(_phi,_y,_x,[options]):=block([_S,_F,_G,_H,_xi,_eta,_expr,_
 
 return(false)
 )$
-
-
-/* ************************************************************************* */
-/* ***** print expr only when flag<DEBUGFLAG                           ***** */
-/* ************************************************************************* */
-dprint(flag,[expr])::= if flag <= DEBUGFLAG then buildq ([expr], print (splice (expr)));
-/* ************************************************************************* */
+/* ************************************************************************** */
 
 
 /* ************************************************************************* */
@@ -3510,27 +3445,12 @@ differentialInvariants(_X,_y,_x):=block([_eta,_xi,dy,_eta1,sol],
 /* try to put riccati ode into normal form y'=a(x)*y^2 + b(x)*y + 1 */
 /* ************************************************************************** */
 riccati_RNF(_ode,_y,_x):=block([_phi,_C,_odenew,_u,_t],
-  /* step 1: check if input is a riccati ode */
-/* 
-  _phi:rhs(solve(_ode,'diff(_y,_x))[1]), 
-  dprint(5,"phi=",_phi),
-  _C:riccatip(ratexpand(_phi),_y),
-  dprint(5,"coefs=",_C),
-  depends(_u,_t),
-  _odenew:subst([_x=_t,_y=exp(integrate(subst(_x=_t,_f1),_t))*_u],_ode),
-  _odenew:ev(_odenew,nouns),
-  _odenew:ratexpand(solve(_odenew,diff(_u,_t))[1]),
-  kill(_u,dependency), 
-  dprint(5,"final:odenew=",_odenew)
-*/
-
   _phi:rhs(solve(_ode,'diff(_y,_x))[1]), 
   dprint(5,"phi=",_phi),
   _C:riccatip(ratexpand(_phi),_y),
   dprint(5,"coeffs=",_C),
   depends(_u,_t),
   _odenew:subst([_x=_t,_y=_u*subst(_x=_t,_f0)],_ode),
-  /*_odenew:subst(u=u/_f2,odenew),*/
   _odenew:ev(_odenew,nouns),
   kill(_u,dependency), 
   _odenew:ratexpand(solve(_odenew,diff(_u,_t))[1])
