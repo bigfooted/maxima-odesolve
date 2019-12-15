@@ -38,7 +38,6 @@ DEBUGFLAG:2$
 /* we need 8000 for kamke1.51 */
 /* we need 29000 for kamke1.200 */
 MAX_LENGTH_FOR_SEPARABILITY:16000$
-MAX_LENGTH_FOR_SIMPLIFICATION:30000$
 
 ratfac:true$
 radsubstflag:true$
@@ -164,8 +163,8 @@ separable(_F,_x,_y,[options]) :=block([_F1,_C,_dF,_S,_f:[],_g:[],_P,_Q,_ratvars,
     _L:sublist(_L,lambda([i],not freeof(_x,i) and not freeof(_y,i) )),  
     _L:sublist(_L,lambda([i],op(i[1])="+")), 
     if _L # [] then (
-      dprint(5,"unseparable function found: sqrt(f(x) + f(y))"),
-      return(false)
+      dprint(2,"unseparable function found: sqrt(f(x) + f(y))")
+      /*return(false)*/
     ),
 
     /* now check if we have sin(x*y) or cos(x*y) */
@@ -174,7 +173,7 @@ separable(_F,_x,_y,[options]) :=block([_F1,_C,_dF,_S,_f:[],_g:[],_P,_Q,_ratvars,
     _L:sublist(_L,lambda([i],not freeof(_x,i) and not freeof(_y,i) )),  
     _L:sublist(_L,lambda([i],i[1]=_x*_y)), /* only check for sin(x*y) or cos(x*y)*/ 
     if _L # [] then (
-      dprint(5,"unseparable function found: sin(x*y) or cos(x*y)"),
+      dprint(2,"unseparable function found: sin(x*y) or cos(x*y)"),
       return(false)
     ),
 

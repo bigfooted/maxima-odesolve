@@ -1,4 +1,5 @@
 DEBUGFLAG : 1$
+MAX_LENGTH_FOR_SIMPLIFICATION:30000$
 /* ************************************************************************* */
 /* ***** print expr only when flag<DEBUGFLAG                           ***** */
 /* ************************************************************************* */
@@ -76,6 +77,8 @@ udf(_f):=not(stringp(op(_f))) and (symbolp(op(_f))) and simplifyingp(op(_f)) and
 udfGeneral(_f):=not(stringp(op(_f))) and (symbolp(op(_f))) and not ?fboundp(op(_f)) and not(op(_f)=op(diff(__f1(__x),__x)))$
 
 listGDF(_expr,_y,_x):= block( [ _counter:0,listGDF:[]],
+
+        
         listGDFPriv (_expr, _y,_x, []),
         return(unique(listGDF))
 )$
@@ -201,7 +204,7 @@ nrOpsPriv(_expression, _opList) :=
 /* ************************************************************************** */
 
 /* ************************************************************************** */
-simplify(_S):=block([_N,_Nnew,_Snew,_ratvars,_lS,_isimaginary:false,_oldradexpand],
+simplify(_S):=block([_N,_Nnew,_Snew,_ratvars,_lS,_isimaginary:false,_oldradexpand,_N0,_S0],
   dprint(5,"simplify::START, S=",grind(_S)),
   dprint(6,"dependencies = ",dependencies),
 
@@ -211,19 +214,27 @@ simplify(_S):=block([_N,_Nnew,_Snew,_ratvars,_lS,_isimaginary:false,_oldradexpan
 
   /* simplify unfactored subexpressions like sqrt(f+g)/(fg+g^2) -> 1/sqrt(f+g) that are not factored */
   /* try to evaluate nouns */
-  _S : ev(_S,nouns),
+
+  _N0 : slength(string(_S)),
+  _N : _N0,
+  _S0 : _S,
+  _Snew : ev(_S,nouns),
+  _Nnew:slength(string(_Snew)),
+  if (_Nnew < 2.0*_N) then (_S : _Snew, _N : slength(string(_S))),
+   
+
   dprint(6,"simplify:: S=",grind(_S)),
   if not freeof(%i,_S) then _isimaginary:true,
 
   if not freeof(%i,_S) then (
-    dprint(1,"warning, trying to get rid of imaginary numbers, check the result:",_S),
+    dprint(2,"trying to get rid of imaginary numbers, check the result:",_S),
     /*_S : rectform(_S),*/
     /* for instance kamke 1.89*/
     _Snew : rootscontract(logarc(rootscontract(_S))),
     /* sometimes the imaginary number is only in the integration constant... */
     if (freeof(%c,subst(%i*%c = %k,_Snew))) then _Snew : subst(%i*%c=%c,_Snew),
     if freeof(%i,_Snew) then (_S : _Snew, _isimaginary:false, print("got rid of imaginary numbers...")),
-    dprint(1,"warning, trying to get rid of imaginary numbers, check the result:",_S)
+    dprint(2,"trying to get rid of imaginary numbers, check the result:",_S)
   ),
 
 
@@ -245,7 +256,7 @@ simplify(_S):=block([_N,_Nnew,_Snew,_ratvars,_lS,_isimaginary:false,_oldradexpan
   _Nnew : slength(string(_Snew)),
   dprint(6,"   N,Nnew = ",_N," ",_Nnew),  
   if _isimaginary=false and not freeof(%i,_Snew) then (
-    dprint(1,"warning: simplification introduced complex numers, ignoring fullratsimp-simplification")
+    dprint(2,"simplification introduced complex numers, ignoring fullratsimp-simplification")
   ) else if _Nnew < 2.0*_N then (_S : _Snew, _N : slength(string(_S))),
 
 
@@ -294,7 +305,7 @@ simplify(_S):=block([_N,_Nnew,_Snew,_ratvars,_lS,_isimaginary:false,_oldradexpan
 
 
     if _isimaginary=false and not freeof(%i,_Snew) then (
-      dprint(1,"warning: simplification introduced complex numers, ignoring trig-simplification")
+      dprint(2,"simplification introduced complex numers, ignoring trig-simplification")
     ) else if _Nnew < 2.0*_N then (_S : _Strig, _N : slength(string(_S)))
     /*if _Nnew < 1.4*_N then (_S : _Snew, _N : slength(string(_S)))*/
   ),
@@ -317,7 +328,7 @@ simplify(_S):=block([_N,_Nnew,_Snew,_ratvars,_lS,_isimaginary:false,_oldradexpan
     dprint(6,"sqrt: ",_Snew),
     dprint(6,"sqrt   N,Nnew = ",_N," ",_Nnew),  
     if _isimaginary=false and not freeof(%i,_Snew) then (
-      dprint(1,"warning: simplification introduced complex numers, ignoring sqrt-simplification")
+      dprint(2,"simplification introduced complex numers, ignoring sqrt-simplification")
     ) else 
     
     if _Nnew < 2.0*_N then (_S : _Snew, _N : slength(string(_S)))
@@ -334,18 +345,74 @@ simplify(_S):=block([_N,_Nnew,_Snew,_ratvars,_lS,_isimaginary:false,_oldradexpan
     dprint(6,"log   N,Nnew = ",_N," ",_Nnew),  
     
     if _isimaginary=false and not freeof(%i,_Snew) then (
-      dprint(1,"warning: simplification introduced complex numers, ignoring sqrt-simplification")
+      dprint(2,"simplification introduced complex numers, ignoring radcan-simplification")
     ) else  
-    
-    if _Nnew < 2.0*_N then (_S : _Snew, _N : slength(string(_S)))
+    if (_Nnew < 2.0*_N) then (_S : _Snew, _N : slength(string(_S)))
   ),
 
   /* should we always return a factored result? */
 
   dprint(5,"simplify::END, S=",grind(_S)),
   if freeof('integrate,_S) then (use_pdiff:true, _S:ev(_S,diff)),
+  dprint(5,"returning from simplify"),
   
-  /* we return a ratsimped result with the idea that ratsimp will always be 'not worse' */
-  return(_S)
+  /* the main criteria are that the simplified expression should have a smaller termcount */
+  if (_N<2.0*_N0) then return(_S) else return(_S0)
+
 )$
 /* ************************************************************************** */
+
+/* simplify the symmetries X=[xi,eta] */
+simplifySymmetry(_X,_x,_y):=block([_xi,_eta,_gcd,_absP,_absQ],
+
+    _xi : _X[1],
+    _eta : _X[2],
+    dprint(3,"simplifySymmetry: initial symmetry [xi,eta]=[",_xi,",",_eta,"]"),
+
+    /* if the symmetries have the form [%i*xi,%i*eta] or even [a*xi,a*eta] then we can simplify to [xi,eta] */
+    /* so we check if xi,eta have a common constant factor */
+    _xi : simplify(_xi),
+    _eta : simplify(_eta),
+    dprint(4,"simplified [xi,eta]=[",_xi,",",_eta,"]"),
+    _gcd : greatest_constant_divisor(_xi,_eta,[_x,_y]),
+    dprint(4,"simplifying symmetries, found a common constant: ",_gcd),
+    /* we need ratsimp because greatest_common_divisor can return the gcd of a different X*/
+    if (_gcd#0) then (_xi:ratsimp(_xi/_gcd),_eta:ratsimp(_eta/_gcd)),
+    dprint(4,"simplified symmetry (1) : [xi,eta]=[",_xi,",",_eta,"]"),
+
+    /* ************************************** */
+    /* often as symmetry with abs(x) has also a symmetry with x */
+    /* we are simplifying abs here. abs leads to huge delays in obtaining the solution. */
+    /* when the gcd is of the form P/Q, we assume that either P or Q has abs(_x)*/
+    _gcd : gcd(_xi,_eta),
+    dprint(4,"simplifying symmetries, found a common constant: ",_gcd),
+    if not freeof(abs,_gcd) then (
+        _absP : num(_gcd),
+        _absQ : denom(_gcd),
+        if not atom(_absP) then (
+          if op(_absP)=abs then (dprint(4,"case 1"),_xi : simplify( _xi*_absP/args(_absP)[1]), _eta : simplify(_eta*_absP/args(_absP)[1])))
+        else 
+        if not atom(_absQ) then (
+          if op(_absQ)=abs then (dprint(4,"case 2"),_xi : simplify( _xi*args(_absQ)[1]/_absQ), _eta : simplify(_eta*args(_absQ)[1]/_absQ)))
+        else
+        if freeof(abs(_x),_absP) then (dprint(4,"case 3"),_xi:simplify(_xi*_x/abs(_x)),_eta:_eta*_x/abs(_x))
+        else
+        if freeof(abs(_x),_absQ) then (dprint(4,"case 4"),_xi:simplify(_xi*abs(_x)/_x),_eta:_eta*abs(_x)/_x),
+      dprint(4,"simplified symmetry (2) [xi,eta]=[",_xi,",",_eta,"]")
+     ),
+     /* second check if the first one fails */
+     if not freeof(abs(_x),_xi) and not freeof(abs(_x),_eta) then (
+       [_xi,_eta] : subst(abs(_x)=_x,[_xi,_eta])
+       /*isit : is(checkSymmetries([_xi,_eta],_ode_depform,_y,_x)=0), */
+       /*if isit then _X:[_xi,_eta]*/
+     ),
+     /* second check if the first one fails */
+     if not freeof(abs(_y),_X[1]) and not freeof(abs(_y),_X[2]) then (
+       [_xi,_eta] : subst(abs(_y)=_y,[_xi,_eta])
+       /*isit : is(checkSymmetries([_xi,_eta],_ode_depform,_y,_x)=0), */
+       /*if isit then _X:[_xi,_eta]*/
+     ),
+
+  dprint(3,"simplifySymmetry: simplified symmetry [xi,eta]=[",_xi,",",_eta,"]"),
+  return([_xi,_eta])
+)$
